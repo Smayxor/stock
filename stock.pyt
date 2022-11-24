@@ -1,12 +1,12 @@
 from tkinter import *
 from PIL import Image, ImageTk
 from datetime import date
+from datetime import datetime as dt
 import datetime
 import time
 import requests
 import json
 import math
-#import yaml
 
 #import pandas as pd
 #import numpy as np
@@ -15,7 +15,10 @@ import math
 #import matplotlib.pyplot as plt
 
 #************************************************************
-MY_API_KEY = ''   #Get API Key from TDA Developer Account new App,  place in file apikey.json  {"API_KEY": "your-key-here"}
+#Get API Key from TDA Developer Account new App,  place in file apikey.json  {"API_KEY": "your-key-here"}
+f = open('apikey.json')
+data = json.load(f)
+MY_API_KEY = data['API_KEY']
 #************************************************************
 
 vix_endpoint = "https://api.tdameritrade.com/v1/marketdata/%24VIX.X/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
@@ -28,10 +31,17 @@ DEX = {}
 VEX = {}
 Volas = {}
 Pain = {}
+ExpectedMove = 0.0
 
 def isThirdFriday(d):
     return d.weekday() == 4 and 15 <= d.day <= 21
-    
+
+dn = datetime.datetime.now()
+dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
+def daysFromNow(days):
+    delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
+    return delta.days + 1
+ 
 # Black-Scholes European-Options Gamma
 def calcGammaEx(S, K, vol, T, r, q, optType, OI):
     if T == 0 or vol == 0:
@@ -47,9 +57,10 @@ def calcGammaEx(S, K, vol, T, r, q, optType, OI):
         gamma = K * np.exp(-r*T) * norm.pdf(dm) / (S * S * vol * np.sqrt(T))
         return OI * 100 * S * S * 0.01 * gamma 
 
-def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid):
+def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days):
+    global ExpectedMove, GEX, DEX, VEX, Volas, Pain
     try:
-        if not strike in GEX:
+        if not strike in GEX:   #Prevents NaN values
             GEX[strike] = 0
             DEX[strike] = 0
             VEX[strike] = 0
@@ -62,19 +73,24 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
         #Volas[strike] = volatility
         if (call == 1):
             Volas[strike] += (gamma * oi)
-        if (itm): Pain[strike] += abs(price - strike) * oi
+        if (itm): Pain[strike] += oi
 
-#Volas[options["strikePrice"]] = price * (options["volatility"] / 100) * math.sqrt(options['daysToExpiration'] / 365)
+        em = 0
+        if (strike - int(price)) == 0 : em = volatility * math.sqrt(days / 365)
+        if em > ExpectedMove: ExpectedMove = em   #Each date should land on this strike, keep the biggest one
+#Expected Move = Stock Price x (Implied Volatility / 100) x square root of (Days to Expiration / 365)   # performing price * / 100 later to split % from $
     except TypeError:
         a = 1
 
 def stock_price():
+    global ExpectedMove, GEX, DEX, VEX, Volas, Pain
     GEX.clear()
     DEX.clear()
     VEX.clear()
     Volas.clear()
     Pain.clear()
-    
+    ExpectedMove = 0.0
+
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
     today = date.today()
     if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)
@@ -87,7 +103,7 @@ def stock_price():
     price = content['underlyingPrice']
 
 #Force method to return results if DateRange is too small for stock to have options.  increment days until it works     
-    if (content['status'] in'FAILED') and (int(e2.get()) < 30):
+    if (content['status'] in 'FAILED') and (int(e2.get()) < 30):
         days = int(e2.get()) + 1
         e2.delete(0, END)
         e2.insert(0, str(days))
@@ -97,7 +113,7 @@ def stock_price():
 #Load the data from JSON
     for days in content['callExpDateMap']: 
         for strikes in content['callExpDateMap'][days]:
-            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'])
+            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days))
             for options in content['callExpDateMap'][days][strikes]: addData(options)
             for options in content['putExpDateMap'][days][strikes]: addData(options)
 
@@ -108,9 +124,9 @@ def stock_price():
         if Pain[strikes] > maxPain: 
             maxPain = Pain[strikes]
             painStrike = strikes
-    for strikes in Pain:
-        Pain[strikes] = maxPain - Pain[strikes]            
-    print(painStrike)
+#    for strikes in Pain:
+#        Pain[strikes] = maxPain - Pain[strikes]            
+#    print(painStrike)
 
 #Draw the chart
     canvas.delete('all')
@@ -120,7 +136,6 @@ def stock_price():
         if (GEX[strikes] != 0): canvas.create_rectangle(x, (200 - abs(GEX[strikes] / 20)), x + 9, 200, fill=("#0f0" if (GEX[strikes] > -1) else "#f00"), outline='')
         if (DEX[strikes] != 0): canvas.create_rectangle(x + 2, (200 - abs(DEX[strikes] / 200)), x + 6, 200, fill=("#077" if (DEX[strikes] > -1) else "#f77"), outline='')
         if (Volas[strikes] != 0): canvas.create_rectangle(x, 280, x + 9, 280 + abs(Volas[strikes] / 20), fill=("#0f0" if (Volas[strikes] > -1) else "#f00"), outline='')
-
         if (Pain[strikes] != 0): canvas.create_rectangle(x, 30, x + 9, 30 + (abs(Pain[strikes] / maxPain) * 50), fill="#00f", outline='')
         canvas.create_text(x, 200, anchor=NW, font="Purisa", text=('\n'.join(str(strikes).replace('.0', ''))))
 
@@ -129,13 +144,9 @@ def stock_price():
     for strikes in GEX:
         total_gamma += GEX[strikes]
     total_gamma = total_gamma / price
-#    print(total_gamma)
+    print('TotalGamma', total_gamma)
 #    print(Pain)
-    
-#Expected Move = Stock Price x (Implied Volatility / 100) x square root of (Days to Expiration / 365)
-#At-The-Money-Straddle. Look up the option chain and simply add together the price of the At-The-Money Put option with the At-The-Money Call option.
 
-    
 #Get company fundamentals
     page = requests.get(url=fundamental_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name))
     content = json.loads(page.content)[ticker_name]["fundamental"]
@@ -147,23 +158,10 @@ def stock_price():
         canvas.create_text(x, y, anchor=NW, font="Purisa", text=keys + ": " + str(fundamentals[keys]) )
         y += 25
 
-
 # For every 16 points of VIX expect 1% move on SPY
-    ticker_price = content['symbol'] + ": $" + str(round(price, 2))
-    page = requests.get(url=vix_endpoint.format(api_key=MY_API_KEY))
-    content = json.loads(page.content)
-    vix = content['$VIX.X']['lastPrice']
-    x = vix / 16
-    price = round(price * (x / 100), 2)
-    vix = ticker_price + " VIX " + str(vix) + " Expected Move " + str(round(x, 2)) + "% $" + str(price)
-    canvas.create_text(0, 0, anchor=NW, font="Purisa", text=vix)
-    
+    canvas.create_text(0, 0, anchor=NW, font="Purisa", text=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))))
 
-
-
-
-
-
+#Under construction.  plans to add 10min chart
 def stock_chart():
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
     today = date.today()
@@ -177,14 +175,6 @@ def stock_chart():
     price = content['underlyingPrice']
     
     
-    
-    
-
-
-f = open('apikey.json')
-data = json.load(f)
-MY_API_KEY = data['API_KEY']
-
 win = Tk()
 win.geometry("800x500")
 

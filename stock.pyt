@@ -1,3 +1,5 @@
+#Version 1.1  Improved display of data on charts to scale with max values
+
 from tkinter import *
 from PIL import Image, ImageTk
 from datetime import date
@@ -117,27 +119,25 @@ def stock_price():
             for options in content['callExpDateMap'][days][strikes]: addData(options)
             for options in content['putExpDateMap'][days][strikes]: addData(options)
 
-#Max pain, needs some work
+#Get max GEX/DEX for math to draw chart
     maxPain = 0
-    painStrike = 0
-    for strikes in Pain:
-        if Pain[strikes] > maxPain: 
-            maxPain = Pain[strikes]
-            painStrike = strikes
-#    for strikes in Pain:
-#        Pain[strikes] = maxPain - Pain[strikes]            
-#    print(painStrike)
+    maxGEX = 0
+    maxDEX = 0
+    for strikes in GEX:
+        if abs(GEX[strikes]) > maxGEX: maxGEX = abs(GEX[strikes])
+        if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
+        if abs(Pain[strikes]) > maxPain: maxPain = abs(Pain[strikes])
 
 #Draw the chart
     canvas.delete('all')
     x = -10
     for strikes in sorted(GEX):
         x += 15
-        if (GEX[strikes] != 0): canvas.create_rectangle(x, (200 - abs(GEX[strikes] / 20)), x + 9, 200, fill=("#0f0" if (GEX[strikes] > -1) else "#f00"), outline='')
-        if (DEX[strikes] != 0): canvas.create_rectangle(x + 2, (200 - abs(DEX[strikes] / 200)), x + 6, 200, fill=("#077" if (DEX[strikes] > -1) else "#f77"), outline='')
-        if (Volas[strikes] != 0): canvas.create_rectangle(x, 280, x + 9, 280 + abs(Volas[strikes] / 20), fill=("#0f0" if (Volas[strikes] > -1) else "#f00"), outline='')
-        if (Pain[strikes] != 0): canvas.create_rectangle(x, 30, x + 9, 30 + (abs(Pain[strikes] / maxPain) * 50), fill="#00f", outline='')
-        canvas.create_text(x, 200, anchor=NW, font="Purisa", text=('\n'.join(str(strikes).replace('.0', ''))))
+        canvas.create_text(x, 235, anchor=NW, font="Purisa", text=('\n'.join(str(strikes).replace('.0', ''))))
+        if (Pain[strikes] != 0): canvas.create_rectangle(x, 30, x + 9, 30 + ((abs(Pain[strikes]) / maxPain) * 50), fill="#00f", outline='')
+        if (GEX[strikes] != 0): canvas.create_rectangle(x, 235 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 9, 235, fill=("#0f0" if (GEX[strikes] > -1) else "#f00"), outline='')
+        if (DEX[strikes] != 0): canvas.create_rectangle(x + 2, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 6, 235, fill=("#077" if (DEX[strikes] > -1) else "#f77"), outline='')
+        if (Volas[strikes] != 0): canvas.create_rectangle(x, 310, x + 9, 310 + abs(Volas[strikes] / 20), fill=("#0f0" if (Volas[strikes] > -1) else "#f00"), outline='')
 
 #experimental search for Zero Gamma
     total_gamma = 0

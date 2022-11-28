@@ -1,7 +1,6 @@
 #Version 1.1  Improved display of data on charts to scale with max values
 
 from tkinter import *
-from PIL import Image, ImageTk
 from datetime import date
 from datetime import datetime as dt
 import datetime
@@ -9,6 +8,7 @@ import time
 import requests
 import json
 import math
+import urllib.request as req
 
 #import pandas as pd
 #import numpy as np
@@ -17,12 +17,12 @@ import math
 #import matplotlib.pyplot as plt
 
 #************************************************************
-#Get API Key from TDA Developer Account new App,  place in file apikey.json  {"API_KEY": "your-key-here"}
-f = open('apikey.json')
-data = json.load(f)
-MY_API_KEY = data['API_KEY']
+#Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
+MY_API_KEY = json.load(open('apikey.json'))['API_KEY']
+#POLYGON_API_KEY = json.load(open('apikey.json'))['POLYGON']
 #************************************************************
 
+endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"
 vix_endpoint = "https://api.tdameritrade.com/v1/marketdata/%24VIX.X/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 options_endpoint = "https://api.tdameritrade.com/v1/marketdata/chains?apikey={api_key}&symbol={stock_ticker}&contractType=ALL&strikeCount={count}&range=NTM&fromDate={fromDate}&toDate={toDate}&optionType=ALL"
 fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_key}&symbol={stock_ticker}&projection=fundamental"
@@ -33,6 +33,9 @@ DEX = {}
 VEX = {}
 Volas = {}
 Pain = {}
+CallGEX = {}
+PutGEX = {}
+
 ExpectedMove = 0.0
 
 def isThirdFriday(d):
@@ -59,34 +62,57 @@ def calcGammaEx(S, K, vol, T, r, q, optType, OI):
         gamma = K * np.exp(-r*T) * norm.pdf(dm) / (S * S * vol * np.sqrt(T))
         return OI * 100 * S * S * 0.01 * gamma 
 
-def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days):
+def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days, spx):
     global ExpectedMove, GEX, DEX, VEX, Volas, Pain
+#    if spx == 1: strike = strike / 10
+#    if spx == 0: return
     try:
         if not strike in GEX:   #Prevents NaN values
             GEX[strike] = 0
+            CallGEX[strike] = 0
+            PutGEX[strike] = 0
             DEX[strike] = 0
             VEX[strike] = 0
             Volas[strike] = 0
             Pain[strike] = 0
+        if (oi == 0): return   #Delta and Gamma show up as -999.0
 
         GEX[strike] += (gamma * oi * call)
         DEX[strike] += (delta * oi)
         VEX[strike] = vega
-        #Volas[strike] = volatility
-        if (call == 1):
-            Volas[strike] += (gamma * oi)
-        if (itm): Pain[strike] += oi
+        Volas[strike] = volatility
 
+        if (call == 1):
+            CallGEX[strike] += (gamma * oi)
+#            if strike == 420: print(delta, gamma)
+        else:
+            PutGEX[strike] += (gamma * oi)
+#            if strike == 420: print(delta, gamma)
+        if (itm): Pain[strike] += oi
+        
         em = 0
         if (strike - int(price)) == 0 : em = volatility * math.sqrt(days / 365)
         if em > ExpectedMove: ExpectedMove = em   #Each date should land on this strike, keep the biggest one
 #Expected Move = Stock Price x (Implied Volatility / 100) x square root of (Days to Expiration / 365)   # performing price * / 100 later to split % from $
+
+#Vanna rally
+#Vanna measures the change in delta for a change in IV Options market makers are typically long vanna 
+#When IV crushes they must buy stock back to reduce their hedges 
+#This is what fuels “V” shape rallies that occur after large negative gamma induced market drawdowns.
+
+#This seems like a prescient time to talk about options vanna and a vanna type rally. Vanna measures the change in delta for a change in IV.
+#Long calls + short puts = Long Vanna
+#We view options market makers as typically long vanna. When volatility crushes they therefore must buy stock back to reduce their hedges. In our opinion this is what fuels “V” shape rallies that occur after large negative gamma induced market drawdowns.
+
+
     except TypeError:
         a = 1
 
 def stock_price():
     global ExpectedMove, GEX, DEX, VEX, Volas, Pain
     GEX.clear()
+    CallGEX.clear()
+    PutGEX.clear()
     DEX.clear()
     VEX.clear()
     Volas.clear()
@@ -95,9 +121,23 @@ def stock_price():
 
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
     today = date.today()
-    if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)
+    if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
     dateRange = today + datetime.timedelta(days=int(e2.get()))
     ticker_name = e1.get().upper()
+
+
+    """  Get SPX data and merge it all in to one chart
+    full_url = options_endpoint.format(api_key=MY_API_KEY, stock_ticker="$SPX.X", count='40', fromDate=today, toDate=dateRange)
+    page = requests.get(url=full_url)
+    content = json.loads(page.content)
+    price = content['underlyingPrice']
+#Load the data from JSON
+    for days in content['callExpDateMap']: 
+        for strikes in content['callExpDateMap'][days]:
+            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days), spx=1)
+            for options in content['callExpDateMap'][days][strikes]: addData(options)
+            for options in content['putExpDateMap'][days][strikes]: addData(options)
+    """
 
     full_url = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', fromDate=today, toDate=dateRange)
     page = requests.get(url=full_url)
@@ -112,19 +152,28 @@ def stock_price():
         stock_price()
         return
 
+    """  #Declaration For using pandas/numpy code.
+    dataColumns ={'ExpirationDate':'','Calls':'1','LastSale':'0','Net':'0','Bid':'0','Ask':'0','Vol':'0','IV':'0','Delta':'0','Gamma':'0','OpenInt':'0','StrikePrice':'0'}
+    df = pd.DataFrame(columns=dataColumns) """
 #Load the data from JSON
     for days in content['callExpDateMap']: 
         for strikes in content['callExpDateMap'][days]:
-            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days))
+            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days), spx=0)
             for options in content['callExpDateMap'][days][strikes]: addData(options)
             for options in content['putExpDateMap'][days][strikes]: addData(options)
+
+
+#************* Paste pandas/numpy code here ****************
 
 #Get max GEX/DEX for math to draw chart
     maxPain = 0
     maxGEX = 0
     maxDEX = 0
+    maxCPGEX = 0
     for strikes in GEX:
         if abs(GEX[strikes]) > maxGEX: maxGEX = abs(GEX[strikes])
+        if abs(CallGEX[strikes]) > maxCPGEX: maxCPGEX = abs(CallGEX[strikes])
+        if abs(PutGEX[strikes]) > maxCPGEX: maxCPGEX = abs(PutGEX[strikes])
         if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
         if abs(Pain[strikes]) > maxPain: maxPain = abs(Pain[strikes])
 
@@ -137,7 +186,8 @@ def stock_price():
         if (Pain[strikes] != 0): canvas.create_rectangle(x, 30, x + 9, 30 + ((abs(Pain[strikes]) / maxPain) * 50), fill="#00f", outline='')
         if (GEX[strikes] != 0): canvas.create_rectangle(x, 235 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 9, 235, fill=("#0f0" if (GEX[strikes] > -1) else "#f00"), outline='')
         if (DEX[strikes] != 0): canvas.create_rectangle(x + 2, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 6, 235, fill=("#077" if (DEX[strikes] > -1) else "#f77"), outline='')
-        if (Volas[strikes] != 0): canvas.create_rectangle(x, 310, x + 9, 310 + abs(Volas[strikes] / 20), fill=("#0f0" if (Volas[strikes] > -1) else "#f00"), outline='')
+        if (CallGEX[strikes] != 0): canvas.create_rectangle(x, 400 - ((CallGEX[strikes] / maxCPGEX) * 50), x + 9, 400, fill="#0f0", outline='')
+        if (PutGEX[strikes] != 0): canvas.create_rectangle(x, 400 + ((PutGEX[strikes] / maxCPGEX) * 50), x + 9, 400, fill="#f00", outline='')
 
 #experimental search for Zero Gamma
     total_gamma = 0
@@ -161,6 +211,11 @@ def stock_price():
 # For every 16 points of VIX expect 1% move on SPY
     canvas.create_text(0, 0, anchor=NW, font="Purisa", text=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))))
 
+    
+#    print(json.loads(requests.get(url=endpoint.format(stock_ticker="%24DXY", api_key=MY_API_KEY)).content))
+#    print( req.urlopen('https://www.cboe.com/delayed_quotes/spx/quote_table').read().decode('utf8') )   # Strictly prohibited
+
+
 #Under construction.  plans to add 10min chart
 def stock_chart():
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
@@ -173,8 +228,7 @@ def stock_chart():
     page = requests.get(url=full_url)
     content = json.loads(page.content)
     price = content['underlyingPrice']
-    
-    
+        
 win = Tk()
 win.geometry("800x500")
 
@@ -202,13 +256,7 @@ mainloop()
 
 
 """  #Block comment for all the pandas/numpy code.   Might require Put-Call specific fields for later compatability
-*************Before parsing JSON
-    dataColumns ={'ExpirationDate':'','Calls':'1','LastSale':'0','Net':'0','Bid':'0','Ask':'0','Vol':'0','IV':'0','Delta':'0','Gamma':'0','OpenInt':'0','StrikePrice':'0'}
-    df = pd.DataFrame(columns=dataColumns)
-    
-    
-    
-**********Starting in code section to parse JSON
+#**********Starting in code section to parse JSON
             for options in content['callExpDateMap'][days][strikes]:
                 dataRow = [days.split(":")[0], '1', '0', '0', options['bid'], options['ask'], options['totalVolume'], options['volatility'], options['delta'], options['gamma'], options['openInterest'], strikes]
                 df.loc[len(df.index)] = dataRow

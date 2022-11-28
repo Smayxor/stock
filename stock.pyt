@@ -1,3 +1,4 @@
+#Version 1.2  Got it to save chart as a png.  Preparing for a discord bot
 #Version 1.1  Improved display of data on charts to scale with max values
 
 from tkinter import *
@@ -8,7 +9,11 @@ import time
 import requests
 import json
 import math
-import urllib.request as req
+#import urllib.request as req
+#from ipycanvas import Canvas as ican
+from PIL import Image, ImageDraw, ImageGrab, ImageFont
+#import subprocess as SP
+import os
 
 #import pandas as pd
 #import numpy as np
@@ -35,14 +40,22 @@ Volas = {}
 Pain = {}
 CallGEX = {}
 PutGEX = {}
-
 ExpectedMove = 0.0
+dn = datetime.datetime.now()
+dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
+
+def drawRect(x, y, w, h, color, border):
+    if border in 'none': border = color
+    canvas.create_rectangle(x, y, w, h, fill=color, outline=border)
+    draw.rectangle([x, y, w, h], fill=color, outline=border)   #for PIL Image
+
+def drawText(x, y, txt, color):
+    canvas.create_text(x, y, anchor=NW, font="Purisa", text=txt, fill=color)
+    draw.text((x,y), text=txt, fill=color, anchor=NW)
 
 def isThirdFriday(d):
     return d.weekday() == 4 and 15 <= d.day <= 21
 
-dn = datetime.datetime.now()
-dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
 def daysFromNow(days):
     delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
     return delta.days + 1
@@ -62,10 +75,8 @@ def calcGammaEx(S, K, vol, T, r, q, optType, OI):
         gamma = K * np.exp(-r*T) * norm.pdf(dm) / (S * S * vol * np.sqrt(T))
         return OI * 100 * S * S * 0.01 * gamma 
 
-def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days, spx):
+def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days):
     global ExpectedMove, GEX, DEX, VEX, Volas, Pain
-#    if spx == 1: strike = strike / 10
-#    if spx == 0: return
     try:
         if not strike in GEX:   #Prevents NaN values
             GEX[strike] = 0
@@ -93,23 +104,11 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
         em = 0
         if (strike - int(price)) == 0 : em = volatility * math.sqrt(days / 365)
         if em > ExpectedMove: ExpectedMove = em   #Each date should land on this strike, keep the biggest one
-#Expected Move = Stock Price x (Implied Volatility / 100) x square root of (Days to Expiration / 365)   # performing price * / 100 later to split % from $
-
-#Vanna rally
-#Vanna measures the change in delta for a change in IV Options market makers are typically long vanna 
-#When IV crushes they must buy stock back to reduce their hedges 
-#This is what fuels “V” shape rallies that occur after large negative gamma induced market drawdowns.
-
-#This seems like a prescient time to talk about options vanna and a vanna type rally. Vanna measures the change in delta for a change in IV.
-#Long calls + short puts = Long Vanna
-#We view options market makers as typically long vanna. When volatility crushes they therefore must buy stock back to reduce their hedges. In our opinion this is what fuels “V” shape rallies that occur after large negative gamma induced market drawdowns.
-
-
     except TypeError:
         a = 1
 
 def stock_price():
-    global ExpectedMove, GEX, DEX, VEX, Volas, Pain
+    global ExpectedMove, GEX, DEX, VEX, Volas, Pain, img, draw
     GEX.clear()
     CallGEX.clear()
     PutGEX.clear()
@@ -124,20 +123,6 @@ def stock_price():
     if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
     dateRange = today + datetime.timedelta(days=int(e2.get()))
     ticker_name = e1.get().upper()
-
-
-    """  Get SPX data and merge it all in to one chart
-    full_url = options_endpoint.format(api_key=MY_API_KEY, stock_ticker="$SPX.X", count='40', fromDate=today, toDate=dateRange)
-    page = requests.get(url=full_url)
-    content = json.loads(page.content)
-    price = content['underlyingPrice']
-#Load the data from JSON
-    for days in content['callExpDateMap']: 
-        for strikes in content['callExpDateMap'][days]:
-            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days), spx=1)
-            for options in content['callExpDateMap'][days][strikes]: addData(options)
-            for options in content['putExpDateMap'][days][strikes]: addData(options)
-    """
 
     full_url = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', fromDate=today, toDate=dateRange)
     page = requests.get(url=full_url)
@@ -158,10 +143,9 @@ def stock_price():
 #Load the data from JSON
     for days in content['callExpDateMap']: 
         for strikes in content['callExpDateMap'][days]:
-            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days), spx=0)
+            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days))
             for options in content['callExpDateMap'][days][strikes]: addData(options)
             for options in content['putExpDateMap'][days][strikes]: addData(options)
-
 
 #************* Paste pandas/numpy code here ****************
 
@@ -176,18 +160,20 @@ def stock_price():
         if abs(PutGEX[strikes]) > maxCPGEX: maxCPGEX = abs(PutGEX[strikes])
         if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
         if abs(Pain[strikes]) > maxPain: maxPain = abs(Pain[strikes])
-
+    
 #Draw the chart
     canvas.delete('all')
+    drawRect(0,0,800,500, color="#000", border="#000")
+    
     x = -10
     for strikes in sorted(GEX):
         x += 15
-        canvas.create_text(x, 235, anchor=NW, font="Purisa", text=('\n'.join(str(strikes).replace('.0', ''))))
-        if (Pain[strikes] != 0): canvas.create_rectangle(x, 30, x + 9, 30 + ((abs(Pain[strikes]) / maxPain) * 50), fill="#00f", outline='')
-        if (GEX[strikes] != 0): canvas.create_rectangle(x, 235 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 9, 235, fill=("#0f0" if (GEX[strikes] > -1) else "#f00"), outline='')
-        if (DEX[strikes] != 0): canvas.create_rectangle(x + 2, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 6, 235, fill=("#077" if (DEX[strikes] > -1) else "#f77"), outline='')
-        if (CallGEX[strikes] != 0): canvas.create_rectangle(x, 400 - ((CallGEX[strikes] / maxCPGEX) * 50), x + 9, 400, fill="#0f0", outline='')
-        if (PutGEX[strikes] != 0): canvas.create_rectangle(x, 400 + ((PutGEX[strikes] / maxCPGEX) * 50), x + 9, 400, fill="#f00", outline='')
+        drawText(x, 235, txt=('\n'.join(str(strikes).replace('.0', ''))), color="#0F0")
+        if (Pain[strikes] != 0): drawRect(x, 30, x + 9, 30 + ((abs(Pain[strikes]) / maxPain) * 50), color="#00f", border='')
+        if (GEX[strikes] != 0): drawRect(x, 235 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 9, 235, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
+        if (DEX[strikes] != 0): drawRect(x + 2, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 6, 235, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+        if (CallGEX[strikes] != 0): drawRect(x, 400 - ((CallGEX[strikes] / maxCPGEX) * 50), x + 9, 400, color="#0f0", border='')
+        if (PutGEX[strikes] != 0): drawRect(x, 400 + ((PutGEX[strikes] / maxCPGEX) * 50), x + 9, 400, color="#f00", border='')
 
 #experimental search for Zero Gamma
     total_gamma = 0
@@ -201,21 +187,22 @@ def stock_price():
     page = requests.get(url=fundamental_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name))
     content = json.loads(page.content)[ticker_name]["fundamental"]
     fundamentals = {'Beta': content["beta"], 'DivYield': content["dividendYield"], 'DivDate': content["dividendDate"], 'DivAmount': content["dividendAmount"], 'peRatio': content["peRatio"], 'pegRatio': content["pegRatio"], 'QuickRatio': content["quickRatio"], 'DebtToCapital': content["totalDebtToCapital"], 'SharesOutstanding': content["sharesOutstanding"], 'MarketCapFloat': content["marketCapFloat"], 'MarketCap': content["marketCap"], 'ShortInt': content["shortIntToFloat"], 'ShortDaysToCover': content["shortIntDayToCover"]}
-    canvas.create_rectangle(x+20, 0, x + 24, 350, fill='#777', outline='#000')
+    drawRect(x+20, 0, x + 24, 350, color='#777', border='#333')
     x += 27
     y = 0
     for keys in fundamentals:
-        canvas.create_text(x, y, anchor=NW, font="Purisa", text=keys + ": " + str(fundamentals[keys]) )
+        drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color="#00f")
         y += 25
 
 # For every 16 points of VIX expect 1% move on SPY
-    canvas.create_text(0, 0, anchor=NW, font="Purisa", text=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))))
+    drawText(0, 0, txt=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))), color="#0FF")
 
     
 #    print(json.loads(requests.get(url=endpoint.format(stock_ticker="%24DXY", api_key=MY_API_KEY)).content))
 #    print( req.urlopen('https://www.cboe.com/delayed_quotes/spx/quote_table').read().decode('utf8') )   # Strictly prohibited
 
-
+    img.save("stock-chart.png")
+    
 #Under construction.  plans to add 10min chart
 def stock_chart():
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
@@ -248,12 +235,15 @@ Button(win, text="Loop", command=stock_chart, width=5).grid(row=0, column=3, sti
 
 canvas = Canvas(win,  width= 2400, height= 2000)
 canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
-canvas.configure(bg="#ff2")
+canvas.configure(bg="#000000")
+
+img = Image.new("RGB", (800, 500), "#000")
+draw = ImageDraw.Draw(img)
 
 stock_price()
 mainloop()
 
-
+os.remove("stock-chart.png", dir_fd=None)
 
 """  #Block comment for all the pandas/numpy code.   Might require Put-Call specific fields for later compatability
 #**********Starting in code section to parse JSON

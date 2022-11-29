@@ -1,3 +1,4 @@
+#Version 1.3  Added DISCORD BOT functionality.  Make account in Discord Developer, add an App, give Read Messages,  Send Message, Attach Files permissions.  Add a BOT_TOKEN to the apikey.json
 #Version 1.2  Got it to save chart as a png.  Preparing for a discord bot
 #Version 1.1  Improved display of data on charts to scale with max values
 
@@ -9,11 +10,12 @@ import time
 import requests
 import json
 import math
-#import urllib.request as req
-#from ipycanvas import Canvas as ican
 from PIL import Image, ImageDraw, ImageGrab, ImageFont
-#import subprocess as SP
 import os
+import logging
+import threading
+import discord
+from discord.ext import commands
 
 #import pandas as pd
 #import numpy as np
@@ -23,8 +25,17 @@ import os
 
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
-MY_API_KEY = json.load(open('apikey.json'))['API_KEY']
-#POLYGON_API_KEY = json.load(open('apikey.json'))['POLYGON']
+init = json.load(open('apikey.json'))
+MY_API_KEY = init['API_KEY']
+#POLYGON_API_KEY = init['POLYGON']
+#DISCORD_ID = init['DISCORD_APP_ID']
+#DISCORD_KEY = init['DISCORD_API_KEY']
+BOT_TOKEN = init['BOT_TOKEN']
+#BOT_ID = init['BOT_CLIENT_ID']
+#BOT_SECRET = init['BOT_SECRET']
+#************************************************************
+#change path for Windows OS, or ommit path    "purisa.ttf"
+font = ImageFont.truetype("/usr/share/fonts/truetype/croscore/Arimo-Regular.ttf", 16, encoding="unic")   
 #************************************************************
 
 endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"
@@ -32,6 +43,8 @@ vix_endpoint = "https://api.tdameritrade.com/v1/marketdata/%24VIX.X/quotes?apike
 options_endpoint = "https://api.tdameritrade.com/v1/marketdata/chains?apikey={api_key}&symbol={stock_ticker}&contractType=ALL&strikeCount={count}&range=NTM&fromDate={fromDate}&toDate={toDate}&optionType=ALL"
 fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_key}&symbol={stock_ticker}&projection=fundamental"
 
+IMG_W = 1200
+IMG_H = 500
 ticker_name = 'SPY'
 GEX = {}
 DEX = {}
@@ -44,14 +57,50 @@ ExpectedMove = 0.0
 dn = datetime.datetime.now()
 dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
 
+
+#DISCORD_PERMISSIONS = 274877942784
+def thread_discord():
+#    GUILD = "The Elite"
+    intents = discord.Intents.all()
+    bot = commands.Bot(command_prefix='!', intents=intents)
+
+#    @bot.event
+#    async def on_ready():
+#        guild = discord.utils.get(bot.guilds, name=GUILD)
+#        print(f'{bot.user.name} has connected to Discord!')
+
+    @bot.event
+    async def on_message(message):
+        if message.author == bot.user: return
+#        print(message.content)
+        
+        args = message.content.split()
+        if "!stock" in args[0]:
+            ticky = args[1].upper()
+            if ticky in "SPX": ticky = "$SPX.X"
+            e1.delete(0, END)
+            e1.insert(0, ticky)
+            days = args[2]
+            e2.delete(0, END)
+            e2.insert(0, days)
+            stock_price()
+            with open('/mnt/chromeos/MyFiles/Downloads/stock-chart.png', 'rb') as fp: 
+                await message.channel.send(file=discord.File(fp, 'stock-chart.png'))
+        
+    bot.run(BOT_TOKEN)       
+
 def drawRect(x, y, w, h, color, border):
     if border in 'none': border = color
     canvas.create_rectangle(x, y, w, h, fill=color, outline=border)
     draw.rectangle([x, y, w, h], fill=color, outline=border)   #for PIL Image
 
 def drawText(x, y, txt, color):
+    text_width = font.getlength(txt)
+#    if x + text_width > IMG_W:
+#        canvas.width = x + text_width
+#        img.width = x + text_width
     canvas.create_text(x, y, anchor=NW, font="Purisa", text=txt, fill=color)
-    draw.text((x,y), text=txt, fill=color, anchor=NW)
+    draw.text((x,y), text=txt, fill=color, font=font)    #text_height = font.getsize(unicode_text)
 
 def isThirdFriday(d):
     return d.weekday() == 4 and 15 <= d.day <= 21
@@ -123,6 +172,11 @@ def stock_price():
     if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
     dateRange = today + datetime.timedelta(days=int(e2.get()))
     ticker_name = e1.get().upper()
+    if "SPX" in ticker_name:
+        ticker_name = "$SPX.X"
+        e1.delete(0, END)
+        e1.insert(0, ticker_name)
+        
 
     full_url = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', fromDate=today, toDate=dateRange)
     page = requests.get(url=full_url)
@@ -163,7 +217,7 @@ def stock_price():
     
 #Draw the chart
     canvas.delete('all')
-    drawRect(0,0,800,500, color="#000", border="#000")
+    drawRect(0,0,IMG_W,IMG_H, color="#000", border="#000")
     
     x = -10
     for strikes in sorted(GEX):
@@ -171,7 +225,7 @@ def stock_price():
         drawText(x, 235, txt=('\n'.join(str(strikes).replace('.0', ''))), color="#0F0")
         if (Pain[strikes] != 0): drawRect(x, 30, x + 9, 30 + ((abs(Pain[strikes]) / maxPain) * 50), color="#00f", border='')
         if (GEX[strikes] != 0): drawRect(x, 235 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 9, 235, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
-        if (DEX[strikes] != 0): drawRect(x + 2, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 6, 235, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+        if (DEX[strikes] != 0): drawRect(x, 235 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 235, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
         if (CallGEX[strikes] != 0): drawRect(x, 400 - ((CallGEX[strikes] / maxCPGEX) * 50), x + 9, 400, color="#0f0", border='')
         if (PutGEX[strikes] != 0): drawRect(x, 400 + ((PutGEX[strikes] / maxCPGEX) * 50), x + 9, 400, color="#f00", border='')
 
@@ -197,10 +251,6 @@ def stock_price():
 # For every 16 points of VIX expect 1% move on SPY
     drawText(0, 0, txt=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))), color="#0FF")
 
-    
-#    print(json.loads(requests.get(url=endpoint.format(stock_ticker="%24DXY", api_key=MY_API_KEY)).content))
-#    print( req.urlopen('https://www.cboe.com/delayed_quotes/spx/quote_table').read().decode('utf8') )   # Strictly prohibited
-
     img.save("stock-chart.png")
     
 #Under construction.  plans to add 10min chart
@@ -217,7 +267,7 @@ def stock_chart():
     price = content['underlyingPrice']
         
 win = Tk()
-win.geometry("800x500")
+win.geometry(str(IMG_W + 5) + "x" + str(IMG_H + 20))
 
 Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
 
@@ -233,17 +283,37 @@ Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
 Button(win, text="Fetch", command=stock_price, width=5).grid(row=0, column=2, sticky='E')
 Button(win, text="Loop", command=stock_chart, width=5).grid(row=0, column=3, sticky='N')
 
-canvas = Canvas(win,  width= 2400, height= 2000)
+canvas = Canvas(win, width=IMG_W, height=IMG_H)
 canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
 canvas.configure(bg="#000000")
 
-img = Image.new("RGB", (800, 500), "#000")
+img = Image.new("RGB", (IMG_W, IMG_H), "#000")
 draw = ImageDraw.Draw(img)
 
 stock_price()
+
+x = threading.Thread(target=thread_discord)
+x.start()
 mainloop()
 
 os.remove("stock-chart.png", dir_fd=None)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 """  #Block comment for all the pandas/numpy code.   Might require Put-Call specific fields for later compatability
 #**********Starting in code section to parse JSON

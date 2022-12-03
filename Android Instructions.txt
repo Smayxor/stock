@@ -1,0 +1,57 @@
+Sorry these instructions aren't totally organized.  I first used pydroid app to run bot, its extremely easy to do.
+
+The termux instructions were an effort to avoid issues i had with android putting app/bot to sleep when screen is off.  Getting Termux to work is slightly complicated once u get to the Pillow stage
+
+To make run on an Android phone, install app Pydroid and pip install discord.py requests colour.   Turn OFF battery saver features so apps arent being put to sleep.  Can also Enabled Developer Mode and enable Keep Phone Screen On While Charging
+When running on a phone, you can change code so it is ALWAYS in serverMode = True
+
+Using Termux on phone.    These instructions an attempt to avoid pydroid stopping when ads pop up and screen is off 
+copy ur bot code and the font.ttf file to the Alarms folder, and the apikey.json file
+pkg full-upgrade      
+pkg install python3
+pip install --upgrade pip
+pip install wheel 
+pkg install libjpeg-turbo
+pkg install freetype
+pip3 install discord.py
+pip3 install requests
+pip3 install colour
+pkg install coreutils
+pkg install nodejs
+termux-setup-storage
+npm install -g nodemon
+pkg install zstd
+
+****notes, i got lost trying to make Pillow work, this should be the correct command below
+LDFLAGS="-L/system/lib/" CFLAGS="-I/data/data/com.termux/files/usr/include/" pip3 install Pillow
+***Note: If you are using an aarch64 device, set the LDFLAGS flag to "-L/system/lib64/"
+
+***never seems to work****apt update && apt upgrade -y
+***dont think i did?*****apt install python make wget termux-exec clang libjpeg-turbo freetype -y
+****dont think i did?****env INCLUDE="$PREFIX/include" LDFLAGS=" -lm" pip install Pillow
+
+pip3 install pandas   ****
+pip3 install numpy    ****
+pip3 install yfinance            ****temporarily not working in termux, need to troubleshoot dependancies with pandas?
+Go to phone settings, Apps and enable permission for Termux to access storage
+
+
+********should be ready to run the bot
+then any time u open termux u can run bot by
+cd /storage/emulated/0/Alarms
+python3 stock.py server
+or   /storage/emulated/0/Alarms/python3 stock.py server
+
+pip3 cache dir   <-- displays location to pip3 cache folder, cd there and clear it if u need to reinstall something
+pip3 cache remove pillow
+pip3 cache purge
+
+*****this stuff keeps it on when screen is off
+termux-wake-lock
+termux-wake-unlock 
+can be used to trigger a wakelock which causes Android not to go into deep sleep.
+Since the default login shell is bash; it could be useful to call termux-wake-lock in your ~/.profile (or ~/.bash_profile where appropriate) and termux-wake-unlock in your ~/.bash_logout; for single session usage. 
+
+suggestion edit bash files to auto-load bot
+/storage/emulated/0/Alarms/python3 stock.py server
+termux-wake-lock

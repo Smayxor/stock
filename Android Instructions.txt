@@ -1,12 +1,14 @@
 Sorry these instructions aren't totally organized.  I first used pydroid app to run bot, its extremely easy to do.
 
-The termux instructions were an effort to avoid issues i had with android putting app/bot to sleep when screen is off.  Getting Termux to work is slightly complicated once u get to the Pillow stage
+The termux app instructions were an effort to avoid issues i had with android putting app/bot to sleep when screen is off.  Getting Termux to work is slightly complicated once u get to the Pillow stage
 
 To make run on an Android phone, install app Pydroid and pip install discord.py requests colour.   Turn OFF battery saver features so apps arent being put to sleep.  Can also Enabled Developer Mode and enable Keep Phone Screen On While Charging
 When running on a phone, you can change code so it is ALWAYS in serverMode = True
 
+Using Termux is worth it if you follow instructions.  Maybe perform pkg commands before pip commands.  
+
 Using Termux on phone.    These instructions an attempt to avoid pydroid stopping when ads pop up and screen is off 
-copy ur bot code and the font.ttf file to the Alarms folder, and the apikey.json file
+copy ur bot code and the font.ttf file to the Alarms folder, and the apikey.json file.  Open keyboard settings and DISABLE all auto-complete stuff!!!
 pkg full-upgrade      
 pkg install python3
 pip install --upgrade pip
@@ -26,13 +28,18 @@ pkg install zstd
 LDFLAGS="-L/system/lib/" CFLAGS="-I/data/data/com.termux/files/usr/include/" pip3 install Pillow
 ***Note: If you are using an aarch64 device, set the LDFLAGS flag to "-L/system/lib64/"
 
-***never seems to work****apt update && apt upgrade -y
-***dont think i did?*****apt install python make wget termux-exec clang libjpeg-turbo freetype -y
-****dont think i did?****env INCLUDE="$PREFIX/include" LDFLAGS=" -lm" pip install Pillow
+***never seems to work****  pkg update && apt upgrade -y
+***dont think i did?*****   pkg install python make wget termux-exec clang libjpeg-turbo freetype -y
+****dont think i did?****   env INCLUDE="$PREFIX/include" LDFLAGS=" -lm" pip install Pillow
 
-pip3 install pandas   ****
-pip3 install numpy    ****
-pip3 install yfinance            ****temporarily not working in termux, need to troubleshoot dependancies with pandas?
+pkg install build-essential clang make pkg-config
+MATHLIB="m" pip install pandas
+****the pandas takes a LONG time********
+pkg install libxml2 
+pkg install libxslt 
+pkg install lxml
+****yfinance might also take a long time*****
+pip3 install yfinance
 Go to phone settings, Apps and enable permission for Termux to access storage
 
 
@@ -53,5 +60,91 @@ can be used to trigger a wakelock which causes Android not to go into deep sleep
 Since the default login shell is bash; it could be useful to call termux-wake-lock in your ~/.profile (or ~/.bash_profile where appropriate) and termux-wake-unlock in your ~/.bash_logout; for single session usage. 
 
 suggestion edit bash files to auto-load bot
-/storage/emulated/0/Alarms/python3 stock.py server
+cd /data/data/com.termux/files/usr/etc
+nano bash.bashrc
+need to add these 2 lines below
 termux-wake-lock
+cd /storage/emulated/0/Alarms/
+python3 stock.py server
+Ctrl+O to save, Ctrl+X to exit.
+exit <-- exit the terminal, reopen Termux to see if it works
+
+
+
+
+***********************below is tones of notes on getting pandas installed, for yfinance***********************
+Remove all packages
+
+$ pip freeze > unins && pip uninstall -y -r unins && rm unins
+
+Find the path of the cache for pip...
+
+$ pip cache dir
+
+... and clean it
+
+$ rm -rf /data/data/com.termux/files/home/.cache/pip
+
+Follow the tuto
+
+$ pkg install build-essential clang make pkg-config
+
+$ curl -LO https://its-pointless.github.io/setup-pointless-repo.sh 
+$ bash setup-pointless-repo.sh
+MATHLIB="m" pip install pandas
+$ pkg install numpy
+
+$ pkg install scipy
+
+Install Pandas
+
+$ pip install pandas
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#                                                       #
+#   How I installed Pandas on a 32 bit armv7l Android   #
+#                                                       #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+apt install build-essential
+apt install git make
+
+apt install libcompiler-rt  
+
+# pytz is pandas's dependency，
+# cython is also required
+
+pip install pytz cython
+pip install setuptools --upgrade
+
+#  Installing Pandas
+
+# # 1: Using pip
+# ** Note: *No output* will be shown on terminal **
+# ** and you need to wait for 1-2 hours **
+# ** depend on your phone's hardware **
+
+export CFLAGS=" -Wno-deprecated-declarations -Wno-unreachable-code" 
+export LDFLAGS=" -lm -lcompiler_rt"
+pip install pandas
+
+#  # 2: Download source code and compile it by yourself
+# There will be a LOT of outputs on your terminal so you
+# will get a general idea how things went
+# it's more comforting sometimes
+
+cd $PREFIX/lib/python3.9/site-packages/
+git clone https://github.com/pandas-dev/pandas.git
+cd pandas
+export CFLAGS=" -Wno-deprecated-declarations -Wno-unreachable-code" 
+export LDFLAGS=" -lm -lcompiler_rt"
+make
+# Now take a nap
+# Do not delete the source code folder after you're done
+
+# By the way
+# if you failed installing pyzmq, type: CC=clang && pip install pyzmq
+
+# I originally posted my article here: https://zhuanlan.zhihu.com/p/146555866

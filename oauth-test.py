@@ -1,3 +1,8 @@
+#Open this url in a browser, it directs you to TDA login page, HTTP server running fetches the Auth Code, and retrieves Auth/Refresh tokens.  You can disable the HTTPServer for 90 days if wanted
+#https://auth.tdameritrade.com/oauth?client_id= Your-API-Key %40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
+
+
+
 #    This software is completely free to use, modify, or anything else you want
 #    Copyright (C) 2022 Seth Mayberry
 
@@ -14,6 +19,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#Version 1.5 Managed to get OAUTH tokens working.  Some error handling still needed
 #Version 1.4 Made images larger,  gave bot more !commands.  renamed to .py instead of .pyt.  included yahoo finance library yfinance to get company fundamentals.  fundamentals are now "Rated" and colored from Red to Green (rating system needs an overhaul).  Server Mode and GUI Mode option from command prompt
 #Version 1.3  Added DISCORD BOT functionality.  Make account in Discord Developer, add an App, give Read Messages,  Send Message, Attach Files permissions.  Add a BOT_TOKEN to the apikey.json
 #Version 1.2  Got it to save chart as a png.  Preparing for a discord bot
@@ -35,6 +41,13 @@ from colour import Color
 import random
 import csv
 import yfinance as yf
+
+#for redirect url, to fetch tokens
+import socket
+import ssl
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import urllib.parse
+from os.path import exists
 
 #import pandas as pd
 #import numpy as np
@@ -58,7 +71,7 @@ options_endpoint = "https://api.tdameritrade.com/v1/marketdata/chains?apikey={ap
 fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_key}&symbol={stock_ticker}&projection=fundamental"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
-
+auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 
 #list of keys for yahoo finance data.  some things have been removed
 listOfKeys = "'fullTimeEmployees', 'longBusinessSummary', 'ebitdaMargins', 'profitMargins', 'grossMargins', 'operatingCashflow', 'revenueGrowth', 'operatingMargins', 'ebitda', 'targetLowPrice', 'grossProfits', 'freeCashflow', 'targetMedianPrice', 'currentPrice', 'earningsGrowth', 'currentRatio', 'returnOnAssets', 'targetMeanPrice', 'debtToEquity', 'returnOnEquity', 'targetHighPrice', 'totalCash', 'totalDebt', 'totalRevenue', 'totalCashPerShare', 'revenuePerShare', 'quickRatio', 'recommendationMean', 'annualHoldingsTurnover', 'enterpriseToRevenue', 'beta3Year', 'enterpriseToEbitda', '52WeekChange', 'morningStarRiskRating', 'forwardEps', 'revenueQuarterlyGrowth', 'sharesOutstanding', 'fundInceptionDate', 'annualReportExpenseRatio', 'totalAssets', 'bookValue', 'sharesShort', 'sharesPercentSharesOut', 'fundFamily', 'lastFiscalYearEnd', 'heldPercentInstitutions', 'netIncomeToCommon', 'trailingEps', 'lastDividendValue', 'SandP52WeekChange', 'priceToBook', 'heldPercentInsiders', 'nextFiscalYearEnd', 'yield', 'mostRecentQuarter', 'shortRatio', 'sharesShortPreviousMonthDate', 'floatShares', 'beta', 'enterpriseValue', 'priceHint', 'threeYearAverageReturn', 'lastDividendDate', 'morningStarOverallRating', 'earningsQuarterlyGrowth', 'priceToSalesTrailing12Months', 'dateShortInterest', 'pegRatio', 'ytdReturn', 'forwardPE', 'lastCapGain', 'shortPercentOfFloat', 'sharesShortPriorMonth', 'impliedSharesOutstanding', 'fiveYearAverageReturn', 'twoHundredDayAverage', 'trailingAnnualDividendYield', 'payoutRatio', 'regularMarketDayHigh', 'navPrice', 'averageDailyVolume10Day', 'regularMarketPreviousClose', 'trailingAnnualDividendRate', 'dividendRate', 'exDividendDate', 'trailingPE', 'marketCap','dividendYield'"
@@ -91,77 +104,87 @@ if (n > 1) :
     guiMode = sys.argv[1] in "gui"
 print("ServerMode ", serverMode, " / GUIMode ", guiMode)
 
-
-
-TDA_ACCOUNT_ID=init['TDA_ACCOUNT_ID']
-TDA_USER_NAME=init['TDA_USER_NAME']
-
-REDIRECT_URI = 'https%3A%2F%2Flocalhost%3A8080%2F'
-TOKEN_PATH = 'ameritrade-credentials.json'
-
-#from requests.packages.urllib3.exceptions import InsecureRequestWarning
-#requests. packages. urllib3. disable_warnings(InsecureRequestWarning)
-
-my_params = {
+HEADER = {
+    'Accept': '*/*',
+    'Accept-Encoding': 'gzip',
+    'Accept-Language': 'en-US',
+    'Authorization': 'None',
+    'Host': 'api.tdameritrade.com',
+    'User-Agent': 'Mozilla/5.0 (X11; CrOS x86_64 15183.59.0) AppleWebKit/537.36 (KHTML'
+}
+SERVER_HEADER = {  #can optionally pop/remove the Authorization field from HEADER
+    "Content-Type": "application/x-www-form-urlencoded"
+}
+oauth_params = {
     'grant_type': 'authorization_code',
+    'refresh_token': '',
     'access_type': 'offline',
-    'client_id': TDA_ACCOUNT_ID + '@AMER.OAUTHAP',
-    'redirect_uri': 'https://127.0.0.1'      
+    'code': '',
+    'client_id': MY_API_KEY + '@AMER.OAUTHAP',
+    'redirect_uri': 'https://localhost:8080/',
+    'apikey': MY_API_KEY
 }
 
-#*********************************************
-#https://auth.tdameritrade.com/auth?response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F&client_id=' MY_API_KEY '%40AMER.OAUTHAP
-
-authorization_base_url = 'https://auth.tdameritrade.com/auth?response_type=code&redirect_uri=' + REDIRECT_URI + '&client_id=' + MY_API_KEY + '%40AMER.OAUTHAP'
-
-
-import socket
-import ssl
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
+#fetches new access tokens
 def serverOAUTH():
-       
     class requesthandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            print(self.path)
+            #print("Got Code = ", self.path)
             self.send_response(200)
             self.send_header("Content-type","text/html")
             self.end_headers()
             self.wfile.write("<html><body>It works</body></html>".encode('utf8'))
-
+            if "code=" in self.path:
+                code = urllib.parse.unquote( self.path.split(str('code='))[1] )# urllib.parse.unquote()
+                print(code)
+                oauth_params['code'] = code
+                oauth_params['grant_type'] = 'authorization_code'
+                oauth_params['refresh_token'] = ''
+                oauth_params['access_type'] = 'offline'            
+                oauth_params['redirect_uri'] = 'https://localhost:8080/'
+                page = requests.post(url=auth_endpoint.format(api_key=MY_API_KEY), headers=SERVER_HEADER, data=oauth_params)
+                print(urllib.parse.unquote(page.content))
+                with open("access-token.json", "w") as outfile:
+                    outfile.write(urllib.parse.unquote(page.content))
+                    loadAccessTokens()
+               
     httpd = HTTPServer(('127.0.0.1', 8080), requesthandler)
     httpd.socket = ssl.wrap_socket(httpd.socket, keyfile='./example.key', certfile='./example.crt', server_side=True)
     httpd.serve_forever()
-    """
-    sock = socket.socket()
-    sock.bind(('127.0.0.1', 8080))
-    sock.listen()
-    while(True):
-        (clientConnection, clientAddress) = sock.accept()
-        while(True): 
-            data = clientConnection.recv(1024)
-    """
 serverSockThread = threading.Thread(target=serverOAUTH)
-serverSockThread.start() 
+if loadserverSockThread.start() 
 
-import urllib.request
-formURL = 'https://auth.tdameritrade.com/oauth?client_id=' + MY_API_KEY + '%40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F&username0='
-with urllib.request.urlopen(authorization_base_url) as response:
-    html = response.read()
-    print(html)
-data = parse.urlencode(<your data dict>).encode()
-req =  request.Request(<your url>, data=data) # this will make the method "POST"
-resp = request.urlopen(req)
+ACCESS_TOKEN = ""
+REFRESH_TOKEN = ""
 
+def loadAccessTokens():
+    if exists('access-token.json'):
+        init = json.load(open('access-token.json', 'rb'))
+        if 'access_token' in init:
+            ACCESS_TOKEN = init['access_token']
+#            print("Access Token ", ACCESS_TOKEN)
+            REFRESH_TOKEN = init['refresh_token']
+#            print("Refresh Token ", REFRESH_TOKEN)
+            HEADER['Authorization'] = "Bearer " + ACCESS_TOKEN
+            print( init )
+loadAccessTokens()
 
-
-
-
-
-
-
-
-
+def refreshTokens():
+    if exists('access-token.json'):   #Mysteriously REFRESH_TOKEN was empty *********** loadAccessTokens() should of happened?????
+        init = json.load(open('access-token.json', 'rb'))
+        if 'refresh_token' in init:
+            REFRESH_TOKEN = init['refresh_token']
+    oauth_params['grant_type'] = 'refresh_token'
+    oauth_params['refresh_token'] = REFRESH_TOKEN
+    oauth_params['access_type'] = ''            
+    oauth_params['redirect_uri'] = ''
+    oauth_params['code'] = ''
+    #When Refresh Token ultimately times out, this method will fail in 90 days   *******************************
+    page = urllib.parse.unquote(requests.post(url="https://api.tdameritrade.com/v1/oauth2/token", headers=SERVER_HEADER, data=oauth_params).content)
+    merge = "{\n  \"refresh_token\": \"" + REFRESH_TOKEN + "\", \n  \"refresh_token_expires_in\": " + str(init['refresh_token_expires_in']) + ", " + page.split("{")[1]
+    with open("access-token.json", "w") as outfile:
+        outfile.write(merge)
+        loadAccessTokens()
 
 if guiMode: from tkinter import *
 if serverMode:
@@ -554,11 +577,20 @@ def stock_price(ticker_name, days):
     loopAgain = True
     while loopAgain:
         dateRange = today + datetime.timedelta(days=int(days))
-        content = json.loads(requests.get(url=options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)).content)
-        if (content['status'] in 'FAILED'): 
-            days = str( int(days) + 7)
-            loopAgain = int(days) < 37
-        else: loopAgain = False
+        content = json.loads(requests.get(url=options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange), headers=HEADER).content)
+
+        
+        if 'error' in content: 
+            print(content['error'])
+            print("Get new key")
+            refreshTokens()
+            return        
+        else:
+                
+            if (content['status'] in 'FAILED'): 
+                days = str( int(days) + 7)
+                loopAgain = int(days) < 37
+            else: loopAgain = False
     print('IsDelayed ', content['isDelayed'])
             
     if (content['status'] in 'FAILED'): #Failed, we tried our best
@@ -700,11 +732,13 @@ if guiMode :
     stock_price(ticker_name, 0)
     looper = threading.Thread(target=thread_price, args=(e1.get(),))
     mainloop()
+    serverSockThread.join()
     if serverMode :
         #x.shutdown(wait=True)
         print("Killing bot")
 #        bot.command(name = "!kill")  #*********Needs some work still**********can be closed from inside discord 
-        x.join()
+        #x.join()
+    
         print("Bot dead?")
     looper.join()
 #if serverMode : os.remove("stock-chart.png", dir_fd=None)

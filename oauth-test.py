@@ -1,6 +1,5 @@
 #Open this url in a browser, it directs you to TDA login page, HTTP server running fetches the Auth Code, and retrieves Auth/Refresh tokens.  You can disable the HTTPServer for 90 days if wanted
-#https://auth.tdameritrade.com/oauth?client_id= Your-API-Key %40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
-
+#https://auth.tdameritrade.com/oauth?client_id=(YOUR_API_KEY_HERE)%40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
 
 
 #    This software is completely free to use, modify, or anything else you want
@@ -41,11 +40,6 @@ from colour import Color
 import random
 import csv
 import yfinance as yf
-
-#for redirect url, to fetch tokens
-import socket
-import ssl
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.parse
 from os.path import exists
 
@@ -127,6 +121,11 @@ oauth_params = {
 
 #fetches new access tokens
 def serverOAUTH():
+    #for redirect url, to fetch tokens
+    import socket
+    import ssl
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
     class requesthandler(BaseHTTPRequestHandler):
         def do_GET(self):
             #print("Got Code = ", self.path)
@@ -152,7 +151,7 @@ def serverOAUTH():
     httpd.socket = ssl.wrap_socket(httpd.socket, keyfile='./example.key', certfile='./example.crt', server_side=True)
     httpd.serve_forever()
 serverSockThread = threading.Thread(target=serverOAUTH)
-if loadserverSockThread.start() 
+SockThread.start() 
 
 ACCESS_TOKEN = ""
 REFRESH_TOKEN = ""
@@ -162,12 +161,9 @@ def loadAccessTokens():
         init = json.load(open('access-token.json', 'rb'))
         if 'access_token' in init:
             ACCESS_TOKEN = init['access_token']
-#            print("Access Token ", ACCESS_TOKEN)
             REFRESH_TOKEN = init['refresh_token']
-#            print("Refresh Token ", REFRESH_TOKEN)
             HEADER['Authorization'] = "Bearer " + ACCESS_TOKEN
-            print( init )
-loadAccessTokens()
+#loadAccessTokens()
 
 def refreshTokens():
     if exists('access-token.json'):   #Mysteriously REFRESH_TOKEN was empty *********** loadAccessTokens() should of happened?????
@@ -184,7 +180,9 @@ def refreshTokens():
     merge = "{\n  \"refresh_token\": \"" + REFRESH_TOKEN + "\", \n  \"refresh_token_expires_in\": " + str(init['refresh_token_expires_in']) + ", " + page.split("{")[1]
     with open("access-token.json", "w") as outfile:
         outfile.write(merge)
-        loadAccessTokens()
+    loadAccessTokens()
+refreshTokens()
+
 
 if guiMode: from tkinter import *
 if serverMode:
@@ -732,7 +730,7 @@ if guiMode :
     stock_price(ticker_name, 0)
     looper = threading.Thread(target=thread_price, args=(e1.get(),))
     mainloop()
-    serverSockThread.join()
+    #serverSockThread.join()
     if serverMode :
         #x.shutdown(wait=True)
         print("Killing bot")

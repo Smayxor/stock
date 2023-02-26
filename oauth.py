@@ -291,26 +291,26 @@ Smayxor has switched to using /gex"""
         await intr.response.send_message("Fetching GEX chart for " + ticker) #        print( ticker + " " + str(dte) + " " + str(chartType) )
 
     @bot.tree.command(name="pump")
-    async def slash_command_pump(intr: discord.Interaction, extra: str = ""):
+    async def slash_command_pump(intr: discord.Interaction, extra: str = "pump"):
         if random.random() < 0.91 :
             await intr.response.send_message( getTenorGIF( random.choice(pumps) + enc(" " + extra) ) )
         else:
-            await intr.response.send_message(file=discord.File(["./pepe-money.gif", "./wojak-pump.gif"]))
+            await intr.response.send_message(file=discord.File(random.choice(["./pepe-money.gif", "./wojak-pump.gif"])))
             
     @bot.tree.command(name="dump")
-    async def slash_command_dump(intr: discord.Interaction, extra: str = ""):
+    async def slash_command_dump(intr: discord.Interaction, extra: str = "dump"):
         await intr.response.send_message( getTenorGIF( random.choice(dumps) + enc(" " + extra) ) )
 
     @bot.tree.command(name="tits")
-    async def slash_command_tits(intr: discord.Interaction, extra: str = ""):
+    async def slash_command_tits(intr: discord.Interaction, extra: str = "tits"):
         await intr.response.send_message( getTenorGIF( random.choice(titties) + enc(" " + extra) ) )
 
     @bot.tree.command(name="ass")
-    async def slash_command_ass(intr: discord.Interaction, extra: str = ""):
+    async def slash_command_ass(intr: discord.Interaction, extra: str = "ass"):
         await intr.response.send_message( getTenorGIF( random.choice(asses) + enc(" " + extra) ) )
 
     @bot.tree.command(name="gm")
-    async def slash_command_gm(intr: discord.Interaction, extra: str = ""):
+    async def slash_command_gm(intr: discord.Interaction, extra: str = "gm"):
         if random.random() < 0.91 :
             await intr.response.send_message( getTenorGIF( random.choice(gms) + enc(" " + extra) ) )
         else:

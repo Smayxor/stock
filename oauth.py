@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#Version 1.6 Completely discord based.  Removed all GUI code.  Lots of bug fixes and new features
 #Version 1.5 Managed to get OAUTH tokens working.  Only drawing on PIL Image, and copying to TKinter Canvas. Rotated strikes prices. Moved lots of data to fundamentals area.  Still need to bot the login page!
 #Version 1.4 Made images larger,  gave bot more !commands.  renamed to .py instead of .pyt.  included yahoo finance library yfinance to get company fundamentals.  fundamentals are now "Rated" and colored from Red to Green (rating system needs an overhaul).  Server Mode and GUI Mode option from command prompt
 #Version 1.3  Added DISCORD BOT functionality.  Make account in Discord Developer, add an App, give Read Messages,  Send Message, Attach Files permissions.  Add a BOT_TOKEN to the apikey.json
@@ -28,7 +29,6 @@ from datetime import date
 from datetime import datetime as dt
 import datetime
 import time
-from time import sleep
 import requests
 import json
 import math
@@ -39,17 +39,26 @@ import sys
 from colour import Color
 import random
 import csv
-import yfinance as yf
 import urllib.parse
+from urllib.parse import quote as enc
 from os.path import exists
 from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont
 import PIL.Image as PILImg
+from discord.ext import tasks 
+import discord
+from discord.ext import commands
+from discord import app_commands
 
-#import pandas as pd
-#import numpy as np
-#import scipy
-#from scipy.stats import norm
-#import matplotlib.pyplot as plt
+#import logging
+ 
+# Create and configure logger
+#logging.basicConfig(filename="newfile.log", format='%(asctime)s %(message)s',  filemode='w')
+ 
+# Creating an object
+#logger = logging.getLogger()
+# Setting the threshold of logger to DEBUG
+#logger.setLevel(logging.DEBUG)
+
 
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
@@ -57,6 +66,9 @@ init = json.load(open('apikey.json'))
 MY_API_KEY = init['API_KEY']
 BOT_TOKEN = init['BOT_TOKEN']
 BOT_USER_FOR_KILL = init['BOT_KILL_USER']  #make it your discord user name
+BOT_APP_ID = init['DISCORD_APP_ID']
+BOT_CLIENT_ID = init['BOT_CLIENT_ID']
+TENOR_API_KEY = init['TENOR_API_KEY']
 #POLYGON_API_KEY = init['POLYGON']#DISCORD_ID = init['DISCORD_APP_ID']#DISCORD_KEY = init['DISCORD_API_KEY']#BOT_ID = init['BOT_CLIENT_ID']#BOT_SECRET = init['BOT_SECRET']
 #************************************************************
 
@@ -69,8 +81,12 @@ history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pr
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 
-#list of keys for yahoo finance data.  some things have been removed
-listOfKeys = "'fullTimeEmployees', 'longBusinessSummary', 'ebitdaMargins', 'profitMargins', 'grossMargins', 'operatingCashflow', 'revenueGrowth', 'operatingMargins', 'ebitda', 'targetLowPrice', 'grossProfits', 'freeCashflow', 'targetMedianPrice', 'currentPrice', 'earningsGrowth', 'currentRatio', 'returnOnAssets', 'targetMeanPrice', 'debtToEquity', 'returnOnEquity', 'targetHighPrice', 'totalCash', 'totalDebt', 'totalRevenue', 'totalCashPerShare', 'revenuePerShare', 'quickRatio', 'recommendationMean', 'annualHoldingsTurnover', 'enterpriseToRevenue', 'beta3Year', 'enterpriseToEbitda', '52WeekChange', 'morningStarRiskRating', 'forwardEps', 'revenueQuarterlyGrowth', 'sharesOutstanding', 'fundInceptionDate', 'annualReportExpenseRatio', 'totalAssets', 'bookValue', 'sharesShort', 'sharesPercentSharesOut', 'fundFamily', 'lastFiscalYearEnd', 'heldPercentInstitutions', 'netIncomeToCommon', 'trailingEps', 'lastDividendValue', 'SandP52WeekChange', 'priceToBook', 'heldPercentInsiders', 'nextFiscalYearEnd', 'yield', 'mostRecentQuarter', 'shortRatio', 'sharesShortPreviousMonthDate', 'floatShares', 'beta', 'enterpriseValue', 'priceHint', 'threeYearAverageReturn', 'lastDividendDate', 'morningStarOverallRating', 'earningsQuarterlyGrowth', 'priceToSalesTrailing12Months', 'dateShortInterest', 'pegRatio', 'ytdReturn', 'forwardPE', 'lastCapGain', 'shortPercentOfFloat', 'sharesShortPriorMonth', 'impliedSharesOutstanding', 'fiveYearAverageReturn', 'twoHundredDayAverage', 'trailingAnnualDividendYield', 'payoutRatio', 'regularMarketDayHigh', 'navPrice', 'averageDailyVolume10Day', 'regularMarketPreviousClose', 'trailingAnnualDividendRate', 'dividendRate', 'exDividendDate', 'trailingPE', 'marketCap','dividendYield'"
+CHART_NORMAL = 0
+CHART_VOLUME = 1
+CHART_IV = 2
+CHART_TIMEVALUE = 3
+CHART_ROTATE = 4
+CHART_JSON = 5
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -83,18 +99,23 @@ IMG_H_2 = IMG_H / 2
 ticker_name = 'SPY'
 GEX = {}
 DEX = {}
-VEX = {}
-Volas = {}
-OIS = {}
+CallIV = {}
+PutIV = {}
+CallOI = {}
+PutOI = {}
 CallGEX = {}
 PutGEX = {}
+CallATM = 0
+PutATM =0
 CallDollars = 0.0
 PutDollars = 0.0
 ExpectedMove = 0.0
 atmDif = 999
 closestStrike = 0
-dn = datetime.datetime.now()
-dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
+CallATMIV = {}
+PutATMIV = {}
+IVUpdateChannel = []
+IVUpdateChannelCounter = 0
 
 #Generate a color gradient between red and green, used to rate fundamentals and look cool doing it
 red = Color("#FF0000")
@@ -104,14 +125,6 @@ colorGradient[9] = "#00FF00"
 
 img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 draw = ImageDraw.Draw(img)
-
-serverMode = True
-guiMode = True
-n = len(sys.argv)
-if (n > 1) :
-    serverMode = sys.argv[1] in "server"
-    guiMode = sys.argv[1] in "gui"
-print("ServerMode ", serverMode, " / GUIMode ", guiMode)
 
 HEADER = {
     'Accept': '*/*',
@@ -200,275 +213,233 @@ def refreshTokens():
 refreshTokens()
 
 
-if guiMode: from tkinter import *
-if serverMode:
-    import discord
-    from discord.ext import commands
-    intents = discord.Intents.all()
-    bot = commands.Bot(command_prefix='!', intents=intents) #, help_command=None
-    def thread_discord():
-        
-        @bot.command(name="rain")
-        async def pump(ctx):
-            embed = discord.Embed(title="Imma make it rain", color=0x00ff00) 
-            file = discord.File("./pepe-money.gif", filename="pepe-money.gif")
-            embed.set_image(url="attachment://pepe-money.gif")
-            await ctx.channel.send(file=file, embed=embed)
-        
-        @bot.command(name="pump")
-        async def rain(ctx):
-            embed = discord.Embed(title="SUPER SLAM PUMP BUTTON", color=0x00ff00) 
-            file = discord.File("./wojak-pump.gif", filename="wojak-pump.gif")
-            embed.set_image(url="attachment://wojak-pump.gif")
-            await ctx.channel.send(file=file, embed=embed)
-        
-        @bot.command(name="gm")
-        async def gm(ctx):
-            #embed.set_image(url="https://media.discordapp.net/stickers/1041335509269618810.png")
-            #with open('./bobo-gm-frens.png', 'rb') as fp: 
-            #        await ctx.channel.send('Good morning degens', file=discord.File(fp, 'bobo-gm-frens.png'))
-            embed = discord.Embed(title="Good morning degens", color=0x00ff00) #You can add a text in there if you             embed = discord.Embed(title="Good morning degens", description="Good morning degens", color=0x00ff00) #You can add a text in there if you want
-#            embed.set_footer(text="Good morning degens")
-        #embed.add_field(name="**Add something**", value="Or delete this.", inline=False) 
-#            embed.set_image(url="https://media.discordapp.net/stickers/1041335509269618810.png")
-            #await ctx.author.send(embed=embed) #This sends the message in the DMs change to "ctx.send" to send it in chat
-#            await ctx.channel.send(embed=embed)
-            file = discord.File("./bobo-gm-frens.gif", filename="bobo-gm-frens.gif")
-            embed.set_image(url="attachment://bobo-gm-frens.gif")
-            await ctx.channel.send(file=file, embed=embed)
-        
-        @bot.command(name="8")
-        async def eight(ctx, *question): await eightBall(ctx, *question)
+#Declarations for slash commands
+url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
+headers = { "Authorization": "Bot " + BOT_TOKEN} #headers = { "Authorization": "Bearer " + BOT_CLIENT_ID }
+slash_command_json = {
+    "name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "TimeValue", "value": "TV"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }]}   ] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
 
-        @bot.command(name="8ball")
-        async def eightBall(ctx, *question):
-            future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
-            isQuestion = False
-            for word in question: isQuestion = isQuestion | ("?" in word)
-            if isQuestion:
-                await ctx.channel.send(random.choice(future))
-            else:
-                await ctx.channel.send("Please phrase that as a question")
-            
-        @bot.command(name="flist")
-        async def fundamentalsList(ctx):
-            await ctx.channel.send(listOfKeys)
-            
-        @bot.command(name="fundamentals")
-        async def fundamentals(ctx, arg1):
-            if len(arg1) > 6 : return # Note, hackers could totally exploit the arg1 to delete any file on ur system
-            fileName = "./" + arg1 + ".txt"
-            try:
-                funds = yf.Ticker(arg1)
-                dict = funds.info        
-                with open(fileName, 'w') as file:
-                    file.write("Fundamentals for " + arg1 + "\n")
-                    for data in dict:
-                        if data in dict: file.write(data + " - " + str(dict[data]) + "\n")
-                with open(fileName, 'rb') as fp: 
-                    await ctx.channel.send(file=discord.File(fp, fileName))
-            except:
-                await ctx.channel.send("Check ticker and fundamental name, try again.")
-            os.remove(fileName, dir_fd=None)    
-            
-        @bot.command(name="fund")
-        async def fundamental(ctx, arg1, arg2):
-            try:
-                funds = yf.Ticker(arg1)
-                dict = funds.info
-                await ctx.channel.send(arg1.upper() + " " + arg2 + " : " + str(dict[arg2]))
-            except:
-                await ctx.channel.send("Check ticker and fundamental name, try again.")
+slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }],
+    "name": "help", "type": 1, "description": "Provides help for Smayxor",
+    "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
 
-        @bot.command(name="kill")
-        async def restart_command(ctx):
-            print("Shutdown triggered by : ", ctx.author.name, ctx.author.id)
-            if BOT_USER_FOR_KILL in ctx.author.name:
+slash_command_json = {    "name": "gm", "type": 1, "description": "GM Frens",
+    "name": "pump", "type": 1, "description": "PUMP IT UP!!!",
+    "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!",
+    "name": "ass", "type": 1, "description": "Check out the shitter on that critter!",
+    "name": "tits", "type": 1, "description": "Show me the titties!" }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+#Removes slash commands
+#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1078392146064838738", headers=headers) )   
+
+def getTenorGIF( search ):
+    url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
+    r = requests.get(url=url)
+    content = json.loads(r.content)
+    dctResults = []
+    if r.status_code == 200: 
+        for ids in content['results']:
+            dctResults.append( ids['media_formats']['tinygif']['url'] )
+        return random.choice( dctResults )
+    else: return "https://media.tenor.com/F2clNh5qPRoAAAAM/pump-stocks.gif"
+
+gms = [enc("gm friends"), enc("good morning coffee"), enc("wake up"), enc("time to work")]
+pumps = [enc("stock pump rocket moon"), enc("stock bull"), enc("pepe money rain")]
+dumps = [enc("stock dump crash"), enc("bear stock")]
+tities = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
+asses = [enc("women ass twerk poggers"), enc("women sexy butt"), enc("latina big ass")]
+
+tickers = []
+counter = 0
+auto_updater = []
+intents = discord.Intents.all()
+updateRunning = False
+bot = commands.Bot(command_prefix='}', intents=intents, help_command=None, sync_commands=True)
+def thread_discord():
+    strHelp = """}? for commands for Smayxor
+}s ticker dte, you can leave out DTE for 0DTE.  Can also use /gex ticker dte charttype
+/8ball followed by a question, ending in ?
+The top bars are OI.
+The Red/Green bars above the strikes are Total Gamma Exposure, with blue/pink DEX lines.
+Under the strikes is Call Put GEX individually
+Additional Chart Types are V for volume, IV for ImpliedVolatility, R for rotated, and TV for TimeValue
+}s spx 0 v    for a volume chart
+Smayxor has switched to using /gex"""
+
+    def getChartType( arg ):
+        arg = arg.upper()
+        if arg == 'V': return CHART_VOLUME
+        elif arg == 'IV': return CHART_IV
+        elif arg == 'TV': return CHART_TIMEVALUE
+        elif arg == 'R': return CHART_ROTATE
+        elif arg == 'JSON': return CHART_JSON
+        else: return CHART_NORMAL
+
+    @bot.tree.command(name="gex", description="Draws a GEX chart")
+    async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "NORMAL"):   
+        global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+        tickers.append( (ticker.upper(), dte, getChartType(chart), intr.channel.id, intr.channel) )
+        if updateRunning == False :
+            print("Starting queue")
+            updateRunning = True
+            channelUpdate.start()        
+        await intr.response.send_message("Fetching GEX chart for " + ticker) #        print( ticker + " " + str(dte) + " " + str(chartType) )
+
+    @bot.tree.command(name="pump")
+    async def slash_command_pump(intr: discord.Interaction):
+        pumps = random.choice( ["./pepe-money.gif", "./wojak-pump.gif"] )
+        if random.random() < 0.91 :
+            await intr.response.send_message( getTenorGIF( random.choice(pumps) ) )
+        else:
+            await intr.response.send_message(file=discord.File(pumps))
+            
+    @bot.tree.command(name="dump")
+    async def slash_command_dump(intr: discord.Interaction):
+        await intr.response.send_message( getTenorGIF( random.choice(dumps) ) )
+
+    @bot.tree.command(name="tits")
+    async def slash_command_tits(intr: discord.Interaction):
+        await intr.response.send_message( getTenorGIF( random.choice(tities) ) )
+
+    @bot.tree.command(name="ass")
+    async def slash_command_ass(intr: discord.Interaction):
+        await intr.response.send_message( getTenorGIF( random.choice(asses) ) )
+
+    @bot.tree.command(name="gm")
+    async def slash_command_gm(intr: discord.Interaction):
+        if random.random() < 0.91 :
+            await intr.response.send_message( getTenorGIF( random.choice(gms) ) )
+        else:
+            await intr.response.send_message(file=discord.File('./bobo-gm-frens.gif'))
+
+    @bot.tree.command(name="8ball", description="Answers your question?")
+    async def slash_command_8ball(intr: discord.Interaction, question: str):   
+        future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
+        if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
+        else: await intr.response.send_message("Please phrase that as a question")
+
+    @bot.tree.command(name="sudo")
+    async def slash_command_sudo(intr: discord.Interaction, command: str):
+        global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+        user = str(intr.user)
+        if BOT_USER_FOR_KILL == user:
+            args = command.upper().split(' ')
+            print( args )
+            if args[0] == "KILL" :
+                await intr.response.send_message("Smayxor shutting down")
                 await bot.close()
                 await bot.logout()
                 exit(0)
-            else:
-                await ctx.channel.send(ctx.author.name + " you can't kill meme!")
+            elif args[0] == "START" :
+                print("starting")
+                dte = args[2] if (len(args) == 3) and args[2].isnumeric() else '0'
+                chart = getChartType(args[3]) if (len(args) == 4) else 'NORMAL' 
+                print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
+                auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
+                if updateRunning == False :
+                    print("Starting queue")
+                    updateRunning = True
+                    channelUpdate.start()
+            elif args[0] == "STOP" :
+                auto_updater.clear()
+                CallATMIV = {}
+                PutATMIV = {}
+                IVUpdateChannel = []
+            elif args[0] == "IV" :
+                if not BOT_USER_FOR_KILL in message.author.name: return
+                ticky = args[1].upper()
+                IVUpdateChannel = (ticky, message.channel.id)
+                IVUpdateChannelCounter = 300
+                if updateRunning == False :
+                    print("Starting queue, IV Monitor")
+                    updateRunning = True
+                    channelUpdate.start()
+            await intr.response.send_message(user + " running command " + command)
+        else: await intr.response.send_message(user + " you can't kill meme!")
+  
+    @bot.tree.command(name="help")
+    async def slash_command_help(intr: discord.Interaction):
+        await intr.response.send_message(strHelp)
+  
+    @bot.command(name="?")
+    async def question(ctx):
+        await ctx.send(strHelp)
 
-        @bot.command(name="?")
-        async def displayCommands(ctx): 
-            await ctx.channel.send("""Commands for !Smayxor
-Type !stock followed by Ticker DaysTillExpiry
-Using !s Ticker will get you 0dte for that stock
-Popular tickers just type  !spx   !spy !qqq !soxl !soxl !tqqq !sqqq !labu !tsla !aapl !amzn
-Be sure to check the date stamp at the bottom of the images.  
-A day will be added AH, and if no options are found 7-35 days may be added
+    @tasks.loop(seconds=1)
+    async def channelUpdate():
+        global tickers, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter
+        if len(tickers) != 0 :
+            for tck in tickers:
+                fn = stock_price(tck[0], tck[1], tck[2])
+                chnl = bot.get_channel(tck[3])
+                if chnl == None : chnl = tck[4]
+                if fn == "error.png": await chnl.send("Failed to get data for " + tck[0])
+                else: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+                tickers.clear()
+        if len(auto_updater) != 0:
+            counter += 1
+            if counter > 300 :
+                counter = 0
+                for tck in auto_updater:
+                    fn = stock_price(tck[0], tck[1], tck[2])
+                    chnl = bot.get_channel(tck[3])
+                    if chnl == None : chnl = tck[4]
+                    await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+        if len(IVUpdateChannel) != 0:
+            IVUpdateChannelCounter += 1
+            if IVUpdateChannelCounter > 300 :
+                IVUpdateChannelCounter = 0
+                print( "Looping ", IVUpdateChannel , IVUpdateChannelCounter )
+                fn = stock_price(IVUpdateChannel[0], 0, CHART_IV)
+                await bot.get_channel(IVUpdateChannel[1]).send(file=discord.File(open('./' + fn, 'rb'), fn))
 
-The blue bars up top are Open Interest
-The Red/Green bars above the strikes are Total Gamma, Red is Negative, Green is Positive
-Below the strikes is Call Gamma and Put Gamma individually
+    @bot.command(name="s")
+    async def question(ctx, *args):
+        global tickers, updateRunning
+        print( "Command }s ", args )
+        if ctx.message.author == bot.user: return
+        if len(args) == 0: return
+        dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
+        tickers.append( (args[0].upper(), dte, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
+        if updateRunning == False :
+            print("Starting queue")
+            updateRunning = True
+            channelUpdate.start()
+    """
+    @bot.event #await bot.process_commands(message)
+    async def on_message(message):  #handling bot commands myself so we can do ALL stocks with optional dte arguement
+        global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+        if message.author == bot.user: return
+        if len(message.content) == 0: return
+        if message.content[0] != '}': return
+        args = message.content.split(' ')
+        if (len(args[0]) == 1): return
+        args[0] = args[0].split('}')[1]
 
-!flist to display a list of fundamentals you can grab
-!f Ticker FundamentalName   Will get you that fundamental
-!fundamentals Ticker  Will get you ALL the fundamentals as a text file
-!8ball or !8 Your question, with a ? at the end
-!gm Posts GM image""")
-        @bot.command(name="stock")
-        async def stockChart(ctx, arg1, arg2):
-            if ctx.author == bot.user: return
-            
-            ticky = arg1.upper()
-            stock_price(arg1, arg2)
-            with open('./stock-chart.png', 'rb') as fp: 
-                await ctx.channel.send(file=discord.File(fp, 'stock-chart.png'))
-        @bot.command(name="s")
-        async def stockChart2(ctx, arg1): await stockChart(ctx, arg1, 0)
-        @bot.command(name="spx")
-        async def spxChart(ctx): await stockChart(ctx, "spx", 0)
-        @bot.command(name="spy")
-        async def spyChart(ctx): await stockChart(ctx, "spy", 0)
-        @bot.command(name="qqq")
-        async def qqqChart(ctx): await stockChart(ctx, "qqq", 0)
-        @bot.command(name="soxl")
-        async def soxlChart(ctx): await stockChart(ctx, "soxl", 7)
-        @bot.command(name="soxs")
-        async def soxsChart(ctx): await stockChart(ctx, "soxs", 7)
-        @bot.command(name="tqqq")
-        async def tqqqChart(ctx): await stockChart(ctx, "tqqq", 7)
-        @bot.command(name="sqqq")
-        async def sqqqChart(ctx): await stockChart(ctx, "sqqq", 7)
-        @bot.command(name="labu")
-        async def labuChart(ctx): await stockChart(ctx, "labu", 7)
-        @bot.command(name="tsla")
-        async def tslaChart(ctx): await stockChart(ctx, "tsla", 7)
-        @bot.command(name="aapl")
-        async def aaplChart(ctx): await stockChart(ctx, "aapl", 7)
-        @bot.command(name="amzn")
-        async def amznChart(ctx): await stockChart(ctx, "amzn", 7)
-        @bot.command(name="meta")
-        async def metaChart(ctx): await stockChart(ctx, "meta", 7)
-        @bot.command(name="gme")
-        async def gmeChart(ctx): await stockChart(ctx, "gme", 7)
-        @bot.command(name="bbby")
-        async def bbbyChart(ctx): await stockChart(ctx, "bbby", 7)
-        @bot.command(name="oxy")
-        async def oxyChart(ctx): await stockChart(ctx, "oxy", 7)
-        @bot.command(name="mo")
-        async def moChart(ctx): await stockChart(ctx, "mo", 7)
-        @bot.command(name="ups")
-        async def upsChart(ctx): await stockChart(ctx, "ups", 7)
-        @bot.command(name="xom")
-        async def xomChart(ctx): await stockChart(ctx, "xom", 7)
-        @bot.command(name="mstr")
-        async def mstrChart(ctx): await stockChart(ctx, "mstr", 7)
-        @bot.command(name="cat")
-        async def catChart(ctx): await stockChart(ctx, "cat", 7)
-        @bot.command(name="good")
-        async def goodChart(ctx): await stockChart(ctx, "good", 7)
-        @bot.command(name="rivn")
-        async def rivnChart(ctx): await stockChart(ctx, "rivn", 7)
-        @bot.command(name="mara")
-        async def maraChart(ctx): await stockChart(ctx, "mara", 7)
-        @bot.command(name="riot")
-        async def riotChart(ctx): await stockChart(ctx, "riot", 7)
-        @bot.command(name="roku")
-        async def rokuChart(ctx): await stockChart(ctx, "roku", 7)
-        @bot.command(name="pypl")
-        async def pyplChart(ctx): await stockChart(ctx, "pypl", 7)
-        @bot.command(name="intc")
-        async def intcChart(ctx): await stockChart(ctx, "intc", 7)
-        @bot.command(name="nio")
-        async def nioChart(ctx): await stockChart(ctx, "nio", 7)
-        @bot.command(name="dkng")
-        async def dkngChart(ctx): await stockChart(ctx, "dkng", 7)
-        @bot.command(name="faze")
-        async def fazeChart(ctx): await stockChart(ctx, "faze", 7)
-        @bot.command(name="ge")
-        async def geChart(ctx): await stockChart(ctx, "ge", 7)
-        @bot.command(name="aeo")
-        async def aeoChart(ctx): await stockChart(ctx, "aeo", 7)
-        @bot.command(name="grnd")
-        async def grndChart(ctx): await stockChart(ctx, "grnd", 7)
-        @bot.command(name="rblx")
-        async def rblxChart(ctx): await stockChart(ctx, "rblx", 7)
-        @bot.command(name="msft")
-        async def msftChart(ctx): await stockChart(ctx, "msft", 7)
-        @bot.command(name="amc")
-        async def amcChart(ctx): await stockChart(ctx, "amc", 7)
-        @bot.command(name="wmt")
-        async def wmtChart(ctx): await stockChart(ctx, "wmt", 7)
-        @bot.command(name="crbl")
-        async def crblChart(ctx): await stockChart(ctx, "crbl", 7)
-        @bot.command(name="pltr")
-        async def pltrChart(ctx): await stockChart(ctx, "pltr", 7)
-        @bot.command(name="afrm")
-        async def afrmChart(ctx): await stockChart(ctx, "afrm", 7)
-        @bot.command(name="dltr")
-        async def dltrChart(ctx): await stockChart(ctx, "dltr", 7)
-        @bot.command(name="dg")
-        async def dgChart(ctx): await stockChart(ctx, "dg", 7)
-        @bot.command(name="etsy")
-        async def etsyChart(ctx): await stockChart(ctx, "etsy", 7)
-        @bot.command(name="snow")
-        async def snowChart(ctx): await stockChart(ctx, "snow", 7)
-        @bot.command(name="nflx")
-        async def nflxChart(ctx): await stockChart(ctx, "nflx", 7)
-        @bot.command(name="amd")
-        async def amdChart(ctx): await stockChart(ctx, "amd", 7)
-        @bot.command(name="f")
-        async def fChart(ctx): await stockChart(ctx, "f", 7)
-        @bot.command(name="dis")
-        async def disChart(ctx): await stockChart(ctx, "dis", 7)
-        @bot.command(name="ba")
-        async def baChart(ctx): await stockChart(ctx, "ba", 7)
-        
-        bot.run(BOT_TOKEN)
-        
-""" Notes on Accounting
-    P/E Ratio determines if company is over/under valued.  PE Ratio of 15 means current value of company is equal to 15 times its annual earnings.
-    Lower P/E ratio is good, if you think it should be higher
-
-    PEG Ratio price earnings to growth.  Target ratio below 1.0
-
-    Quick Ratio = company liquidity, ability to pay bills.  higher ratio is better.   If its really high the company isnt using assests well
-
-    ROE Return on Equity.   higher ROE is better.  use to compare similar companies.
-
-    ROA Return on Assets.   better than ROE.  differs alot in dif industries
-
-    DebtToEquity Ratio.   Higher ratio = more risk    well established companies can have a higher ratio
-
-    FreeCashFlow shows how much money a company has to burn
-
-    Price-to-Book Ratio P/B.   Value investors wants under 1.
-"""
+        ticky = args[0].upper()
+        dte = args[1] if (len(args) > 1) and args[1].isnumeric() else '0'
+        print(message.channel.id)
+        tickers.append( (ticky, dte, getChartType(args[2]) if (len(args) == 3) else 0, message.channel.id, message.channel) )
+        if updateRunning == False :
+            print("Starting queue")
+            updateRunning = True
+            channelUpdate.start()
+    """                
+    bot.run(BOT_TOKEN)
 
 def rateFundamental(ticker_name, fundamental, value):
     rating = 5
     try:
-        if 'Beta' in fundamental:
-            rating = value * 4
-            if rating > 9 : rating = 9
-        elif 'DivYield' in fundamental:
-            rating = 5 - value
-        elif 'DivAmount' in fundamental:
-            rating = 5 - value
-        elif 'peRatio' in fundamental:
-            rating = 10 - (1 / value)
-        elif 'pegRatio' in fundamental:
-            rating = (1 - value) * 10
-        elif 'QuickRatio' in fundamental:
-            rating = 100 / value
-        elif 'DebtToCapital' in fundamental:
-            rating = 5
-        elif 'MarketCap' in fundamental:
-            rating = int(value / 100000) 
-        elif 'Calls' in fundamental:
+        if 'Calls' in fundamental:
             rating = 9
         elif 'Puts' in fundamental:
             rating = 0
         elif 'Total' in fundamental:
             total = CallDollars - PutDollars
             rating = 9 if total > (CallDollars * 0.25) else 0 if abs(total) > (PutDollars * 0.25) else 5
-        elif 'VIX' in fundamental:
-            rating = (float(value) - 10) / 2 
-        elif 'Data' in value:
-            rating = 0 if "Delayed" in fundamental else 9
     except:
         rating = 5
     if rating < 0: rating = 0
@@ -479,114 +450,126 @@ def rateFundamental(ticker_name, fundamental, value):
 
 def drawRect(x, y, w, h, color, border):
     if border in 'none': border = color
-#    if guiMode : canvas.create_rectangle(x, y, w, h, fill=color, outline=border)
     draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
 
 def drawPriceLine(x, color):  #Draws a dashed line
-#    if guiMode : canvas.create_line(x, 100, x, 350, dash=(4, 2), fill=color, width = 1)
     y = 100
     while y < 350:
         draw.line([x, y, x, y + 4], fill=color, width=1)
         y += 6
 
+def drawRotatedPriceLine(y, color):  #Draws a dashed line
+    x = 120
+    while x < 350:
+        draw.line([x, y, x + 4, y], fill=color, width=1)
+        x += 6
+
 def drawText(x, y, txt, color):
-    #text_width = font.getlength(txt)
-#    if guiMode : canvas.create_text(x, y, anchor=NW, font=("Purisa", STR_FONT_SIZE), text=txt, fill=color)
     draw.text((x,y), text=txt, fill=color, font=font) 
 
 def drawRotatedText(x, y, txt, color):  
-
     text_layer = PILImg.new('L', (100, FONT_SIZE))
     dtxt = ImageDraw.Draw(text_layer)
     dtxt.text( (0, 0), txt, fill=255, font=font)
     rotated_text_layer = text_layer.rotate(270.0, expand=1)
-    
-    PILImg.Image.paste( img, rotated_text_layer, (x,210) ) 
-    #img.Image.paste( ImageOps.colorize(rotated_text_layer, (x,y,50), (90, 90,90)), rotated_text_layer, (x,200) ) 
-    #    img.paste( ImageOps.colorize(rotated_text_layer, (x,y,50), (90, 90,90)), (42,60),  rotated_text_layer)
-    #img.show()
-    #Image.new("RGB", (IMG_W, IMG_H), "#000")
-def daysFromNow(days):
-    delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
-    return delta.days + 1
+    PILImg.Image.paste( img, rotated_text_layer, (x,220) ) 
 
 def clearScreen():
-    #if guiMode : canvas.delete('all')
+    img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
     drawRect(0,0,IMG_W,IMG_H, color="#000", border="#000")
 
-def getFundamentals(ticker_name):
-    page = requests.get(url=fundamental_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name))
-    content = json.loads(page.content)[ticker_name]["fundamental"]
-    result = {'Beta': content["beta"], 'DivYield': content["dividendYield"], 'DivDate': content["dividendDate"], 'DivAmount': content["dividendAmount"], 'peRatio': content["peRatio"], 'pegRatio': content["pegRatio"], 'QuickRatio': content["quickRatio"], 'DebtToCapital': content["totalDebtToCapital"], 'SharesOut': f'{int(content["sharesOutstanding"]):,}', 'Float': f'{(int(content["marketCapFloat"]) * 1000000):,}', 'MCap': f'{(int(content["marketCap"]) * 1000000):,}'}
+def getFundamentals(ticker_name):    
+    try:
+        page = requests.get(url=fundamental_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name))
+        content = json.loads(page.content)[ticker_name]["fundamental"]
+        result = {'Beta': content["beta"], 'DivYield': content["dividendYield"], 'DivDate': content["dividendDate"], 'DivAmount': content["dividendAmount"], 'peRatio': content["peRatio"], 'pegRatio': content["pegRatio"], 'QuickRatio': content["quickRatio"], 'DebtToCapital': content["totalDebtToCapital"], 'SharesOut': f'{int(content["sharesOutstanding"]):,}', 'Float': f'{(int(content["marketCapFloat"]) * 1000000):,}', 'MCap': f'{(int(content["marketCap"]) * 1000000):,}'}
+        return result
+    except :
+        return {'Bad Ticker' : 'Tell Smayberry'}         
     
-#  "''revenueGrowth', 'operatingMargins', 'ebitda', 'targetLowPrice', 'grossProfits', 'freeCashflow', 'targetMedianPrice', 'currentPrice', 'earningsGrowth', 'currentRatio', 'returnOnAssets', 'targetMeanPrice', 'debtToEquity', 'returnOnEquity', 'targetHighPrice', 'totalCash', 'totalDebt', 'totalRevenue', 'totalCashPerShare', 'revenuePerShare', 'quickRatio','morningStarRiskRating', 'forwardEps', 'revenueQuarterlyGrowth', 'sharesOutstanding', 'fundInceptionDate', 'annualReportExpenseRatio', 'totalAssets', 'bookValue', 'sharesShort', 'sharesPercentSharesOut', 'fundFamily', 'lastFiscalYearEnd', 'heldPercentInstitutions', 'netIncomeToCommon', 'trailingEps', 'lastDividendValue', 'SandP52WeekChange', 'priceToBook', 'heldPercentInsiders', 'nextFiscalYearEnd', 'yield', 'mostRecentQuarter', 'shortRatio', 'sharesShortPreviousMonthDate', 'floatShares', 'beta', 'enterpriseValue', 'priceHint', 'threeYearAverageReturn', 'lastDividendDate', 'morningStarOverallRating', 'earningsQuarterlyGrowth', 'priceToSalesTrailing12Months', 'dateShortInterest', 'pegRatio', 'ytdReturn', 'forwardPE', 'lastCapGain', 'shortPercentOfFloat', 'sharesShortPriorMonth', 'impliedSharesOutstanding', 'fiveYearAverageReturn', 'twoHundredDayAverage', 'trailingAnnualDividendYield', 'payoutRatio', 'regularMarketDayHigh', 'navPrice', 'averageDailyVolume10Day', 'regularMarketPreviousClose', 'trailingAnnualDividendRate', 'dividendRate', 'exDividendDate', 'trailingPE', 'marketCap','dividendYield'"  
-#    funds = yf.Ticker(ticker_name)
-#    dict = funds.info
-#    result = {'Beta': dict["beta"], 'DivYield': dict["dividendYield"], 'DivDate': dict["exDividendDate"], 'forwardPE': dict["forwardPE"], 'pegRatio': dict["pegRatio"], 'QuickRatio': dict["quickRatio"]}
-    return result
-    
-def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days):
-    global ExpectedMove, GEX, DEX, VEX, Volas, OIS, CallDollars, PutDollars, atmDif, closestStrike
+def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days, chartType, timeValue):
+    global GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallDollars, PutDollars, atmDif, closestStrike, CallATM, PutATM
     try:
         if not strike in GEX: newStrike(strike)  #Prevents NaN values?
-        if (oi == 0): return   #Delta and Gamma show up as -999.0
-        if (delta > 990) or (delta < -990) : return #might only happen when OI is 0
+        if chartType == CHART_NORMAL :
+            a = 1
+        if chartType == CHART_VOLUME : 
+            oi = volume
+        elif chartType == CHART_TIMEVALUE :
+            GEX[strike] = timeValue
+            if (call == 1):
+                CallGEX[strike] = timeValue
+            else:
+                PutGEX[strike] = timeValue                  
+            return
+        if (oi == 0): return 0  #Delta and Gamma show up as -999.0
+        if (delta > 990) or (delta < -990) : return #need to test values for NaN
         
         GEX[strike] += (gamma * oi * call)
         DEX[strike] += (delta * oi)
-        VEX[strike] = vega
-        Volas[strike] = volatility
-        
+
         if (call == 1):
+            CallIV[strike] = volatility
             CallGEX[strike] += (gamma * oi)
             CallDollars += (bid * oi)
+            CallOI[strike] += oi
         else:
+            PutIV[strike] = volatility
             PutGEX[strike] += (gamma * oi)
             PutDollars += (bid * oi)
-#        if (itm): OIS[strike] += oi
-        OIS[strike] += oi
-
+            PutOI[strike] += oi
+              
         distToMoney = (abs(strike - price))
         if distToMoney < atmDif: 
             atmDif = distToMoney
             closestStrike = strike
-            ExpectedMove = volatility * math.sqrt(days / 365)
-#        em = 0
-#        if abs(strike - price) < 1.0 : em = volatility * math.sqrt(days / 365)
-#        if em > ExpectedMove: ExpectedMove = em   #Each date should land on this strike, keep the biggest one
+       
+#def daysFromNow(days):
+#    dn = datetime.datetime.now()
+#    dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
+#    delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
+#    return delta.days
+        if closestStrike == strike : 
+            if call == 1 : CallATM = bid
+            else : PutATM = bid
+
+        return oi
     except:
-#        print("error")
-        a=1
+        return 0
 
 def newStrike(strike):
-    global GEX, DEX, VEX, Volas, OIS
+    global GEX, DEX, CallIV, PutIV, CallOI, PutOI
     GEX[strike] = 0
     CallGEX[strike] = 0
     PutGEX[strike] = 0
     DEX[strike] = 0
-    VEX[strike] = 0
-    Volas[strike] = 0
-    OIS[strike] = 0
+    CallIV[strike] = 0
+    PutIV[strike] = 0
+    CallOI[strike] = 0
+    PutOI[strike] = 0
 
 def clearArrays():
-    global ExpectedMove, GEX, DEX, VEX, Volas, OIS, CallDollars, PutDollars, atmDif, closestStrike
+    global ExpectedMove, GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallATM, PutATM, CallDollars, PutDollars, atmDif, closestStrike
     GEX.clear()
     CallGEX.clear()
     PutGEX.clear()
     DEX.clear()
-    VEX.clear()
-    Volas.clear()
-    OIS.clear()
+    CallIV.clear()
+    PutIV.clear()
+    CallOI.clear()
+    PutOI.clear()
+    CallATM = 0
+    PutATM = 0
     ExpectedMove = 0.0
     CallDollars = 0.0
     PutDollars = 0.0
     atmDif = 999
     closestStrike = 0
 
-def drawCharts(ticker_name, dte, price, delayed):
-    global ExpectedMove, GEX, DEX, VEX, Volas, OIS, CallDollars, PutDollars, FONT_SIZE, closestStrike
+def drawCharts(ticker_name, dte, price, chartType):
+    global ExpectedMove, GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallDollars, PutDollars, FONT_SIZE, closestStrike, draw, img
 #Get max GEX/DEX for math to draw chart,  alternative would be to make a'MAX' key in each array
-    maxOIS = 0
+    maxOI = 1
     maxGEX = 0
     maxDEX = 0
     maxCPGEX = 0
@@ -595,355 +578,197 @@ def drawCharts(ticker_name, dte, price, delayed):
         if abs(CallGEX[strikes]) > maxCPGEX: maxCPGEX = abs(CallGEX[strikes])
         if abs(PutGEX[strikes]) > maxCPGEX: maxCPGEX = abs(PutGEX[strikes])
         if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
-        if abs(OIS[strikes]) > maxOIS: maxOIS = abs(OIS[strikes])
+              
+        #CallOI[strikes] += PutOI[strikes]   #Combining for a total.  Individual OI looks a lot like gamma chart
+        if abs(CallOI[strikes]) > maxOI: maxOI = abs(CallOI[strikes])
+        if abs(PutOI[strikes]) > maxOI: maxOI = abs(PutOI[strikes])
 
-#Draw the chart
-    clearScreen()    
-    x = -15
-    for strikes in sorted(GEX):
-        x += FONT_SIZE - 3
-        txtColor = ("#0FF" if (x % 10 == 0) else "#3F3")  #just to make strikes stand out and not blur together
-        """  Draws differently in PIL Image from TKinter Canvas, font size issues 
-        upperPrice = int(strikes)
-        lowerPrice = int((strikes % 1) * 100)
-        strUpperPrice = str(upperPrice)
-        strLowerPrice = str(lowerPrice)
-        drawText(x, 205, txt=('\n'.join(strUpperPrice)), color=txtColor)
-        if (lowerPrice > 0) :
-            txtY = 205 + ((len(strUpperPrice) - 1) * FONT_SIZE)
-            drawText(x + 5, txtY + 10, txt=".", color=txtColor)
-            drawText(x, txtY + FONT_SIZE + 5, txt=('\n'.join(strLowerPrice)), color=txtColor)
-        """
-        drawRotatedText(x=x - 5, y=205, txt=str(strikes).replace('.0', ''), color=txtColor)
-        #drawText(x, 205, txt=('\n'.join(str(strikes).replace('.0', ''))), color=txtColor)
-        if (OIS[strikes] != 0): drawRect(x, 0, x + 12, ((abs(OIS[strikes]) / maxOIS) * 50), color="#00f", border='')
-        if (GEX[strikes] != 0): drawRect(x, 205 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 12, 205, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
-        if (DEX[strikes] != 0): drawRect(x, 205 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 205, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
-        if (CallGEX[strikes] != 0): drawRect(x, 389 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 389, color="#0f0", border='')
-        if (PutGEX[strikes] != 0): drawRect(x, 391 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 391, color="#f00", border='')
-
-        if float(strikes) == closestStrike:
-            if price > closestStrike : drawPriceLine(x + 10, "#FF0")
-            else : drawPriceLine(x, "#FF0")
-            
-#    fundamentals = getFundamentals(ticker_name)
-    vix = json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']
+#    vix = json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']
     fundamentals = {}
-    fundamentals[ticker_name] = "$" + str(price)
-    fundamentals['VIX'] = "{:,.2f}".format(vix)
-    fundamentals['ExpectedMove'] = str(round(ExpectedMove, 2)) + "%"
-    fundamentals['EM'] = "${:,.2f}".format(price * (ExpectedMove / 100))
+    fundamentals[ticker_name] = "$" + str(price) + " : " + dte.split(":")[1] + " DTE"
+#    fundamentals['VIX'] = "{:,.2f}".format(vix)
+    fundamentals['ExpectedMove'] = "$" + str(round(ExpectedMove, 2))
     fundamentals['Calls'] = "${:,.2f}".format(CallDollars)
     fundamentals['Puts'] = "${:,.2f}".format(PutDollars)
     fundamentals['Total'] = "${:,.2f}".format(CallDollars - PutDollars)
-    fundamentals = {**fundamentals, **getFundamentals(ticker_name)}
-    fundamentals["Delayed" if delayed else "Live"] = 'Data'    #Not needed as OAUTH code currently forces the issue, just showing off
-    fundamentals[dte] = "DTE"
-#    fundamentals = {ticker_name: "$" + str(price), **fundamentals}
-    x = IMG_W - 250
-    drawRect(x, 0, IMG_W, IMG_H, color="#000", border="#777")
-    #drawRect(x+20, 30, x + 24, 500, color='#777', border='#333')
-    x += 4
-    y = 5
-    for keys in fundamentals:
-        drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color= str(rateFundamental(ticker_name, keys, fundamentals[keys])) )
-        y += FONT_SIZE
-    
-#    drawText(0, 0, txt=str(ticker_name + ": $" + str(round(price, 2)) + " VIX " + str(vix) + " Expected Move " + str(round(ExpectedMove, 2)) + "% $" + str(round(price * (ExpectedMove / 100), 2))), color="#0FF")
+    if (chartType == CHART_NORMAL) or (chartType == CHART_ROTATE) : fundamentals['ChartType'] = "GEX "
+    if chartType == CHART_VOLUME : fundamentals['ChartType'] = "Volume "
+    if chartType == CHART_IV : fundamentals['ChartType'] = "IV "
+    if chartType == CHART_TIMEVALUE : fundamentals['ChartType'] = "TimeValue "
 
-    #drawText(0,470, txt=str(dte), color="#0ff")
+    #Draw the chart
+    if chartType == CHART_ROTATE :
+        img = PILImg.new("RGB", (IMG_H, IMG_W), "#000")
+        draw = ImageDraw.Draw(img)
 
-    
-def stock_price(ticker_name, days):
-    global ExpectedMove, GEX, DEX, VEX, Volas, OIS, img, draw
+        text = fundamentals['ChartType'] + ticker_name + " " + fundamentals[ticker_name] + " ExpMove " + fundamentals['ExpectedMove']
+        drawText( 2, 2, txt=text, color="#7fF")
+        text = "Calls " + fundamentals['Calls']
+        drawText( 2, 25, txt=text, color="#7F7")
+        text = "Puts " +  fundamentals['Puts']
+        drawText( 250, 25, txt=text, color="#F77")
+        text = "Total " + fundamentals['Total']
+        drawText( 2, 45, txt=text, color="#0FF")
+        y = 60
+        for strikes in reversed(sorted(GEX)):
+            y += FONT_SIZE - 3
+            drawText(245, y - 5, txt=str(strikes).replace('.0', ''), color="#CCC")
+            yOIc = ((abs(CallOI[strikes]) / maxOI) * 45)
+            yOIp = ((abs(PutOI[strikes]) / maxOI) * 45)
+            if (CallOI[strikes] != 0): drawRect(yOIp + 1, y, yOIc + yOIp, y + 12, color="#0F0", border='')
+            if (PutOI[strikes] != 0): drawRect(0, y, yOIp, y + 12, color="#F00", border='')
+
+            if (GEX[strikes] != 0): drawRect(235 - ((abs(GEX[strikes]) / maxGEX) * 150), y, 235, y + 12, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
+            if (DEX[strikes] != 0): drawRect(235 - ((abs(DEX[strikes]) / maxDEX) * 150), y, 235, y + 2, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+            if (CallGEX[strikes] != 0): drawRect(419 - ((CallGEX[strikes] / maxCPGEX) * 100), y, 419, y + 12, color="#0f0", border='')
+            if (PutGEX[strikes] != 0): drawRect(421 + ((PutGEX[strikes] / maxCPGEX) * 100), y, 421, y + 12, color="#f00", border='')
+
+            if strikes == closestStrike:
+                if price > closestStrike : drawRotatedPriceLine(y, "#FF0")
+                else : drawRotatedPriceLine(y + 17, "#FF0")
+
+    else :    # Normal sideways chart
+        img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+        draw = ImageDraw.Draw(img)
+
+                  #    clearScreen()    
+        x = -15
+        for strikes in sorted(GEX):
+            x += FONT_SIZE - 3
+            drawRotatedText(x=x - 5, y=205, txt=str(strikes).replace('.0', ''), color="#03F3")
+            yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
+            yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
+            if (CallOI[strikes] != 0): drawRect(x, yOIp + 1, x + 12, yOIc + yOIp, color="#0F0", border='')
+            if (PutOI[strikes] != 0): drawRect(x, 0, x + 12, yOIp, color="#F00", border='')
+
+            if (GEX[strikes] != 0): drawRect(x, 215 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 12, 215, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
+            if (DEX[strikes] != 0): drawRect(x, 215 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 215, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+            if (CallGEX[strikes] != 0): drawRect(x, 399 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 399, color="#0f0", border='')
+            if (PutGEX[strikes] != 0): drawRect(x, 401 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 401, color="#f00", border='')
+
+            if strikes == closestStrike:
+                if price > closestStrike : drawPriceLine(x + 10, "#FF0")
+                else : drawPriceLine(x, "#FF0")
+#        text = fundamentals['ChartType'] + ticker_name + " " + fundamentals[ticker_name] + " ExpMove " + fundamentals['ExpectedMove']
+#        drawText( 2, 475, txt=text, color="#7fF")
+#        text = "Calls " + fundamentals['Calls'] + " : Puts " +  fundamentals['Puts'] + " : Total " + fundamentals['Total']
+#        drawText( 2, 280, txt=text, color="#7F7")
+        x = IMG_W - 250
+        drawRect(x, 0, IMG_W, IMG_H, color="#000", border="#777")
+        x += 4
+        y = 5
+        for keys in fundamentals:
+            drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color= str(rateFundamental(ticker_name, keys, fundamentals[keys])) )
+            y += FONT_SIZE
+                  
+def daysFromNow(days):
+    dn = datetime.datetime.now()
+    dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
+    delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
+    return delta.days
+
+def stock_price(ticker_name, dte, chartType = 0):
+    global ExpectedMove, GEX, DEX, CallIV, PutIV, CallOI, PutOI, img, draw, CallDollars, PutDollars, CallATM, PutATM
     clearArrays()
     ticker_name = ticker_name.upper()
-
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
     today = date.today()
     if "SPX" in ticker_name: ticker_name = "$SPX.X"
+    if "VIX" in ticker_name: ticker_name = "$VIX.X"
     if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
-#Force method to return results if DateRange is too small for stock to have options.  increment days until it works    
- #symbol': '$SPX.X', 'status': 'SUCCESS', 'underlying': None, 'strategy': 'SINGLE', 'interval': 0.0, 'isDelayed': True, 'isIndex': True, 'interestRate': 4.779, 'underlyingPrice': 4071.7, 'volatility': 29.0, 'daysToExpiration': 0.0, 'numberOfContracts': 80 'putExpDateMap' and 'callExpDateMap'
+
     loopAgain = True
     errorCounter = 0
+    logCounter = 0
     while loopAgain:
-        dateRange = today + datetime.timedelta(days=int(days))
-        content = json.loads(requests.get(url=options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange), headers=HEADER).content)
+        dateRange = today + datetime.timedelta(days=int(dte))
+        
+        url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
+        json_data = requests.get(url=url_endpoint, headers=HEADER).content
+        content = json.loads(json_data)
         if 'error' in content:  #happens when oauth token expires
             refreshTokens()
             errorCounter += 1
             if errorCounter == 5: break
-        else:   
-            if (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
-                days = str( int(days) + 7)
-                loopAgain = int(days) < 37
-            else: loopAgain = False
-    #print('IsDelayed ', content['isDelayed'])
-            
-    if (content['status'] in 'FAILED') or (errorCounter == 5): #Failed, we tried our best
+        elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
+            dte = str( int(dte) + 7)
+            loopAgain = int(dte) < 37
+        else: 
+            loopAgain = False        #loopAgain = True
+#            log = "./logs/" + str(logCounter) + "log.json"
+#            with open(log, "w") as outfile:
+#                outfile.write(json.dumps(content))
+#            sleep(180)
+#            logCounter += 1
+    if ('error' in content) or (errorCounter == 5) or (content['status'] in 'FAILED'): #Failed, we tried our best
         clearScreen()
         drawText(0,0,txt="Failed to get data", color="#FF0")
-        if serverMode : img.save("stock-chart.png")
-        return
+        img.save("error.png")
+        return "error.png"
     price = content['underlyingPrice']   #underlyingprice == 0.0  same as   status == FAILED
-
-    """  #Declaration For using pandas/numpy code.
-    dataColumns ={'ExpirationDate':'','Calls':'1','LastSale':'0','Net':'0','Bid':'0','Ask':'0','Vol':'0','IV':'0','Delta':'0','Gamma':'0','OpenInt':'0','StrikePrice':'0'}
-    df = pd.DataFrame(columns=dataColumns) """
+    
 #Load the data from JSON
+    totalOI = 0
+    if chartType == CHART_JSON :
+        ticker_name = ticker_name + ".json"
+        with open(ticker_name, "w") as outfile:
+            outfile.write(json.dumps(content, indent=4))
+        return ticker_name
+    
+    
     for days in content['callExpDateMap']: 
         for strikes in content['callExpDateMap'][days]:
-            def addData(opts): addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=daysFromNow(days))
-            for options in content['callExpDateMap'][days][strikes]: addData(options)
-            for options in content['putExpDateMap'][days][strikes]: addData(options)
+            def addData(opts): 
+                try:
+                    addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=days, chartType=chartType, timeValue=opts['timeValue'])
+                except:
+                  print( 'NaN')
+            try:
+                for options in content['callExpDateMap'][days][strikes]: addData(options)
+                for options in content['putExpDateMap'][days][strikes]: addData(options)
+            except:
+                  print("No Strike")
+    
+    #performing $ calcs out here to avoid doing in a loop
+    CallDollars = CallDollars * price
+    PutDollars = PutDollars * price
+              
+    ExpectedMove = (CallATM + PutATM) * 0.85
 
-#************* Paste pandas/numpy code here ****************
+                  
+                  
+                  
+                  
+#    print(closestStrike)              
+#    for strikes in CallIV:
+#        print( CallIV[strikes] , " / ", PutIV[strikes] )
+
+                  
+    if (chartType == CHART_IV) :     #CHECK IF STRIKE EXISTS, SPX FUCKS THIS UP
+        IVTime = datetime.datetime.now().strftime("%H:%M")
+        print( IVTime )
+        GEX = {}
+        if (CallIV.get(closestStrike) == None) or (PutIV.get(closestStrike) == None): return
+        CallATMIV[IVTime] = (CallIV[closestStrike] + CallIV[closestStrike + 1]) / 2
+        PutATMIV[IVTime] = (PutIV[closestStrike] + PutIV[closestStrike + 1]) / 2
+        for times in CallATMIV:
+            
+            GEX[times] = CallATMIV[times]
+            CallOI[times] = 0
+            PutOI[times] = 0
+            CallGEX[times] = CallATMIV[times]
+            PutGEX[times] = PutATMIV[times]
+            DEX[times] = 0
+        if len(CallATMIV) > 30: 
+            k = next(iter(CallATMIV))
+            CallATMIV.pop(k)
+            PutATMIV.pop(k)
+            #(k := next(iter(d)), d.pop(k))
     
-    drawCharts(ticker_name=ticker_name, dte=days, price=price, delayed=content['isDelayed'])
-    
-    #experimental search for Zero Gamma
-    total_gamma = 0
-    for strikes in GEX:
-        total_gamma += GEX[strikes]
-    total_gamma = total_gamma / price
-    
-    #Vanna Rally signals
-    #Falling VIX
-    #Crumbing IV
-    #Larger than 'normal' retail PUT OI
-    #if serverMode : 
+    #Uses days from the for loops above to get last date in list
+    drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")
-
-    if guiMode:
-        copyImg = PhotoImage(file="stock-chart.png")
-        canvas.create_image(IMG_W_2, IMG_H_2, image=copyImg)
+    return "stock-chart.png"
     
-def gui_click_fetch():
-    stock_price(ticker_name=e1.get(), days=e2.get())
-    
-def gui_click_loop():
-    looper.start()
-
-#Unused.  Draws a price chart
-def thread_price_history(ticker):
-    full_url = history_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
-    page = requests.get(url=full_url)
-    content = json.loads(page.content)
-    
-    while True:
-        page = requests.get(url=full_url)
-        content = json.loads(page.content)
-#{"candles": [{"open": 136.39,"high": 136.47,"low": 135.45,"close": 135.47,"volume": 276577,"datetime": 1667822400000}],"symbol": "AAPL","empty": false}    
-
-        print(content)
-
-        if content['empty']: break
-        clearScreen()
-        drawText(0,0,txt=content['symbol'],color="#00F")
-        highs = []
-        lows = []
-        volumes = []
-        times = []
-        colors = []
-        lowest = 9999.9
-        highest = 0.0
-        mostVol = 0.0
-        startTime = 0
-        for candles in content['candles']:     
-            highs.append( candles['high'] )
-            lows.append( candles['low'] )
-            colors.append( "#F00" if (candles['open'] > candles['close']) else "#0F0" ) #open/close determines candle red/green
-            volumes.append( candles['volume'] )
-            times.append( candles['datetime'] )
-
-            if candles['high'] > highest: highest = candles['high']# get max values, so we can trim it and scale to fit screen
-            if candles['low'] < lowest: lowest = candles['low']   
-            if candles['volume'] > mostVol: mostVol = candles['volume']
-            if startTime == 0.0: startTime = candles['datetime']
-            if candles['volume'] < 0: print("Negative ", candles['volume'])
-        dif = abs(highest - lowest)  #amount to trim off of all values
-        for i in range(len(highs)):  #scale numbers to fit on screen
-            highs[i] = (((highest - highs[i]) / dif) * 400) + 30
-            lows[i] = (((highest - lows[i]) / dif) * 400)  + 30
-            volumes[i] = 495 - ((volumes[i] / mostVol) * 90)
-        for i in range(len(highs)):
-            x = i * 2
-            canvas.create_line(x, highs[i], x, lows[i], fill=colors[i], width=2)
-            canvas.create_line(x, volumes[i], x, 495, fill=colors[i], width=2)
-        break 
-    
-def thread_price(ticker):
-    full_url = price_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
-    page = requests.get(url=full_url)
-    content = json.loads(page.content)
-    
-    while True:
-        page = requests.get(url=full_url)
-        content = json.loads(page.content)
-#{'SPY': {'assetType': 'ETF', 'assetMainType': 'EQUITY', 'cusip': '78462F103', 'assetSubType': 'ETF', 'symbol': 'SPY', 'description': 'SPDR S&P 500', 'bidPrice': 393.0, 'bidSize': 1000, 'bidId': 'H', 'askPrice': 393.02, 'askSize': 500, 'askId': 'Z', 'lastPrice': 393.0, 'lastSize': 100, 'lastId': 'D', 'openPrice': 392.94, 'highPrice': 395.64, 'lowPrice': 391.97, 'bidTick': ' ', 'closePrice': 393.83, 'netChange': -0.83, 'totalVolume': 45894070, 'quoteTimeInLong': 1670443602438, 'tradeTimeInLong': 1670443602329, 'mark': 393.0, 'exchange': 'p', 'exchangeName': 'PACIFIC', 'marginable': True, 'shortable': True, 'volatility': 0.014, 'digits': 2, '52WkHigh': 479.98, '52WkLow': 348.11, 'nAV': 0.0, 'peRatio': 0.0, 'divAmount': 6.1757, 'divYield': 1.57, 'divDate': '2022-09-16 00:00:00.000', 'securityStatus': 'Normal', 'regularMarketLastPrice': 393.0, 'regularMarketLastSize': 1, 'regularMarketNetChange': -0.83, 'regularMarketTradeTimeInLong': 1670443602329, 'netPercentChangeInDouble': -0.2108, 'markChangeInDouble': -0.83, 'markPercentChangeInDouble': -0.2107, 'regularMarketPercentChangeInDouble': -0.2108, 'delayed': True, 'realtimeEntitled': False}}   
-        #content[ticker]
-        break
- 
 #*************Main "constructor" for GUI, starts thread for Server ********************
-
-if serverMode : 
-    if guiMode:
-        x = threading.Thread(target=thread_discord)
-        x.start()
-    else:
-        thread_discord()
-if guiMode : 
-    win = Tk()
-    win.geometry(str(IMG_W + 5) + "x" + str(IMG_H + 45))
-
-    Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
-
-    e1 = Entry(win, width=8)
-    e1.grid(row=0, column=0, sticky='E')
-    e1.insert(0, ticker_name)
-
-    e2 = Entry(win, width=4)
-    e2.grid(row=0, column=1, sticky='E')
-    e2.insert(0, '0')
-
-    Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
-    Button(win, text="Fetch", command=gui_click_fetch, width=5).grid(row=0, column=2, sticky='E')
-    Button(win, text="Loop", command=gui_click_loop, width=5).grid(row=0, column=3, sticky='N')
-
-    canvas = Canvas(win, width=IMG_W, height=IMG_H)
-    canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
-    canvas.configure(bg="#000000")
-
-    stock_price(ticker_name, 0)
-    looper = threading.Thread(target=thread_price, args=(e1.get(),))
-    mainloop()
-    #serverSockThread.join()
-    if serverMode :
-        #x.shutdown(wait=True)
-        print("Killing bot")
-#        bot.command(name = "!kill")  #*********Needs some work still**********can be closed from inside discord 
-        #x.join()
-    
-        print("Bot dead?")
-    looper.join()
-#if serverMode : os.remove("stock-chart.png", dir_fd=None)
-#print("End of program")
-
-
-
-
-"""
-#Block comment for all the pandas/numpy code.   Might require Put-Call specific fields for later compatability 
-def isThirdFriday(d):
-    return d.weekday() == 4 and 15 <= d.day <= 21
-
-# Black-Scholes European-Options Gamma
-def calcGammaEx(S, K, vol, T, r, q, optType, OI):
-    if T == 0 or vol == 0:
-        return 0
-
-    dp = (np.log(S/K) + (r - q + 0.5*vol**2)*T) / (vol*np.sqrt(T))
-    dm = dp - vol*np.sqrt(T) 
-
-    if optType == '1':
-        gamma = np.exp(-q*T) * norm.pdf(dp) / (S * vol * np.sqrt(T))
-        return OI * 100 * S * S * 0.01 * gamma 
-    else: # Gamma is same for calls and puts. This is just to cross-check
-        gamma = K * np.exp(-r*T) * norm.pdf(dm) / (S * S * vol * np.sqrt(T))
-        return OI * 100 * S * S * 0.01 * gamma 
-        
-        
-
-#**********Starting in code section to parse JSON
-            for options in content['callExpDateMap'][days][strikes]:
-                dataRow = [days.split(":")[0], '1', '0', '0', options['bid'], options['ask'], options['totalVolume'], options['volatility'], options['delta'], options['gamma'], options['openInterest'], strikes]
-                df.loc[len(df.index)] = dataRow
-            for options in content['putExpDateMap'][days][strikes]:
-                dataRow = [days.split(":")[0], '-1', '0', '0', options['bid'], options['ask'], options['totalVolume'], options['volatility'], options['delta'], options['gamma'], options['openInterest'], strikes]
-                df.loc[len(df.index)] = dataRow
-
-
-    df['ExpirationDate'] = pd.to_datetime(df['ExpirationDate'], format='%Y-%m-%d')
-    df['ExpirationDate'] = df['ExpirationDate'] + datetime.timedelta(hours=16)
-    df['StrikePrice'] = df['StrikePrice'].astype(float)
-    df['IV'] = df['IV'].astype(float)
-    df['Gamma'] = df['Gamma'].astype(float)
-    df['OpenInt'] = df['OpenInt'].astype(float)
-    df['Calls'] = df['Calls'].astype(float)
-
-
-
-    fromStrike = 0.8 * price
-    toStrike = 1.2 * price
-
-# ---=== CALCULATE SPOT GAMMA ===---
-# Gamma Exposure = Unit Gamma * Open Interest * Contract Size * Spot Price 
-# To further convert into 'per 1% move' quantity, multiply by 1% of spotPrice
-    df['GEX'] = df['Gamma'] * df['OpenInt'] * 100 * price * price * 0.01 * df['Calls']
-
-
-    df['TotalGamma'] = df.GEX / 10**9
-    dfAgg = df.groupby(['StrikePrice']).sum(numeric_only=True)
-    strikes = dfAgg.index.values
-
-    # Chart 1: Absolute Gamma Exposure
-#    plt.grid()
-#    plt.bar(strikes, dfAgg['TotalGamma'].to_numpy(), width=6, linewidth=0.1, edgecolor='k', label="Gamma Exposure")
-#    plt.xlim([fromStrike, toStrike])
-#    chartTitle = "Total Gamma: $" + str("{:.2f}".format(df['TotalGamma'].sum())) + " Bn per 1% SPX Move"
-#    plt.title(chartTitle, fontweight="bold", fontsize=20)
-#    plt.xlabel('Strike', fontweight="bold")
-#    plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
-#    plt.axvline(x=price, color='r', lw=1, label="SPX Spot: " + str("{:,.0f}".format(price)))
-#    plt.legend()
-#    plt.show()
-
-# ---=== CALCULATE GAMMA PROFILE ===---
-    levels = np.linspace(fromStrike, toStrike, 60)
-
-    # For 0DTE options, I'm setting DTE = 1 day, otherwise they get excluded
-    df['daysTillExp'] = [1/262 if (np.busday_count(today, x.date())) == 0 \
-                               else np.busday_count(today, x.date())/262 for x in df.ExpirationDate]
-
-    nextExpiry = df['ExpirationDate'].min()
-
-    df['IsThirdFriday'] = [isThirdFriday(x) for x in df.ExpirationDate]
-    thirdFridays = df.loc[df['IsThirdFriday'] == True]
-    nextMonthlyExp = thirdFridays['ExpirationDate'].min()
-
-    totalGamma = []
-    totalGammaExNext = []
-    totalGammaExFri = []
-# For each spot level, calc gamma exposure at that point
-    for level in levels:
-        df['GammaEx'] = df.apply(lambda row : calcGammaEx(level, row['StrikePrice'], row['IV'], 
-                                                              row['daysTillExp'], 0, 0, "Calls", row['OpenInt']), axis = 1)
-        totalGamma.append(df['GammaEx'].sum() * df['Calls'])
-        exNxt = df.loc[df['ExpirationDate'] != nextExpiry]
-        totalGammaExNext.append(exNxt['GammaEx'].sum() * exNxt['Calls'].sum())
-
-        exFri = df.loc[df['ExpirationDate'] != nextMonthlyExp]
-        totalGammaExFri.append(exFri['GammaEx'].sum() * exFri['Calls'].sum())
-
-
-    totalGamma = np.array(totalGamma) / 10**9
-    totalGammaExNext = np.array(totalGammaExNext) / 10**9
-    totalGammaExFri = np.array(totalGammaExFri) / 10**9
-
-    # Find Gamma Flip Point
-    zeroCrossIdx = np.where(np.diff(np.sign(totalGamma)))[0]
-
-    negGamma = totalGamma[zeroCrossIdx]
-    posGamma = totalGamma[zeroCrossIdx+1]    #current section causing bug, index out of bounds
-    negStrike = levels[zeroCrossIdx]
-    posStrike = levels[zeroCrossIdx+1]
-
-    # Writing and sharing this code is only possible with your support! 
-    # If you find it useful, consider supporting us at perfiliev.com/support :)
-    zeroGamma = posStrike - ((posStrike - negStrike) * posGamma/(posGamma-negGamma))
-    zeroGamma = zeroGamma[0]
-
-    print(df)
-    print(zeroGamma)
-"""
+thread_discord()

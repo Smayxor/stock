@@ -290,11 +290,10 @@ Smayxor has switched to using /gex"""
 
     @bot.tree.command(name="pump")
     async def slash_command_pump(intr: discord.Interaction):
-        pumps = random.choice( ["./pepe-money.gif", "./wojak-pump.gif"] )
         if random.random() < 0.91 :
             await intr.response.send_message( getTenorGIF( random.choice(pumps) ) )
         else:
-            await intr.response.send_message(file=discord.File(pumps))
+            await intr.response.send_message(file=discord.File(["./pepe-money.gif", "./wojak-pump.gif"]))
             
     @bot.tree.command(name="dump")
     async def slash_command_dump(intr: discord.Interaction):
@@ -325,40 +324,51 @@ Smayxor has switched to using /gex"""
     async def slash_command_sudo(intr: discord.Interaction, command: str):
         global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
         user = str(intr.user)
-        if BOT_USER_FOR_KILL == user:
-            args = command.upper().split(' ')
-            print( args )
-            if args[0] == "KILL" :
-                await intr.response.send_message("Smayxor shutting down")
-                await bot.close()
-                await bot.logout()
-                exit(0)
-            elif args[0] == "START" :
-                print("starting")
-                dte = args[2] if (len(args) == 3) and args[2].isnumeric() else '0'
-                chart = getChartType(args[3]) if (len(args) == 4) else 'NORMAL' 
-                print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
-                auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
-                if updateRunning == False :
-                    print("Starting queue")
-                    updateRunning = True
-                    channelUpdate.start()
-            elif args[0] == "STOP" :
-                auto_updater.clear()
-                CallATMIV = {}
-                PutATMIV = {}
-                IVUpdateChannel = []
-            elif args[0] == "IV" :
-                if not BOT_USER_FOR_KILL in message.author.name: return
-                ticky = args[1].upper()
-                IVUpdateChannel = (ticky, message.channel.id)
-                IVUpdateChannelCounter = 300
-                if updateRunning == False :
-                    print("Starting queue, IV Monitor")
-                    updateRunning = True
-                    channelUpdate.start()
-            await intr.response.send_message(user + " running command " + command)
-        else: await intr.response.send_message(user + " you can't kill meme!")
+        args = command.upper().split(' ')
+        print( args )
+        if BOT_USER_FOR_KILL != user:
+            await intr.response.send_message(user + " you can't kill meme!")
+            return
+        elif args[0] == "KILL" :
+            await intr.response.send_message(user + " triggered shutdown")
+            await bot.close()
+            await bot.logout()
+            exit(0)
+        elif args[0] == "START" :
+            print("starting")
+            dte = args[2] if (len(args) == 3) and args[2].isnumeric() else '0'
+            chart = getChartType(args[3]) if (len(args) == 4) else 'NORMAL' 
+            print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
+            auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
+            if updateRunning == False :
+                print("Starting queue")
+                updateRunning = True
+                channelUpdate.start()
+            await intr.response.send_message(user + " started auto-update on " + args[1])
+        elif args[0] == "STOP" :
+            auto_updater.clear()
+            CallATMIV = {}
+            PutATMIV = {}
+            IVUpdateChannel = []
+            await intr.response.send_message(user + " stopped auto-updater")
+        elif args[0] == "IV" :
+            if not BOT_USER_FOR_KILL in message.author.name: return
+            ticky = args[1].upper()
+            IVUpdateChannel = (ticky, message.channel.id)
+            IVUpdateChannelCounter = 300
+            if updateRunning == False :
+                print("Starting queue, IV Monitor")
+                updateRunning = True
+                channelUpdate.start()
+            await intr.response.send_message(user + " started IV Chart process")
+        elif args[0] == "UPDATE" :
+            await intr.response.send_message(user + " requested code update")
+            print("getting update")
+            r = requests.get(url="https://raw.githubusercontent.com/Smayxor/stock/main/oauth.py")
+            print("recieved file")
+            with open("oauth.py2", "wb") as outfile:
+                outfile.write(r.content)
+            print("Finished SUDO") 
   
     @bot.tree.command(name="help")
     async def slash_command_help(intr: discord.Interaction):

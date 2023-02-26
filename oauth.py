@@ -366,7 +366,7 @@ Smayxor has switched to using /gex"""
             print("getting update")
             r = requests.get(url="https://raw.githubusercontent.com/Smayxor/stock/main/oauth.py")
             print("recieved file")
-            with open("oauth.py2", "wb") as outfile:
+            with open("oauth.py", "wb") as outfile:
                 outfile.write(r.content)
             print("Finished SUDO") 
   

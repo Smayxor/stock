@@ -225,11 +225,13 @@ slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your 
     "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = {    "name": "gm", "type": 1, "description": "GM Frens",
-    "name": "pump", "type": 1, "description": "PUMP IT UP!!!",
-    "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!",
-    "name": "ass", "type": 1, "description": "Check out the shitter on that critter!",
-    "name": "tits", "type": 1, "description": "Show me the titties!" }
+slash_command_json = {    
+    "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }], 
+    "name": "ass", "type": 1, "description": "Check out the shitter on that critter!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
+    "name": "gm", "type": 1, "description": "GM Frens", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
+    "name": "pump", "type": 1, "description": "PUMP IT UP!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
+    "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }]
+}
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -249,7 +251,7 @@ def getTenorGIF( search ):
 gms = [enc("gm friends"), enc("good morning coffee"), enc("wake up"), enc("time to work")]
 pumps = [enc("stock pump rocket moon"), enc("stock bull"), enc("pepe money rain")]
 dumps = [enc("stock dump crash"), enc("bear stock")]
-tities = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
+titties = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
 asses = [enc("women ass twerk poggers"), enc("women sexy butt"), enc("latina big ass")]
 
 tickers = []
@@ -289,28 +291,28 @@ Smayxor has switched to using /gex"""
         await intr.response.send_message("Fetching GEX chart for " + ticker) #        print( ticker + " " + str(dte) + " " + str(chartType) )
 
     @bot.tree.command(name="pump")
-    async def slash_command_pump(intr: discord.Interaction):
+    async def slash_command_pump(intr: discord.Interaction, extra: str = ""):
         if random.random() < 0.91 :
-            await intr.response.send_message( getTenorGIF( random.choice(pumps) ) )
+            await intr.response.send_message( getTenorGIF( random.choice(pumps) + enc(" " + extra) ) )
         else:
             await intr.response.send_message(file=discord.File(["./pepe-money.gif", "./wojak-pump.gif"]))
             
     @bot.tree.command(name="dump")
-    async def slash_command_dump(intr: discord.Interaction):
-        await intr.response.send_message( getTenorGIF( random.choice(dumps) ) )
+    async def slash_command_dump(intr: discord.Interaction, extra: str = ""):
+        await intr.response.send_message( getTenorGIF( random.choice(dumps) + enc(" " + extra) ) )
 
     @bot.tree.command(name="tits")
-    async def slash_command_tits(intr: discord.Interaction):
-        await intr.response.send_message( getTenorGIF( random.choice(tities) ) )
+    async def slash_command_tits(intr: discord.Interaction, extra: str = ""):
+        await intr.response.send_message( getTenorGIF( random.choice(titties) + enc(" " + extra) ) )
 
     @bot.tree.command(name="ass")
-    async def slash_command_ass(intr: discord.Interaction):
-        await intr.response.send_message( getTenorGIF( random.choice(asses) ) )
+    async def slash_command_ass(intr: discord.Interaction, extra: str = ""):
+        await intr.response.send_message( getTenorGIF( random.choice(asses) + enc(" " + extra) ) )
 
     @bot.tree.command(name="gm")
-    async def slash_command_gm(intr: discord.Interaction):
+    async def slash_command_gm(intr: discord.Interaction, extra: str = ""):
         if random.random() < 0.91 :
-            await intr.response.send_message( getTenorGIF( random.choice(gms) ) )
+            await intr.response.send_message( getTenorGIF( random.choice(gms) + enc(" " + extra) ) )
         else:
             await intr.response.send_message(file=discord.File('./bobo-gm-frens.gif'))
 
@@ -321,6 +323,7 @@ Smayxor has switched to using /gex"""
         else: await intr.response.send_message("Please phrase that as a question")
 
     @bot.tree.command(name="sudo")
+    @commands.is_owner()
     async def slash_command_sudo(intr: discord.Interaction, command: str):
         global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
         user = str(intr.user)

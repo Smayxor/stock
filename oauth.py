@@ -368,9 +368,9 @@ Smayxor has switched to using /gex"""
             print("recieved file")
             with open("oauth.py", "wb") as outfile:
                 outfile.write(r.content)
+            exit(9)
             await bot.close()
             await bot.logout()
-            exit(9)
             print("Finished SUDO") 
   
     @bot.tree.command(name="help")

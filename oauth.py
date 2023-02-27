@@ -283,12 +283,12 @@ Smayxor has switched to using /gex"""
     @bot.tree.command(name="gex", description="Draws a GEX chart")
     async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "NORMAL"):   
         global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+        await intr.response.send_message("Fetching GEX chart for " + ticker) 
         tickers.append( (ticker.upper(), dte, getChartType(chart), intr.channel.id, intr.channel) )
         if updateRunning == False :
             print("Starting queue")
             updateRunning = True
             channelUpdate.start()        
-        await intr.response.send_message("Fetching GEX chart for " + ticker) #        print( ticker + " " + str(dte) + " " + str(chartType) )
 
     @bot.tree.command(name="pump")
     async def slash_command_pump(intr: discord.Interaction, extra: str = "pump"):

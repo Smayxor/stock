@@ -77,9 +77,11 @@ endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?api
 vix_endpoint = "https://api.tdameritrade.com/v1/marketdata/%24VIX.X/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 options_endpoint = "https://api.tdameritrade.com/v1/marketdata/chains?apikey={api_key}&symbol={stock_ticker}&contractType=ALL&strikeCount={count}&includeQuotes=FALSE&strategy=SINGLE&range=ALL&toDate={toDate}"
 fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_key}&symbol={stock_ticker}&projection=fundamental"
-history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
+history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
+atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=14&frequencyType=daily&frequency=1&needExtendedHoursData=true"
+
 
 CHART_NORMAL = 0
 CHART_VOLUME = 1
@@ -87,6 +89,7 @@ CHART_IV = 2
 CHART_TIMEVALUE = 3
 CHART_ROTATE = 4
 CHART_JSON = 5
+CHART_ATR = 6
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -146,6 +149,8 @@ oauth_params = {
     'redirect_uri': 'https://localhost:8080/',
     'apikey': MY_API_KEY
 }
+
+
 """   **********Uncomment this section to enable HTTPServer to catch Auth Token and Refresh Token from Auth Code ***********
 * This is the server for the redirect URL.  You will have to run the link at top of this file in a web browser to login to TDA Account *
 #fetches new access tokens
@@ -180,8 +185,12 @@ def serverOAUTH():
     httpd.socket = ssl.wrap_socket(httpd.socket, keyfile='./example.key', certfile='./example.crt', server_side=True)
     httpd.serve_forever()
 serverSockThread = threading.Thread(target=serverOAUTH)
-SockThread.start() 
+serverSockThread.start() 
 """
+
+
+
+
 ACCESS_TOKEN = ""
 REFRESH_TOKEN = ""
 
@@ -217,21 +226,31 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN} #headers = { "Authorization": "Bearer " + BOT_CLIENT_ID }
 slash_command_json = {
-    "name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "TimeValue", "value": "TV"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }]}   ] }
+    "name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "TimeValue", "value": "TV"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }],
-    "name": "help", "type": 1, "description": "Provides help for Smayxor",
-    "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = {    
-    "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }], 
-    "name": "ass", "type": 1, "description": "Check out the shitter on that critter!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
-    "name": "gm", "type": 1, "description": "GM Frens", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
-    "name": "pump", "type": 1, "description": "PUMP IT UP!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }],
-    "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }]
-}
+slash_command_json = { "name": "help", "type": 1, "description": "Provides help for Smayxor" }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "ass", "type": 1, "description": "Check out the shitter on that critter!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+                    
+slash_command_json = { "name": "gm", "type": 1, "description": "GM Frens", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "pump", "type": 1, "description": "PUMP IT UP!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -278,6 +297,7 @@ Smayxor has switched to using /gex"""
         elif arg == 'TV': return CHART_TIMEVALUE
         elif arg == 'R': return CHART_ROTATE
         elif arg == 'JSON': return CHART_JSON
+        elif arg == 'ATR': return CHART_ATR
         else: return CHART_NORMAL
 
     @bot.tree.command(name="gex", description="Draws a GEX chart")
@@ -413,9 +433,8 @@ Smayxor has switched to using /gex"""
                 await bot.get_channel(IVUpdateChannel[1]).send(file=discord.File(open('./' + fn, 'rb'), fn))
 
     @bot.command(name="s")
-    async def question(ctx, *args):
+    async def get_gex(ctx, *args):
         global tickers, updateRunning
-        print( "Command }s ", args )
         if ctx.message.author == bot.user: return
         if len(args) == 0: return
         dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
@@ -424,26 +443,11 @@ Smayxor has switched to using /gex"""
             print("Starting queue")
             updateRunning = True
             channelUpdate.start()
-    """
-    @bot.event #await bot.process_commands(message)
-    async def on_message(message):  #handling bot commands myself so we can do ALL stocks with optional dte arguement
-        global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
-        if message.author == bot.user: return
-        if len(message.content) == 0: return
-        if message.content[0] != '}': return
-        args = message.content.split(' ')
-        if (len(args[0]) == 1): return
-        args[0] = args[0].split('}')[1]
-
-        ticky = args[0].upper()
-        dte = args[1] if (len(args) > 1) and args[1].isnumeric() else '0'
-        print(message.channel.id)
-        tickers.append( (ticky, dte, getChartType(args[2]) if (len(args) == 3) else 0, message.channel.id, message.channel) )
-        if updateRunning == False :
-            print("Starting queue")
-            updateRunning = True
-            channelUpdate.start()
-    """                
+            
+    @bot.command(name="tits")
+    async def get_tits(ctx, *args):
+        pass
+             
     bot.run(BOT_TOKEN)
 
 def rateFundamental(ticker_name, fundamental, value):
@@ -752,8 +756,13 @@ def stock_price(ticker_name, dte, chartType = 0):
     ExpectedMove = (CallATM + PutATM) * 0.85
 
                   
-                  
-                  
+    if (chartType == CHART_ATR) :
+        print( "Getting ATR" )              
+               
+        url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
+        json_data = requests.get(url=url_endpoint, headers=HEADER).content
+        content = json.loads(json_data)
+        print( content )
                   
 #    print(closestStrike)              
 #    for strikes in CallIV:

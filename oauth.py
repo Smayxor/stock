@@ -851,7 +851,7 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX[round(upper + atr * 0.236, 2)] = 10         
         GEX[round(lower - atr * 0.618, 2)] = -10         
         GEX[round(upper + atr * 0.618, 2)] = 10         
-        GEX[round(lower - atr )]
+        GEX[round(lower - atr, 2)]
         GEX[round(upper + atr, 2)] = 10
 #        GEX[round(previousClose - atr * 0.382, 2)] = -10         
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10

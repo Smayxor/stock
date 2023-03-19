@@ -659,7 +659,7 @@ def drawCharts(ticker_name, dte, price, chartType):
         x = -15
         for strikes in sorted(GEX):
             x += FONT_SIZE - 3
-            drawRotatedText(x=x - 5, y=205, txt=str(strikes).replace('.0', ''), color="#03F3")
+            drawRotatedText(x=x - 5, y=205, txt=str(round(strikes, 2)), color="#03F3")   # .replace('.0', '')
             if CallOI.get(strikes) != None:
                 yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
                 yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
@@ -809,7 +809,7 @@ def stock_price(ticker_name, dte, chartType = 0):
         atrs = atrs[len(atrs) - 14:]
         atr = sum(atrs) / len(atrs)        
                   
-        previousClose = lastDayClose          
+        #if (int(time.strftime("%H")) > 12): previousClose = lastDayClose          
                   
         lowerTrigger = previousClose - 0.236 * atr
         upperTrigger = previousClose + 0.236 * atr
@@ -827,7 +827,6 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX[round(upper + atr * 0.236, 2)] = 10         
         GEX[round(lower - atr * 0.618, 2)] = -10         
         GEX[round(upper + atr * 0.618, 2)] = 10         
-
 #        GEX[round(previousClose - atr * 0.382, 2)] = -10         
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10
 #        GEX[round(previousClose - atr * 0.5, 2)] = -10          
@@ -839,8 +838,7 @@ def stock_price(ticker_name, dte, chartType = 0):
 #        GEX[round(lower - atr * 0.5, 2)] = -10         
 #        GEX[round(upper + atr * 0.5, 2)] = 10         
 #        GEX[round(lower - atr * 0.786, 2)] = -10         
-#        GEX[round(upper + atr * 0.786, 2)] = 10  
-                  
+#        GEX[round(upper + atr * 0.786, 2)] = 10           
         upper = round(upper + atr, 2)
         lower = round(lower - atr, 2)
         GEX[lower] = -15        
@@ -848,8 +846,8 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX[round(previousClose - atr * 0.618, 2)] = -10          
         GEX[round(previousClose + atr * 0.618, 2)] = 10          
         GEX[round(lower - atr * 0.236, 2)] = -10         
-        GEX[round(upper + atr * 0.236, 2)] = 10         
-        GEX[round(lower - atr * 0.618, 2)] = -10         
+        GEX[round(upper + atr * 0.236, 2)] = 10
+        GEX[round(lower - atr * 0.618, 2)] = -10 
         GEX[round(upper + atr * 0.618, 2)] = 10         
         GEX[round(lower - atr, 2)] = 5
         GEX[round(upper + atr, 2)] = 5
@@ -865,7 +863,7 @@ def stock_price(ticker_name, dte, chartType = 0):
 #        GEX[round(upper + atr * 0.5, 2)] = 10         
 #        GEX[round(lower - atr * 0.786, 2)] = -10         
 #        GEX[round(upper + atr * 0.786, 2)] = 10  
-                  
+              
     #Uses days from the for loops above to get last date in list
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")

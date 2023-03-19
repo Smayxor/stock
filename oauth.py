@@ -80,10 +80,10 @@ fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
-atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1"
-atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}"   
+atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
+atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=false"   
 
-CHART_NORMAL = 0
+CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
 CHART_TIMEVALUE = 3
@@ -298,13 +298,14 @@ Smayxor has switched to using /gex"""
         elif arg == 'R': return CHART_ROTATE
         elif arg == 'JSON': return CHART_JSON
         elif arg == 'ATR': return CHART_ATR
-        else: return CHART_NORMAL
+        else: return CHART_GEX
 
     @bot.tree.command(name="gex", description="Draws a GEX chart")
-    async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "NORMAL"):   
+    async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "GEX"):   
         global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
-        await intr.response.send_message("Fetching GEX chart for " + ticker) 
-        tickers.append( (ticker.upper(), dte, getChartType(chart), intr.channel.id, intr.channel) )
+        ticker = ticker.upper()
+        await intr.response.send_message("Fetching " + chart + " chart for " + ticker + " " + str(dte) + "DTE") 
+        tickers.append( (ticker, dte, getChartType(chart), intr.channel.id, intr.channel) )
         if updateRunning == False :
             print("Starting queue")
             updateRunning = True
@@ -511,7 +512,7 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
     global GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallDollars, PutDollars, atmDif, closestStrike, CallATM, PutATM
     try:
         if not strike in GEX: newStrike(strike)  #Prevents NaN values?
-        if chartType == CHART_NORMAL :
+        if chartType == CHART_GEX :
             a = 1
         if chartType == CHART_VOLUME : 
             oi = volume
@@ -595,8 +596,11 @@ def drawCharts(ticker_name, dte, price, chartType):
     maxCPGEX = 0
     for strikes in GEX:
         if abs(GEX[strikes]) > maxGEX: maxGEX = abs(GEX[strikes])
+    for strikes in CallGEX:
         if abs(CallGEX[strikes]) > maxCPGEX: maxCPGEX = abs(CallGEX[strikes])
+    for strikes in PutGEX:
         if abs(PutGEX[strikes]) > maxCPGEX: maxCPGEX = abs(PutGEX[strikes])
+    for strikes in DEX:
         if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
               
         #CallOI[strikes] += PutOI[strikes]   #Combining for a total.  Individual OI looks a lot like gamma chart
@@ -605,13 +609,13 @@ def drawCharts(ticker_name, dte, price, chartType):
 
 #    vix = json.loads(requests.get(url=vix_endpoint.format(api_key=MY_API_KEY)).content)['$VIX.X']['lastPrice']
     fundamentals = {}
-    fundamentals[ticker_name] = "$" + str(price) + " : " + dte.split(":")[1] + " DTE"
+    fundamentals[ticker_name] = "$" + str(round(price, 2)) + " : " + dte.split(":")[1] + " DTE"
 #    fundamentals['VIX'] = "{:,.2f}".format(vix)
     fundamentals['ExpectedMove'] = "$" + str(round(ExpectedMove, 2))
     fundamentals['Calls'] = "${:,.2f}".format(CallDollars)
     fundamentals['Puts'] = "${:,.2f}".format(PutDollars)
     fundamentals['Total'] = "${:,.2f}".format(CallDollars - PutDollars)
-    if (chartType == CHART_NORMAL) or (chartType == CHART_ROTATE) : fundamentals['ChartType'] = "GEX "
+    if (chartType == CHART_GEX) or (chartType == CHART_ROTATE) : fundamentals['ChartType'] = "GEX "
     if chartType == CHART_VOLUME : fundamentals['ChartType'] = "Volume "
     if chartType == CHART_IV : fundamentals['ChartType'] = "IV "
     if chartType == CHART_TIMEVALUE : fundamentals['ChartType'] = "TimeValue "
@@ -656,15 +660,17 @@ def drawCharts(ticker_name, dte, price, chartType):
         for strikes in sorted(GEX):
             x += FONT_SIZE - 3
             drawRotatedText(x=x - 5, y=205, txt=str(strikes).replace('.0', ''), color="#03F3")
-            yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
-            yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
-            if (CallOI[strikes] != 0): drawRect(x, yOIp + 1, x + 12, yOIc + yOIp, color="#0F0", border='')
-            if (PutOI[strikes] != 0): drawRect(x, 0, x + 12, yOIp, color="#F00", border='')
+            if CallOI.get(strikes) != None:
+                yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
+                yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
+                if (CallOI[strikes] != 0): drawRect(x, yOIp + 1, x + 12, yOIc + yOIp, color="#0F0", border='')
+                if (PutOI[strikes] != 0): drawRect(x, 0, x + 12, yOIp, color="#F00", border='')
 
             if (GEX[strikes] != 0): drawRect(x, 215 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 12, 215, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
-            if (DEX[strikes] != 0): drawRect(x, 215 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 215, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
-            if (CallGEX[strikes] != 0): drawRect(x, 399 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 399, color="#0f0", border='')
-            if (PutGEX[strikes] != 0): drawRect(x, 401 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 401, color="#f00", border='')
+            if DEX.get(strikes) != None:
+                if (DEX[strikes] != 0): drawRect(x, 215 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 215, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+                if (CallGEX[strikes] != 0): drawRect(x, 399 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 399, color="#0f0", border='')
+                if (PutGEX[strikes] != 0): drawRect(x, 401 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 401, color="#f00", border='')
 
             if strikes == closestStrike:
                 if price > closestStrike : drawPriceLine(x + 10, "#FF0")
@@ -755,17 +761,6 @@ def stock_price(ticker_name, dte, chartType = 0):
               
     ExpectedMove = (CallATM + PutATM) * 0.85
 
-                  
-    if (chartType == CHART_ATR) :
-        print( "Getting ATR" )
-        
-        content = getByHistoryType( False )
-        #print( content )          
-        for candles in content['candles']:
-            timestamp = datetime.datetime.fromtimestamp( (candles['datetime'] / 1000) + 7200  )
-            #print(timestamp.strftime('%Y-%m-%d %H:%M:%S'))\
-            print( timestamp )
-                  
 #    print(closestStrike)              
 #    for strikes in CallIV:
 #        print( CallIV[strikes] , " / ", PutIV[strikes] )
@@ -791,12 +786,83 @@ def stock_price(ticker_name, dte, chartType = 0):
             PutATMIV.pop(k)
             #(k := next(iter(d)), d.pop(k))
     
+                  
+    if (chartType == CHART_ATR) :
+        triggerPercentage = 0.236
+        print( "Getting ATR" )
+        content = getByHistoryType( False )
+        skip = True
+        previousClose = 0.0
+        lastDayClose = 0.0
+        atrs = []
+        for candles in content['candles']:                  
+            if skip :
+                skip = False
+                previousClose = candles['close']
+            else: #timestamp = datetime.datetime.fromtimestamp( (candles['datetime'] / 1000) + 7200  ) #print( timestamp )
+                high = candles['high']
+                low = candles['low']
+                upper = abs( high - previousClose )
+                lower = abs( low - previousClose )
+                both = abs( high - low )
+                atrs.append( max( [upper, lower, both] ) )
+                lastDayClose = previousClose
+                previousClose = candles['close']
+        atrs = atrs[len(atrs) - 14:]
+        atr = sum(atrs) / len(atrs)        
+
+        lowerTrigger = lastDayClose - triggerPercentage * atr
+        upperTrigger = lastDayClose + triggerPercentage * atr
+        GEX = {}
+        GEX[round(lowerTrigger, 2)] = -10
+        GEX[round(upperTrigger, 2)] = 10
+
+        GEX[round(previousClose - atr * 0.382, 2)] = -10         
+        GEX[round(previousClose + atr * 0.382, 2)] = 10
+        GEX[round(previousClose - atr * 0.5, 2)] = -10          
+        GEX[round(previousClose + atr * 0.5, 2)] = 10          
+        GEX[round(previousClose - atr * 0.618, 2)] = -10          
+        GEX[round(previousClose + atr * 0.618, 2)] = 10          
+        GEX[round(previousClose - atr * 0.786, 2)] = -10          
+        GEX[round(previousClose + atr * 0.786, 2)] = 10
+        upper = round(previousClose + atr, 2)
+        lower = round(previousClose - atr, 2)
+        GEX[upper] = -10          
+        GEX[lower] = 10
+                  
+        GEX[round(lower - atr * 0.236, 2)] = -10         
+        GEX[round(upper + atr * 0.236, 2)] = 10         
+        GEX[round(lower - atr * 0.382, 2)] = -10         
+        GEX[round(upper + atr * 0.382, 2)] = 10         
+        GEX[round(lower - atr * 0.5, 2)] = -10         
+        GEX[round(upper + atr * 0.5, 2)] = 10         
+        GEX[round(lower - atr * 0.618, 2)] = -10         
+        GEX[round(upper + atr * 0.618, 2)] = 10         
+        GEX[round(lower - atr * 0.786, 2)] = -10         
+        GEX[round(upper + atr * 0.786, 2)] = 10         
+        GEX[round(lower - atr, 2)] = -10         
+        GEX[round(upper + atr, 2)] = 10         
+        """
+        GEX[round(, 2)] = 10         
+
+lower_2236 = lower_2000 - atr * 0.236
+upper_2236 = upper_2000 + atr * 0.236
+lower_2382 = lower_2000 - atr * 0.382
+upper_2382 = upper_2000 + atr * 0.382
+lower_2500 = lower_2000 - atr * 0.5
+upper_2500 = upper_2000 + atr * 0.5
+lower_2618 = lower_2000 - atr * 0.618
+upper_2618 = upper_2000 + atr * 0.618
+lower_2786 = lower_2000 - atr * 0.786
+upper_2786 = upper_2000 + atr * 0.786
+lower_3000 = lower_2000 - atr
+upper_3000 = upper_2000 + atr
+        """
     #Uses days from the for loops above to get last date in list
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")
     return "stock-chart.png"
 
-                  
 def getByHistoryType( totalCandles ):
     if totalCandles :
         end = int( datetime.datetime.now().timestamp() * 1000 )
@@ -805,8 +871,8 @@ def getByHistoryType( totalCandles ):
         url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, start_date=start, end_date=end)
     else :
         url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name)
-    return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
+    return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)                 
                   
-
+                  
 #*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

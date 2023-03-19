@@ -789,7 +789,6 @@ def stock_price(ticker_name, dte, chartType = 0):
                   
     if (chartType == CHART_ATR) :
         triggerPercentage = 0.236
-        print( "Getting ATR" )
         content = getByHistoryType( False )
         skip = True
         previousClose = 0.0
@@ -811,35 +810,38 @@ def stock_price(ticker_name, dte, chartType = 0):
         atrs = atrs[len(atrs) - 14:]
         atr = sum(atrs) / len(atrs)        
 
-        lowerTrigger = lastDayClose - triggerPercentage * atr
-        upperTrigger = lastDayClose + triggerPercentage * atr
+                  
+        previousClose = lastDayClose          
+                  
+        lowerTrigger = previousClose - triggerPercentage * atr
+        upperTrigger = previousClose + triggerPercentage * atr
         GEX = {}
-        GEX[round(lowerTrigger, 2)] = -10
-        GEX[round(upperTrigger, 2)] = 10
-
-        GEX[round(previousClose - atr * 0.382, 2)] = -10         
-        GEX[round(previousClose + atr * 0.382, 2)] = 10
-        GEX[round(previousClose - atr * 0.5, 2)] = -10          
-        GEX[round(previousClose + atr * 0.5, 2)] = 10          
-        GEX[round(previousClose - atr * 0.618, 2)] = -10          
-        GEX[round(previousClose + atr * 0.618, 2)] = 10          
-        GEX[round(previousClose - atr * 0.786, 2)] = -10          
-        GEX[round(previousClose + atr * 0.786, 2)] = 10
         upper = round(previousClose + atr, 2)
         lower = round(previousClose - atr, 2)
         GEX[upper] = -10          
         GEX[lower] = 10
-                  
+        GEX[round(previousClose, 2)] = 1
+        GEX[round(lowerTrigger, 2)] = -20
+        GEX[round(upperTrigger, 2)] = 20
+
+#        GEX[round(previousClose - atr * 0.382, 2)] = -10         
+#        GEX[round(previousClose + atr * 0.382, 2)] = 10
+#        GEX[round(previousClose - atr * 0.5, 2)] = -10          
+#        GEX[round(previousClose + atr * 0.5, 2)] = 10          
+        GEX[round(previousClose - atr * 0.618, 2)] = -10          
+        GEX[round(previousClose + atr * 0.618, 2)] = 10          
+#        GEX[round(previousClose - atr * 0.786, 2)] = -10          
+#        GEX[round(previousClose + atr * 0.786, 2)] = 10
         GEX[round(lower - atr * 0.236, 2)] = -10         
         GEX[round(upper + atr * 0.236, 2)] = 10         
-        GEX[round(lower - atr * 0.382, 2)] = -10         
-        GEX[round(upper + atr * 0.382, 2)] = 10         
-        GEX[round(lower - atr * 0.5, 2)] = -10         
-        GEX[round(upper + atr * 0.5, 2)] = 10         
+#        GEX[round(lower - atr * 0.382, 2)] = -10         
+#        GEX[round(upper + atr * 0.382, 2)] = 10         
+#        GEX[round(lower - atr * 0.5, 2)] = -10         
+#        GEX[round(upper + atr * 0.5, 2)] = 10         
         GEX[round(lower - atr * 0.618, 2)] = -10         
         GEX[round(upper + atr * 0.618, 2)] = 10         
-        GEX[round(lower - atr * 0.786, 2)] = -10         
-        GEX[round(upper + atr * 0.786, 2)] = 10         
+#        GEX[round(lower - atr * 0.786, 2)] = -10         
+#        GEX[round(upper + atr * 0.786, 2)] = 10         
         GEX[round(lower - atr, 2)] = -10         
         GEX[round(upper + atr, 2)] = 10         
         """
@@ -857,6 +859,30 @@ lower_2786 = lower_2000 - atr * 0.786
 upper_2786 = upper_2000 + atr * 0.786
 lower_3000 = lower_2000 - atr
 upper_3000 = upper_2000 + atr
+
+
+plot(show_extensions ? lower_3000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-300.0%', style=plot.style_stepline)
+plot(show_extensions ? lower_2618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-261.8%', style=plot.style_stepline)
+plot(show_extensions ? lower_2236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-223.6%', style=plot.style_stepline)
+plot(show_extensions ? lower_2000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-200.0%', style=plot.style_stepline)
+plot(show_extensions ? lower_1618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-161.8%', style=plot.style_stepline)
+
+
+plot(show_extensions ? lower_1236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-123.6%', style=plot.style_stepline)
+plot(lower_1000, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-100%', style=plot.style_stepline)
+plot(lower_0618, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-61.8%', style=plot.style_stepline)
+plot(lower_trigger, color=color.new(lower_trigger_level_color, 40), linewidth=level_size, title='Lower Trigger', style=plot.style_stepline)
+plot(previous_close, color=color.new(previous_close_level_color, 40), linewidth=level_size, title='Previous Close', style=plot.style_stepline)
+plot(upper_trigger, color=color.new(upper_trigger_level_color, 40), linewidth=level_size, title='Upper Trigger', style=plot.style_stepline)
+plot(upper_0618, color=color.new(key_target_level_color, 40), linewidth=level_size, title='61.8%', style=plot.style_stepline)
+plot(upper_1000, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='100%', style=plot.style_stepline)
+plot(show_extensions ? upper_1236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='123.6%', style=plot.style_stepline)
+plot(show_extensions ? upper_1618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='161.8%', style=plot.style_stepline)
+plot(show_extensions ? upper_2000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='200.0%', style=plot.style_stepline)
+plot(show_extensions ? upper_2236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='223.6%', style=plot.style_stepline)
+plot(show_extensions ? upper_2618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='261.8%', style=plot.style_stepline)
+plot(show_extensions ? upper_3000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='300%', style=plot.style_stepline)
+
         """
     #Uses days from the for loops above to get last date in list
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)

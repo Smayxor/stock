@@ -788,7 +788,6 @@ def stock_price(ticker_name, dte, chartType = 0):
     
                   
     if (chartType == CHART_ATR) :
-        triggerPercentage = 0.236
         content = getByHistoryType( False )
         skip = True
         previousClose = 0.0
@@ -809,12 +808,11 @@ def stock_price(ticker_name, dte, chartType = 0):
                 previousClose = candles['close']
         atrs = atrs[len(atrs) - 14:]
         atr = sum(atrs) / len(atrs)        
-
                   
         previousClose = lastDayClose          
                   
-        lowerTrigger = previousClose - triggerPercentage * atr
-        upperTrigger = previousClose + triggerPercentage * atr
+        lowerTrigger = previousClose - 0.236 * atr
+        upperTrigger = previousClose + 0.236 * atr
         GEX = {}
         upper = round(previousClose + atr, 2)
         lower = round(previousClose - atr, 2)
@@ -823,67 +821,51 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX[round(previousClose, 2)] = 1
         GEX[round(lowerTrigger, 2)] = -20
         GEX[round(upperTrigger, 2)] = 20
+        GEX[round(previousClose - atr * 0.618, 2)] = -10          
+        GEX[round(previousClose + atr * 0.618, 2)] = 10          
+        GEX[round(lower - atr * 0.236, 2)] = -10         
+        GEX[round(upper + atr * 0.236, 2)] = 10         
+        GEX[round(lower - atr * 0.618, 2)] = -10         
+        GEX[round(upper + atr * 0.618, 2)] = 10         
 
 #        GEX[round(previousClose - atr * 0.382, 2)] = -10         
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10
 #        GEX[round(previousClose - atr * 0.5, 2)] = -10          
 #        GEX[round(previousClose + atr * 0.5, 2)] = 10          
-        GEX[round(previousClose - atr * 0.618, 2)] = -10          
-        GEX[round(previousClose + atr * 0.618, 2)] = 10          
 #        GEX[round(previousClose - atr * 0.786, 2)] = -10          
 #        GEX[round(previousClose + atr * 0.786, 2)] = 10
-        GEX[round(lower - atr * 0.236, 2)] = -10         
-        GEX[round(upper + atr * 0.236, 2)] = 10         
 #        GEX[round(lower - atr * 0.382, 2)] = -10         
 #        GEX[round(upper + atr * 0.382, 2)] = 10         
 #        GEX[round(lower - atr * 0.5, 2)] = -10         
 #        GEX[round(upper + atr * 0.5, 2)] = 10         
+#        GEX[round(lower - atr * 0.786, 2)] = -10         
+#        GEX[round(upper + atr * 0.786, 2)] = 10  
+                  
+        upper = round(upper + atr, 2)
+        lower = round(lower - atr, 2)
+        GEX[lower] = -15        
+        GEX[upper] = 15    
+        GEX[round(previousClose - atr * 0.618, 2)] = -10          
+        GEX[round(previousClose + atr * 0.618, 2)] = 10          
+        GEX[round(lower - atr * 0.236, 2)] = -10         
+        GEX[round(upper + atr * 0.236, 2)] = 10         
         GEX[round(lower - atr * 0.618, 2)] = -10         
         GEX[round(upper + atr * 0.618, 2)] = 10         
+        GEX[round(lower - atr )]
+        GEX[round(upper + atr, 2)] = 10
+#        GEX[round(previousClose - atr * 0.382, 2)] = -10         
+#        GEX[round(previousClose + atr * 0.382, 2)] = 10
+#        GEX[round(previousClose - atr * 0.5, 2)] = -10          
+#        GEX[round(previousClose + atr * 0.5, 2)] = 10          
+#        GEX[round(previousClose - atr * 0.786, 2)] = -10          
+#        GEX[round(previousClose + atr * 0.786, 2)] = 10
+#        GEX[round(lower - atr * 0.382, 2)] = -10         
+#        GEX[round(upper + atr * 0.382, 2)] = 10         
+#        GEX[round(lower - atr * 0.5, 2)] = -10         
+#        GEX[round(upper + atr * 0.5, 2)] = 10         
 #        GEX[round(lower - atr * 0.786, 2)] = -10         
-#        GEX[round(upper + atr * 0.786, 2)] = 10         
-        GEX[round(lower - atr, 2)] = -10         
-        GEX[round(upper + atr, 2)] = 10         
-        """
-        GEX[round(, 2)] = 10         
-
-lower_2236 = lower_2000 - atr * 0.236
-upper_2236 = upper_2000 + atr * 0.236
-lower_2382 = lower_2000 - atr * 0.382
-upper_2382 = upper_2000 + atr * 0.382
-lower_2500 = lower_2000 - atr * 0.5
-upper_2500 = upper_2000 + atr * 0.5
-lower_2618 = lower_2000 - atr * 0.618
-upper_2618 = upper_2000 + atr * 0.618
-lower_2786 = lower_2000 - atr * 0.786
-upper_2786 = upper_2000 + atr * 0.786
-lower_3000 = lower_2000 - atr
-upper_3000 = upper_2000 + atr
-
-
-plot(show_extensions ? lower_3000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-300.0%', style=plot.style_stepline)
-plot(show_extensions ? lower_2618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-261.8%', style=plot.style_stepline)
-plot(show_extensions ? lower_2236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-223.6%', style=plot.style_stepline)
-plot(show_extensions ? lower_2000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-200.0%', style=plot.style_stepline)
-plot(show_extensions ? lower_1618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-161.8%', style=plot.style_stepline)
-
-
-plot(show_extensions ? lower_1236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-123.6%', style=plot.style_stepline)
-plot(lower_1000, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='-100%', style=plot.style_stepline)
-plot(lower_0618, color=color.new(key_target_level_color, 40), linewidth=level_size, title='-61.8%', style=plot.style_stepline)
-plot(lower_trigger, color=color.new(lower_trigger_level_color, 40), linewidth=level_size, title='Lower Trigger', style=plot.style_stepline)
-plot(previous_close, color=color.new(previous_close_level_color, 40), linewidth=level_size, title='Previous Close', style=plot.style_stepline)
-plot(upper_trigger, color=color.new(upper_trigger_level_color, 40), linewidth=level_size, title='Upper Trigger', style=plot.style_stepline)
-plot(upper_0618, color=color.new(key_target_level_color, 40), linewidth=level_size, title='61.8%', style=plot.style_stepline)
-plot(upper_1000, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='100%', style=plot.style_stepline)
-plot(show_extensions ? upper_1236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='123.6%', style=plot.style_stepline)
-plot(show_extensions ? upper_1618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='161.8%', style=plot.style_stepline)
-plot(show_extensions ? upper_2000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='200.0%', style=plot.style_stepline)
-plot(show_extensions ? upper_2236 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='223.6%', style=plot.style_stepline)
-plot(show_extensions ? upper_2618 : na, color=color.new(key_target_level_color, 40), linewidth=level_size, title='261.8%', style=plot.style_stepline)
-plot(show_extensions ? upper_3000 : na, color=color.new(atr_target_level_color, 40), linewidth=level_size, title='300%', style=plot.style_stepline)
-
-        """
+#        GEX[round(upper + atr * 0.786, 2)] = 10  
+                  
     #Uses days from the for loops above to get last date in list
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")

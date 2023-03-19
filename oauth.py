@@ -80,8 +80,8 @@ fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
-atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=14&frequencyType=daily&frequency=1&needExtendedHoursData=true"
-
+atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1"
+atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}"   
 
 CHART_NORMAL = 0
 CHART_VOLUME = 1
@@ -757,18 +757,19 @@ def stock_price(ticker_name, dte, chartType = 0):
 
                   
     if (chartType == CHART_ATR) :
-        print( "Getting ATR" )              
-               
-        url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
-        json_data = requests.get(url=url_endpoint, headers=HEADER).content
-        content = json.loads(json_data)
-        print( content )
+        print( "Getting ATR" )
+        
+        content = getByHistoryType( False )
+        #print( content )          
+        for candles in content['candles']:
+            timestamp = datetime.datetime.fromtimestamp( (candles['datetime'] / 1000) + 7200  )
+            #print(timestamp.strftime('%Y-%m-%d %H:%M:%S'))\
+            print( timestamp )
                   
 #    print(closestStrike)              
 #    for strikes in CallIV:
 #        print( CallIV[strikes] , " / ", PutIV[strikes] )
 
-                  
     if (chartType == CHART_IV) :     #CHECK IF STRIKE EXISTS, SPX FUCKS THIS UP
         IVTime = datetime.datetime.now().strftime("%H:%M")
         print( IVTime )
@@ -794,6 +795,18 @@ def stock_price(ticker_name, dte, chartType = 0):
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")
     return "stock-chart.png"
-    
+
+                  
+def getByHistoryType( totalCandles ):
+    if totalCandles :
+        end = int( datetime.datetime.now().timestamp() * 1000 )
+        start = int( (datetime.datetime.now() - datetime.timedelta(days=3)).timestamp() * 1000 )
+        print( start, end )
+        url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, start_date=start, end_date=end)
+    else :
+        url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name)
+    return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
+                  
+
 #*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

@@ -788,7 +788,7 @@ def stock_price(ticker_name, dte, chartType = 0):
     
                   
     if (chartType == CHART_ATR) :
-        content = getByHistoryType( False )
+        content = getByHistoryType( False, ticker_name )
         skip = True
         previousClose = 0.0
         lastDayClose = 0.0
@@ -816,8 +816,8 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX = {}
         upper = round(previousClose + atr, 2)
         lower = round(previousClose - atr, 2)
-        GEX[upper] = -10          
-        GEX[lower] = 10
+        GEX[upper] = 10          
+        GEX[lower] = -10
         GEX[round(previousClose, 2)] = 1
         GEX[round(lowerTrigger, 2)] = -20
         GEX[round(upperTrigger, 2)] = 20
@@ -849,7 +849,7 @@ def stock_price(ticker_name, dte, chartType = 0):
         GEX[round(upper + atr * 0.236, 2)] = 10
         GEX[round(lower - atr * 0.618, 2)] = -10 
         GEX[round(upper + atr * 0.618, 2)] = 10         
-        GEX[round(lower - atr, 2)] = 5
+        GEX[round(lower - atr, 2)] = -5
         GEX[round(upper + atr, 2)] = 5
 #        GEX[round(previousClose - atr * 0.382, 2)] = -10         
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10
@@ -869,14 +869,16 @@ def stock_price(ticker_name, dte, chartType = 0):
     img.save("stock-chart.png")
     return "stock-chart.png"
 
-def getByHistoryType( totalCandles ):
+def getByHistoryType( totalCandles, ticker ):
     if totalCandles :
         end = int( datetime.datetime.now().timestamp() * 1000 )
         start = int( (datetime.datetime.now() - datetime.timedelta(days=3)).timestamp() * 1000 )
-        print( start, end )
-        url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, start_date=start, end_date=end)
+        print( start, end, ticker )
+        url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker, start_date=start, end_date=end)
+        print(url_endpoint)
     else :
-        url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name)
+        url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
+        print(url_endpoint)
     return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)                 
                   
                   

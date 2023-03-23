@@ -794,6 +794,9 @@ def stock_price(ticker_name, dte, chartType = 0):
         previousClose = 0.0
         lastDayClose = 0.0
         atrs = []
+#*********************************
+#        if (int(time.strftime("%H")) > 12): iter(content['candles']).next() = todaysClose
+#Need to pull all candles from Today, figure out what tf was closing price       
         for candles in content['candles']:                  
             if skip :
                 skip = False

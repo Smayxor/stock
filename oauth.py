@@ -619,6 +619,7 @@ def drawCharts(ticker_name, dte, price, chartType):
     if chartType == CHART_VOLUME : fundamentals['ChartType'] = "Volume "
     if chartType == CHART_IV : fundamentals['ChartType'] = "IV "
     if chartType == CHART_TIMEVALUE : fundamentals['ChartType'] = "TimeValue "
+    if chartType == CHART_ATR : fundamentals['ChartType'] = "ATR "
 
     #Draw the chart
     if chartType == CHART_ROTATE :
@@ -873,12 +874,12 @@ def getByHistoryType( totalCandles, ticker ):
     if totalCandles :
         end = int( datetime.datetime.now().timestamp() * 1000 )
         start = int( (datetime.datetime.now() - datetime.timedelta(days=3)).timestamp() * 1000 )
-        print( start, end, ticker )
+#        print( start, end, ticker )
         url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker, start_date=start, end_date=end)
-        print(url_endpoint)
+#        print(url_endpoint)
     else :
         url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
-        print(url_endpoint)
+#        print(url_endpoint)
     return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)                 
                   
                   

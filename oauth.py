@@ -805,13 +805,13 @@ def stock_price(ticker_name, dte, chartType = 0):
                 lower = abs( low - previousClose )
                 both = abs( high - low )
                 atrs.append( max( [upper, lower, both] ) )
-                lastDayClose = previousClose
+                #lastDayClose = previousClose
                 previousClose = candles['close']
         atrs = atrs[len(atrs) - 14:]
         atr = sum(atrs) / len(atrs)        
-                  
-        if (int(time.strftime("%H")) > 12): previousClose = lastDayClose          
-                  
+  
+        #if (int(time.strftime("%H")) > 12): previousClose = lastDayClose          
+     
         lowerTrigger = previousClose - 0.236 * atr
         upperTrigger = previousClose + 0.236 * atr
         GEX = {}

@@ -237,7 +237,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
-
+"""
 slash_command_json = { "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
@@ -252,9 +252,9 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
-
+"""
 #Removes slash commands
-#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1078392146064838738", headers=headers) )   
+#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )   
 
 def getTenorGIF( search ):
     url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
@@ -311,37 +311,37 @@ Smayxor has switched to using /gex"""
             updateRunning = True
             channelUpdate.start()        
 
-    @bot.tree.command(name="pump")
-    async def slash_command_pump(intr: discord.Interaction, extra: str = "pump"):
+    @bot.command(name="pump")
+    async def command_pump(ctx, *args):
         if random.random() < 0.91 :
-            await intr.response.send_message( getTenorGIF( random.choice(pumps) + enc(" " + extra) ) )
+            await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
         else:
-            await intr.response.send_message(file=discord.File(random.choice(["./pepe-money.gif", "./wojak-pump.gif"])))
+            await ctx.send(file=discord.File(random.choice(["./pepe-money.gif", "./wojak-pump.gif"])))
             
-    @bot.tree.command(name="dump")
-    async def slash_command_dump(intr: discord.Interaction, extra: str = "dump"):
-        await intr.response.send_message( getTenorGIF( random.choice(dumps) + enc(" " + extra) ) )
+    @bot.command(name="dump")
+    async def command_dump(ctx, *args):
+        await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
 
-    @bot.tree.command(name="tits")
-    async def slash_command_tits(intr: discord.Interaction, extra: str = "tits"):
-        await intr.response.send_message( getTenorGIF( random.choice(titties) + enc(" " + extra) ) )
+    @bot.command(name="tits")
+    async def command_tits(ctx, *args):
+        await ctx.send( getTenorGIF( random.choice(titties) + enc(" " + ' '.join(args)) ) )
 
-    @bot.tree.command(name="ass")
-    async def slash_command_ass(intr: discord.Interaction, extra: str = "ass"):
-        await intr.response.send_message( getTenorGIF( random.choice(asses) + enc(" " + extra) ) )
+    @bot.command(name="ass")
+    async def command_ass(ctx, *args):
+        await ctx.send( getTenorGIF( random.choice(asses) + enc(" " + ' '.join(args)) ) )
 
-    @bot.tree.command(name="gm")
-    async def slash_command_gm(intr: discord.Interaction, extra: str = "gm"):
+    @bot.command(name="gm")
+    async def command_gm(ctx, *args):
         if random.random() < 0.91 :
-            await intr.response.send_message( getTenorGIF( random.choice(gms) + enc(" " + extra) ) )
+            await ctx.send( getTenorGIF( random.choice(gms) + enc(" " + ' '.join(args)) ) )
         else:
-            await intr.response.send_message(file=discord.File('./bobo-gm-frens.gif'))
+            await ctx.send(file=discord.File('./bobo-gm-frens.gif'))
 
     @bot.tree.command(name="8ball", description="Answers your question?")
     async def slash_command_8ball(intr: discord.Interaction, question: str):   
         future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
-        if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
-        else: await intr.response.send_message("Please phrase that as a question")
+        if "?" in question: await ctx.send("Question: " + question + "\rAnswer: " + random.choice(future))
+        else: await ctx.send("Please phrase that as a question")
 
     @bot.tree.command(name="sudo")
     @commands.is_owner()
@@ -444,11 +444,7 @@ Smayxor has switched to using /gex"""
             print("Starting queue")
             updateRunning = True
             channelUpdate.start()
-            
-    @bot.command(name="tits")
-    async def get_tits(ctx, *args):
-        pass
-             
+   
     bot.run(BOT_TOKEN)
 
 def rateFundamental(ticker_name, fundamental, value):

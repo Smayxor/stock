@@ -232,12 +232,12 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "help", "type": 1, "description": "Provides help for Smayxor" }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-
 slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 """
+slash_command_json = { "name": "help", "type": 1, "description": "Provides help for Smayxor" }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
 slash_command_json = { "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
@@ -278,9 +278,10 @@ counter = 0
 auto_updater = []
 intents = discord.Intents.all()
 updateRunning = False
-bot = commands.Bot(command_prefix='}', intents=intents, help_command=None, sync_commands=True)
-def thread_discord():
-    strHelp = """}? for commands for Smayxor
+
+class MyNewHelp(commands.MinimalHelpCommand):
+    async def send_pages(self):
+        strHelp = """}? for commands for Smayxor
 }s ticker dte, you can leave out DTE for 0DTE.  Can also use /gex ticker dte charttype
 /8ball followed by a question, ending in ?
 The top bars are OI.
@@ -288,8 +289,15 @@ The Red/Green bars above the strikes are Total Gamma Exposure, with blue/pink DE
 Under the strikes is Call Put GEX individually
 Additional Chart Types are V for volume, IV for ImpliedVolatility, R for rotated, and TV for TimeValue
 }s spx 0 v    for a volume chart
-Smayxor has switched to using /gex"""
-
+Smayxor has switched to using /gex
+}gm }tits }ass }pump }dump also exist"""
+        destination = self.get_destination()
+        for page in self.paginator.pages:
+#            emby = discord.Embed(description=page)
+#            await destination.send(embed=emby)
+            await destination.send(strHelp)
+bot = commands.Bot(command_prefix='}', intents=intents, help_command=MyNewHelp(), sync_commands=True)
+def thread_discord():
     def getChartType( arg ):
         arg = arg.upper()
         if arg == 'V': return CHART_VOLUME
@@ -396,14 +404,6 @@ Smayxor has switched to using /gex"""
             await bot.close()
             await bot.logout()
             print("Finished SUDO") 
-  
-    @bot.tree.command(name="help")
-    async def slash_command_help(intr: discord.Interaction):
-        await intr.response.send_message(strHelp)
-  
-    @bot.command(name="?")
-    async def question(ctx):
-        await ctx.send(strHelp)
 
     @tasks.loop(seconds=1)
     async def channelUpdate():

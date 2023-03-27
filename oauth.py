@@ -296,6 +296,7 @@ Smayxor has switched to using /gex
 #            emby = discord.Embed(description=page)
 #            await destination.send(embed=emby)
             await destination.send(strHelp)
+update_timer = 300
 bot = commands.Bot(command_prefix='}', intents=intents, help_command=MyNewHelp(), sync_commands=True)
 def thread_discord():
     def getChartType( arg ):
@@ -354,7 +355,7 @@ def thread_discord():
     @bot.tree.command(name="sudo")
     @commands.is_owner()
     async def slash_command_sudo(intr: discord.Interaction, command: str):
-        global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+        global tickers, updateRunning, counter, auto_updater, update_timer, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
         user = str(intr.user)
         args = command.upper().split(' ')
         print( args )
@@ -370,6 +371,7 @@ def thread_discord():
             print("starting")
             dte = args[2] if (len(args) == 3) and args[2].isnumeric() else '0'
             chart = getChartType(args[3]) if (len(args) == 4) else 'NORMAL' 
+            update_timer = int(args[4]) if (len(args) == 5) and args[4].isnumeric() else 300
             print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
             auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
             if updateRunning == False :
@@ -407,7 +409,7 @@ def thread_discord():
 
     @tasks.loop(seconds=1)
     async def channelUpdate():
-        global tickers, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter
+        global tickers, counter, auto_updater, update_timer, IVUpdateChannel, IVUpdateChannelCounter
         if len(tickers) != 0 :
             for tck in tickers:
                 fn = stock_price(tck[0], tck[1], tck[2])
@@ -418,7 +420,7 @@ def thread_discord():
                 tickers.clear()
         if len(auto_updater) != 0:
             counter += 1
-            if counter > 300 :
+            if counter > update_timer :
                 counter = 0
                 for tck in auto_updater:
                     fn = stock_price(tck[0], tck[1], tck[2])

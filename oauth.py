@@ -509,12 +509,12 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
     try:
         if not strike in GEX: newStrike(strike)  #Prevents NaN values?
         if chartType == CHART_IV :
-            GEX[strike] = GEX[strike] + volatility
+            GEX[strike] = GEX[strike] + volatility * vega
             if (call == 1):
-                CallGEX[strike] = volatility * vega
+                CallGEX[strike] = volatility
                 CallOI[strike] += oi
             else:
-                PutGEX[strike] = volatility * vega
+                PutGEX[strike] = volatility
                 PutOI[strike] += oi
             return
         elif chartType == CHART_VOLUME : 
@@ -529,8 +529,8 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
         if (oi == 0): return 0  #Delta and Gamma show up as -999.0
         if (delta > 990) or (delta < -990) : return #need to test values for NaN
         
-        GEX[strike] += (gamma * oi * call)
-        DEX[strike] += (delta * oi)
+        GEX[strike] += (gamma * oi * call) * volatility
+        DEX[strike] += (delta * oi) * volatility
 
         if (call == 1):
             CallIV[strike] = volatility

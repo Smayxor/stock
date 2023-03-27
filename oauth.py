@@ -508,9 +508,16 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
     global GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallDollars, PutDollars, atmDif, closestStrike, CallATM, PutATM
     try:
         if not strike in GEX: newStrike(strike)  #Prevents NaN values?
-        if chartType == CHART_GEX :
-            a = 1
-        if chartType == CHART_VOLUME : 
+        if chartType == CHART_IV :
+            GEX[strike] = GEX[strike] + volatility
+            if (call == 1):
+                CallGEX[strike] = volatility * vega
+                CallOI[strike] += oi
+            else:
+                PutGEX[strike] = volatility * vega
+                PutOI[strike] += oi
+            return
+        elif chartType == CHART_VOLUME : 
             oi = volume
         elif chartType == CHART_TIMEVALUE :
             GEX[strike] = timeValue
@@ -535,7 +542,7 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
             PutGEX[strike] += (gamma * oi)
             PutDollars += (bid * oi)
             PutOI[strike] += oi
-              
+
         distToMoney = (abs(strike - price))
         if distToMoney < atmDif: 
             atmDif = distToMoney
@@ -762,6 +769,7 @@ def stock_price(ticker_name, dte, chartType = 0):
 #    for strikes in CallIV:
 #        print( CallIV[strikes] , " / ", PutIV[strikes] )
 
+    """
     if (chartType == CHART_IV) :     #CHECK IF STRIKE EXISTS, SPX FUCKS THIS UP
         IVTime = datetime.datetime.now().strftime("%H:%M")
         print( IVTime )
@@ -782,7 +790,7 @@ def stock_price(ticker_name, dte, chartType = 0):
             CallATMIV.pop(k)
             PutATMIV.pop(k)
             #(k := next(iter(d)), d.pop(k))
-    
+    """
                   
     if (chartType == CHART_ATR) :
         content = getByHistoryType( False, ticker_name )

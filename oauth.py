@@ -369,9 +369,9 @@ def thread_discord():
             exit(0)
         elif args[0] == "START" :
             print("starting")
-            dte = args[2] if (len(args) == 3) and args[2].isnumeric() else '0'
-            chart = getChartType(args[3]) if (len(args) == 4) else CHART_GEX 
-            update_timer = int(args[4]) if (len(args) == 5) and args[4].isnumeric() else 300
+            dte = args[2] if (len(args) > 2) and args[2].isnumeric() else '0'
+            chart = getChartType(int(args[3])) if (len(args) > 3) else CHART_GEX 
+            update_timer = int(args[4]) if (len(args) > 4) and args[4].isnumeric() else 300
             print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
             auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
             if updateRunning == False :

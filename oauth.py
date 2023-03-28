@@ -370,15 +370,15 @@ def thread_discord():
         elif args[0] == "START" :
             print("starting")
             dte = args[2] if (len(args) > 2) and args[2].isnumeric() else '0'
-            chart = getChartType(int(args[3])) if (len(args) > 3) else CHART_GEX 
+            chart = getChartType(args[3]) if (len(args) > 3) else CHART_GEX 
             update_timer = int(args[4]) if (len(args) > 4) and args[4].isnumeric() else 300
-            print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id)
+            print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id, update_timer)
             auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
             if updateRunning == False :
                 print("Starting queue")
                 updateRunning = True
                 channelUpdate.start()
-            await intr.response.send_message(user + " started auto-update on " + args[1] + " " + str(dte) + "dte " + str(chart) )
+            await intr.response.send_message(user + " started auto-update on " + args[1] + " " + str(dte) + "dte " + str(chart) + "-Chart " + str(update_timer) + " seconds" )
         elif args[0] == "STOP" :
             auto_updater.clear()
             CallATMIV = {}

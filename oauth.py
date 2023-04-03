@@ -224,7 +224,7 @@ refreshTokens()
 
 #Declarations for slash commands
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
-headers = { "Authorization": "Bot " + BOT_TOKEN} #headers = { "Authorization": "Bearer " + BOT_CLIENT_ID }
+headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
     "name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "TimeValue", "value": "TV"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
@@ -234,25 +234,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
-"""
-slash_command_json = { "name": "help", "type": 1, "description": "Provides help for Smayxor" }
-print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "tits", "type": 1, "description": "Show me the titties!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-
-slash_command_json = { "name": "ass", "type": 1, "description": "Check out the shitter on that critter!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-                    
-slash_command_json = { "name": "gm", "type": 1, "description": "GM Frens", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-
-slash_command_json = { "name": "pump", "type": 1, "description": "PUMP IT UP!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-
-slash_command_json = { "name": "dump", "type": 1, "description": "BEAR MARKET BITCH!!!", "options":[{ "name": "extra", "description": "extra", "type": 3, "required": False }] }
-print( requests.post(url, headers=headers, json=slash_command_json) )
-"""
 #Removes slash commands
 #print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )   
 
@@ -349,8 +331,8 @@ def thread_discord():
     @bot.tree.command(name="8ball", description="Answers your question?")
     async def slash_command_8ball(intr: discord.Interaction, question: str):   
         future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
-        if "?" in question: await ctx.send("Question: " + question + "\rAnswer: " + random.choice(future))
-        else: await ctx.send("Please phrase that as a question")
+        if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
+        else: await intr.response.send_message("Please phrase that as a question")
 
     @bot.tree.command(name="sudo")
     @commands.is_owner()
@@ -891,6 +873,113 @@ def getByHistoryType( totalCandles, ticker ):
 #        print(url_endpoint)
     return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)                 
                   
+
                   
+                  
+                  
+                  
+class StrikeData():
+    class OptionData():
+        Gamma = 0.0
+        Delta = 0.0
+        Vega = 0.0
+        Theta = 0.0
+        TimeValue = 0.0
+        OI = 0.0
+        Volume = 0.0
+        Bid = 0.0
+        Ask = 0.0
+
+    Strike = 0.0
+    CallData = OptionData()
+    PutData = OptionData()
+
+def getPandas(ticker_name, dte, chartType = 0):
+    import pandas as pd
+    import numpy as np
+    ticker_name = ticker_name.upper()
+#Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
+    today = date.today()
+    if "SPX" in ticker_name: ticker_name = "$SPX.X"
+    if "VIX" in ticker_name: ticker_name = "$VIX.X"
+    if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
+
+    loopAgain = True
+    errorCounter = 0
+    logCounter = 0
+    while loopAgain:
+        dateRange = today + datetime.timedelta(days=int(dte))
+        url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='3', toDate=dateRange)
+        json_data = requests.get(url=url_endpoint, headers=HEADER).content
+        content = json.loads(json_data)
+        if 'error' in content:  #happens when oauth token expires
+            refreshTokens()
+            errorCounter += 1
+            if errorCounter == 5: break
+        elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
+            dte = str( int(dte) + 7)
+            loopAgain = int(dte) < 37
+        else: 
+            loopAgain = False 
+    if ('error' in content) or (errorCounter == 5) or (content['status'] in 'FAILED'): #Failed, we tried our best
+        clearScreen()
+        drawText(0,0,txt="Failed to get data", color="#FF0")
+        img.save("error.png")
+        return "error.png"
+    price = content['underlyingPrice']   #underlyingprice == 0.0  same as   status == FAILED
+    
+#Load the data from JSON
+    totalOI = 0
+    if chartType == CHART_JSON :
+        ticker_name = ticker_name + ".json"
+        with open(ticker_name, "w") as outfile:
+            outfile.write(json.dumps(content, indent=4))
+        return ticker_name
+    
+    #df = pd.DataFrame(content)
+    df = pd.DataFrame()
+    for days in content['callExpDateMap']: 
+        for strikes in content['callExpDateMap'][days]:
+            df = pd.concat([df, pd.DataFrame(content['callExpDateMap'][days][strikes]), pd.DataFrame(content['putExpDateMap'][days][strikes])])
+
+    df.fillna(0, inplace = True)
+#    df['Date'] = pd.to_datetime(df['Date'])
+    df['putCall'] = df['putCall'].replace(['CALL'], '1')
+    df['putCall'] = df['putCall'].replace(['PUT'], '-1')
+          
+    df = df.drop(columns=['symbol', 'description', 'exchangeName', 'bid', 'last', 'mark', 'bidSize', 'askSize', 'bidAskSize', 'lastSize', 'highPrice', 'lowPrice', 'openPrice', 'closePrice', 'tradeDate', 'tradeTimeInLong', 'quoteTimeInLong', 'netChange', 'theoreticalOptionValue', 'theoreticalVolatility', 'optionDeliverablesList', 'expirationDate', 'expirationType', 'lastTradingDay', 'multiplier', 'settlementType', 'deliverableNote', 'isIndexOption', 'percentChange', 'markChange', 'markPercentChange', 'intrinsicValue', 'nonStandard', 'mini', 'pennyPilot', 'daysToExpiration', 'inTheMoney' ])
+            
+
+    df['strikePrice'] = df['strikePrice'].astype(float)
+    df['volatility'] = df['volatility'].astype(float)
+    df['gamma'] = df['gamma'].astype(float)
+    df['openInterest'] = df['openInterest'].astype(float)
+    df['putCall'] = df['putCall'].astype(float)
+    df['volatility'] = df['volatility'].astype(float)
+
+    df['GEX'] = df['gamma'] * df['openInterest'] * df['putCall']
+    df['DEX'] = df['delta'] * df['openInterest'] * df['putCall']
+    df['VEX'] = df['vega'] * df['volatility']
+
+    df = df.drop(columns=['gamma', 'delta', 'vega', 'theta', 'rho'])
+    #df['TotalGamma'] = df.GEX / 10**9
+
+    print( df.to_string() )              
+
+#    print( df[df.duplicated(['strikePrice'])] )
+#    print( np.where(df['strikePrice'] == 409.0) )
+    strikes = {}
+    strikes['Strikes'] = '0'
+    for x in df.strikePrice.unique():
+        dfSum = df[ df['strikePrice'] == x].sum()
+        strikes['Strikes'] = str(x) + "," + strikes['Strikes']
+        strikes['GEX', x] = dfSum['GEX'] 
+        strikes['DEX', x] = dfSum['DEX']
+        strikes['OI', x] = dfSum['openInterest']
+  
+    print( strikes )
+
+#getPandas("SPY", 0, 0)
+
 #*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

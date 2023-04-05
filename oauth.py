@@ -754,7 +754,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts $"+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total $"+"${:,.2f}".format(strikes.CallDollars+strikes.PutDollars), color="yellow")
 
-	print( sorted(strikes.Strikes) )
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 

@@ -44,16 +44,16 @@ from urllib.parse import quote as enc
 from os.path import exists
 from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont
 import PIL.Image as PILImg
-from discord.ext import tasks 
+from discord.ext import tasks
 import discord
 from discord.ext import commands
 from discord import app_commands
 
 #import logging
- 
+
 # Create and configure logger
 #logging.basicConfig(filename="newfile.log", format='%(asctime)s %(message)s',  filemode='w')
- 
+
 # Creating an object
 #logger = logging.getLogger()
 # Setting the threshold of logger to DEBUG
@@ -81,7 +81,7 @@ price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quot
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
-atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=false"   
+atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=false"
 
 CHART_GEX = 0
 CHART_VOLUME = 1
@@ -173,19 +173,19 @@ def serverOAUTH():
                 oauth_params['code'] = code
                 oauth_params['grant_type'] = 'authorization_code'
                 oauth_params['refresh_token'] = ''
-                oauth_params['access_type'] = 'offline'            
+                oauth_params['access_type'] = 'offline'
                 oauth_params['redirect_uri'] = 'https://localhost:8080/'
                 page = requests.post(url=auth_endpoint.format(api_key=MY_API_KEY), headers=SERVER_HEADER, data=oauth_params)
                 print(urllib.parse.unquote(page.content))
                 with open("access-token.json", "w") as outfile:
                     outfile.write(urllib.parse.unquote(page.content))
                     loadAccessTokens()
-               
+
     httpd = HTTPServer(('127.0.0.1', 8080), requesthandler)
     httpd.socket = ssl.wrap_socket(httpd.socket, keyfile='./example.key', certfile='./example.crt', server_side=True)
     httpd.serve_forever()
 serverSockThread = threading.Thread(target=serverOAUTH)
-serverSockThread.start() 
+serverSockThread.start()
 """
 
 
@@ -210,7 +210,7 @@ def refreshTokens():
             REFRESH_TOKEN = init['refresh_token']
     oauth_params['grant_type'] = 'refresh_token'
     oauth_params['refresh_token'] = REFRESH_TOKEN
-    oauth_params['access_type'] = ''            
+    oauth_params['access_type'] = ''
     oauth_params['redirect_uri'] = ''
     oauth_params['code'] = ''
     #When Refresh Token ultimately times out, this method will fail in 90 days   *******************************
@@ -236,14 +236,14 @@ slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smay
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
-#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )   
+#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
 
 def getTenorGIF( search ):
     url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
     r = requests.get(url=url)
     content = json.loads(r.content)
     dctResults = []
-    if r.status_code == 200: 
+    if r.status_code == 200:
         for ids in content['results']:
             dctResults.append( ids['media_formats']['tinygif']['url'] )
         return random.choice( dctResults )
@@ -292,15 +292,15 @@ def thread_discord():
         else: return CHART_GEX
 
     @bot.tree.command(name="gex", description="Draws a GEX chart")
-    async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "GEX"):   
+    async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "GEX"):
         global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
         ticker = ticker.upper()
-        await intr.response.send_message("Fetching " + chart + " chart for " + ticker + " " + str(dte) + "DTE") 
+        await intr.response.send_message("Fetching " + chart + " chart for " + ticker + " " + str(dte) + "DTE")
         tickers.append( (ticker, dte, getChartType(chart), intr.channel.id, intr.channel) )
         if updateRunning == False :
             print("Starting queue")
             updateRunning = True
-            channelUpdate.start()        
+            channelUpdate.start()
 
     @bot.command(name="pump")
     async def command_pump(ctx, *args):
@@ -308,7 +308,7 @@ def thread_discord():
             await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
         else:
             await ctx.send(file=discord.File(random.choice(["./pepe-money.gif", "./wojak-pump.gif"])))
-            
+
     @bot.command(name="dump")
     async def command_dump(ctx, *args):
         await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
@@ -329,7 +329,7 @@ def thread_discord():
             await ctx.send(file=discord.File('./bobo-gm-frens.gif'))
 
     @bot.tree.command(name="8ball", description="Answers your question?")
-    async def slash_command_8ball(intr: discord.Interaction, question: str):   
+    async def slash_command_8ball(intr: discord.Interaction, question: str):
         future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
         if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
         else: await intr.response.send_message("Please phrase that as a question")
@@ -352,7 +352,7 @@ def thread_discord():
         elif args[0] == "START" :
             print("starting")
             dte = args[2] if (len(args) > 2) and args[2].isnumeric() else '0'
-            chart = getChartType(args[3]) if (len(args) > 3) else CHART_GEX 
+            chart = getChartType(args[3]) if (len(args) > 3) else CHART_GEX
             update_timer = int(args[4]) if (len(args) > 4) and args[4].isnumeric() else 300
             print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id, update_timer)
             auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
@@ -387,7 +387,7 @@ def thread_discord():
             exit(9)
             await bot.close()
             await bot.logout()
-            print("Finished SUDO") 
+            print("Finished SUDO")
 
     @tasks.loop(seconds=1)
     async def channelUpdate():
@@ -428,7 +428,7 @@ def thread_discord():
             print("Starting queue")
             updateRunning = True
             channelUpdate.start()
-   
+
     bot.run(BOT_TOKEN)
 
 def rateFundamental(ticker_name, fundamental, value):
@@ -466,28 +466,28 @@ def drawRotatedPriceLine(y, color):  #Draws a dashed line
         x += 6
 
 def drawText(x, y, txt, color):
-    draw.text((x,y), text=txt, fill=color, font=font) 
+    draw.text((x,y), text=txt, fill=color, font=font)
 
-def drawRotatedText(x, y, txt, color):  
+def drawRotatedText(x, y, txt, color):
     text_layer = PILImg.new('L', (100, FONT_SIZE))
     dtxt = ImageDraw.Draw(text_layer)
     dtxt.text( (0, 0), txt, fill=255, font=font)
     rotated_text_layer = text_layer.rotate(270.0, expand=1)
-    PILImg.Image.paste( img, rotated_text_layer, (x,220) ) 
+    PILImg.Image.paste( img, rotated_text_layer, (x,220) )
 
 def clearScreen():
     img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
     drawRect(0,0,IMG_W,IMG_H, color="#000", border="#000")
 
-def getFundamentals(ticker_name):    
+def getFundamentals(ticker_name):
     try:
         page = requests.get(url=fundamental_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name))
         content = json.loads(page.content)[ticker_name]["fundamental"]
         result = {'Beta': content["beta"], 'DivYield': content["dividendYield"], 'DivDate': content["dividendDate"], 'DivAmount': content["dividendAmount"], 'peRatio': content["peRatio"], 'pegRatio': content["pegRatio"], 'QuickRatio': content["quickRatio"], 'DebtToCapital': content["totalDebtToCapital"], 'SharesOut': f'{int(content["sharesOutstanding"]):,}', 'Float': f'{(int(content["marketCapFloat"]) * 1000000):,}', 'MCap': f'{(int(content["marketCap"]) * 1000000):,}'}
         return result
     except :
-        return {'Bad Ticker' : 'Tell Smayberry'}         
-    
+        return {'Bad Ticker' : 'Tell Smayberry'}
+
 def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, itm, bid, days, chartType, timeValue):
     global GEX, DEX, CallIV, PutIV, CallOI, PutOI, CallDollars, PutDollars, atmDif, closestStrike, CallATM, PutATM
     try:
@@ -501,18 +501,18 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
                 PutGEX[strike] = volatility
                 PutOI[strike] += oi
             return
-        elif chartType == CHART_VOLUME : 
+        elif chartType == CHART_VOLUME :
             oi = volume
         elif chartType == CHART_TIMEVALUE :
             GEX[strike] = timeValue
             if (call == 1):
                 CallGEX[strike] = timeValue
             else:
-                PutGEX[strike] = timeValue                  
+                PutGEX[strike] = timeValue
             return
         if (oi == 0): return 0  #Delta and Gamma show up as -999.0
         if (delta > 990) or (delta < -990) : return #need to test values for NaN
-        
+
         GEX[strike] += (gamma * oi * call) * volatility
         DEX[strike] += (delta * oi) * volatility
 
@@ -528,16 +528,16 @@ def addStrike(strike, volume, oi, delta, gamma, vega, price, volatility, call, i
             PutOI[strike] += oi
 
         distToMoney = (abs(strike - price))
-        if distToMoney < atmDif: 
+        if distToMoney < atmDif:
             atmDif = distToMoney
             closestStrike = strike
-       
+
 #def daysFromNow(days):
 #    dn = datetime.datetime.now()
 #    dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
 #    delta = dt.strptime(days.split(":")[0], "%Y-%m-%d") - dn
 #    return delta.days
-        if closestStrike == strike : 
+        if closestStrike == strike :
             if call == 1 : CallATM = bid
             else : PutATM = bid
 
@@ -589,7 +589,7 @@ def drawCharts(ticker_name, dte, price, chartType):
         if abs(PutGEX[strikes]) > maxCPGEX: maxCPGEX = abs(PutGEX[strikes])
     for strikes in DEX:
         if abs(DEX[strikes]) > maxDEX: maxDEX = abs(DEX[strikes])
-              
+
         #CallOI[strikes] += PutOI[strikes]   #Combining for a total.  Individual OI looks a lot like gamma chart
         if abs(CallOI[strikes]) > maxOI: maxOI = abs(CallOI[strikes])
         if abs(PutOI[strikes]) > maxOI: maxOI = abs(PutOI[strikes])
@@ -643,7 +643,7 @@ def drawCharts(ticker_name, dte, price, chartType):
         img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
         draw = ImageDraw.Draw(img)
 
-                  #    clearScreen()    
+                  #    clearScreen()
         x = -15
         for strikes in sorted(GEX):
             x += FONT_SIZE - 3
@@ -674,7 +674,7 @@ def drawCharts(ticker_name, dte, price, chartType):
         for keys in fundamentals:
             drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color= str(rateFundamental(ticker_name, keys, fundamentals[keys])) )
             y += FONT_SIZE
-                  
+
 def daysFromNow(days):
     dn = datetime.datetime.now()
     dn = dn.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -696,7 +696,7 @@ def stock_price(ticker_name, dte, chartType = 0):
     logCounter = 0
     while loopAgain:
         dateRange = today + datetime.timedelta(days=int(dte))
-        
+
         url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
         json_data = requests.get(url=url_endpoint, headers=HEADER).content
         content = json.loads(json_data)
@@ -707,7 +707,7 @@ def stock_price(ticker_name, dte, chartType = 0):
         elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
             dte = str( int(dte) + 7)
             loopAgain = int(dte) < 37
-        else: 
+        else:
             loopAgain = False        #loopAgain = True
 #            log = "./logs/" + str(logCounter) + "log.json"
 #            with open(log, "w") as outfile:
@@ -720,7 +720,7 @@ def stock_price(ticker_name, dte, chartType = 0):
         img.save("error.png")
         return "error.png"
     price = content['underlyingPrice']   #underlyingprice == 0.0  same as   status == FAILED
-    
+
 #Load the data from JSON
     totalOI = 0
     if chartType == CHART_JSON :
@@ -728,11 +728,11 @@ def stock_price(ticker_name, dte, chartType = 0):
         with open(ticker_name, "w") as outfile:
             outfile.write(json.dumps(content, indent=4))
         return ticker_name
-    
-    
-    for days in content['callExpDateMap']: 
+
+
+    for days in content['callExpDateMap']:
         for strikes in content['callExpDateMap'][days]:
-            def addData(opts): 
+            def addData(opts):
                 try:
                     addStrike(strike=opts["strikePrice"], volume=opts["totalVolume"], oi=opts["openInterest"], delta=opts['delta'], gamma=opts["gamma"], vega=opts['vega'], volatility=opts['volatility'], price=price, call=(1 if (opts['putCall'] in "CALL") else -1), itm=opts['inTheMoney'], bid=opts['bid'], days=days, chartType=chartType, timeValue=opts['timeValue'])
                 except:
@@ -742,14 +742,14 @@ def stock_price(ticker_name, dte, chartType = 0):
                 for options in content['putExpDateMap'][days][strikes]: addData(options)
             except:
                   print("No Strike")
-    
+
     #performing $ calcs out here to avoid doing in a loop
     CallDollars = CallDollars * price
     PutDollars = PutDollars * price
-              
+
     ExpectedMove = (CallATM + PutATM) * 0.85
 
-#    print(closestStrike)              
+#    print(closestStrike)
 #    for strikes in CallIV:
 #        print( CallIV[strikes] , " / ", PutIV[strikes] )
 
@@ -762,20 +762,20 @@ def stock_price(ticker_name, dte, chartType = 0):
         CallATMIV[IVTime] = (CallIV[closestStrike] + CallIV[closestStrike + 1]) / 2
         PutATMIV[IVTime] = (PutIV[closestStrike] + PutIV[closestStrike + 1]) / 2
         for times in CallATMIV:
-            
+
             GEX[times] = CallATMIV[times]
             CallOI[times] = 0
             PutOI[times] = 0
             CallGEX[times] = CallATMIV[times]
             PutGEX[times] = PutATMIV[times]
             DEX[times] = 0
-        if len(CallATMIV) > 30: 
+        if len(CallATMIV) > 30:
             k = next(iter(CallATMIV))
             CallATMIV.pop(k)
             PutATMIV.pop(k)
             #(k := next(iter(d)), d.pop(k))
     """
-                  
+
     if (chartType == CHART_ATR) :
         content = getByHistoryType( False, ticker_name )
         skip = True
@@ -784,8 +784,8 @@ def stock_price(ticker_name, dte, chartType = 0):
         atrs = []
 #*********************************
 #        if (int(time.strftime("%H")) > 12): iter(content['candles']).next() = todaysClose
-#Need to pull all candles from Today, figure out what tf was closing price       
-        for candles in content['candles']:                  
+#Need to pull all candles from Today, figure out what tf was closing price
+        for candles in content['candles']:
             if skip :
                 skip = False
                 previousClose = candles['close']
@@ -799,63 +799,63 @@ def stock_price(ticker_name, dte, chartType = 0):
                 #lastDayClose = previousClose
                 previousClose = candles['close']
         atrs = atrs[len(atrs) - 14:]
-        atr = sum(atrs) / len(atrs)        
-  
-        #if (int(time.strftime("%H")) > 12): previousClose = lastDayClose          
-     
+        atr = sum(atrs) / len(atrs)
+
+        #if (int(time.strftime("%H")) > 12): previousClose = lastDayClose
+
         lowerTrigger = previousClose - 0.236 * atr
         upperTrigger = previousClose + 0.236 * atr
         GEX = {}
         upper = round(previousClose + atr, 2)
         lower = round(previousClose - atr, 2)
-        GEX[upper] = 10          
+        GEX[upper] = 10
         GEX[lower] = -10
         GEX[round(previousClose, 2)] = 1
         GEX[round(lowerTrigger, 2)] = -20
         GEX[round(upperTrigger, 2)] = 20
-        GEX[round(previousClose - atr * 0.618, 2)] = -10          
-        GEX[round(previousClose + atr * 0.618, 2)] = 10          
-        GEX[round(lower - atr * 0.236, 2)] = -10         
-        GEX[round(upper + atr * 0.236, 2)] = 10         
-        GEX[round(lower - atr * 0.618, 2)] = -10         
-        GEX[round(upper + atr * 0.618, 2)] = 10         
-#        GEX[round(previousClose - atr * 0.382, 2)] = -10         
+        GEX[round(previousClose - atr * 0.618, 2)] = -10
+        GEX[round(previousClose + atr * 0.618, 2)] = 10
+        GEX[round(lower - atr * 0.236, 2)] = -10
+        GEX[round(upper + atr * 0.236, 2)] = 10
+        GEX[round(lower - atr * 0.618, 2)] = -10
+        GEX[round(upper + atr * 0.618, 2)] = 10
+#        GEX[round(previousClose - atr * 0.382, 2)] = -10
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10
-#        GEX[round(previousClose - atr * 0.5, 2)] = -10          
-#        GEX[round(previousClose + atr * 0.5, 2)] = 10          
-#        GEX[round(previousClose - atr * 0.786, 2)] = -10          
+#        GEX[round(previousClose - atr * 0.5, 2)] = -10
+#        GEX[round(previousClose + atr * 0.5, 2)] = 10
+#        GEX[round(previousClose - atr * 0.786, 2)] = -10
 #        GEX[round(previousClose + atr * 0.786, 2)] = 10
-#        GEX[round(lower - atr * 0.382, 2)] = -10         
-#        GEX[round(upper + atr * 0.382, 2)] = 10         
-#        GEX[round(lower - atr * 0.5, 2)] = -10         
-#        GEX[round(upper + atr * 0.5, 2)] = 10         
-#        GEX[round(lower - atr * 0.786, 2)] = -10         
-#        GEX[round(upper + atr * 0.786, 2)] = 10           
+#        GEX[round(lower - atr * 0.382, 2)] = -10
+#        GEX[round(upper + atr * 0.382, 2)] = 10
+#        GEX[round(lower - atr * 0.5, 2)] = -10
+#        GEX[round(upper + atr * 0.5, 2)] = 10
+#        GEX[round(lower - atr * 0.786, 2)] = -10
+#        GEX[round(upper + atr * 0.786, 2)] = 10
         upper = round(upper + atr, 2)
         lower = round(lower - atr, 2)
-        GEX[lower] = -15        
-        GEX[upper] = 15    
-        GEX[round(previousClose - atr * 0.618, 2)] = -10          
-        GEX[round(previousClose + atr * 0.618, 2)] = 10          
-        GEX[round(lower - atr * 0.236, 2)] = -10         
+        GEX[lower] = -15
+        GEX[upper] = 15
+        GEX[round(previousClose - atr * 0.618, 2)] = -10
+        GEX[round(previousClose + atr * 0.618, 2)] = 10
+        GEX[round(lower - atr * 0.236, 2)] = -10
         GEX[round(upper + atr * 0.236, 2)] = 10
-        GEX[round(lower - atr * 0.618, 2)] = -10 
-        GEX[round(upper + atr * 0.618, 2)] = 10         
+        GEX[round(lower - atr * 0.618, 2)] = -10
+        GEX[round(upper + atr * 0.618, 2)] = 10
         GEX[round(lower - atr, 2)] = -5
         GEX[round(upper + atr, 2)] = 5
-#        GEX[round(previousClose - atr * 0.382, 2)] = -10         
+#        GEX[round(previousClose - atr * 0.382, 2)] = -10
 #        GEX[round(previousClose + atr * 0.382, 2)] = 10
-#        GEX[round(previousClose - atr * 0.5, 2)] = -10          
-#        GEX[round(previousClose + atr * 0.5, 2)] = 10          
-#        GEX[round(previousClose - atr * 0.786, 2)] = -10          
+#        GEX[round(previousClose - atr * 0.5, 2)] = -10
+#        GEX[round(previousClose + atr * 0.5, 2)] = 10
+#        GEX[round(previousClose - atr * 0.786, 2)] = -10
 #        GEX[round(previousClose + atr * 0.786, 2)] = 10
-#        GEX[round(lower - atr * 0.382, 2)] = -10         
-#        GEX[round(upper + atr * 0.382, 2)] = 10         
-#        GEX[round(lower - atr * 0.5, 2)] = -10         
-#        GEX[round(upper + atr * 0.5, 2)] = 10         
-#        GEX[round(lower - atr * 0.786, 2)] = -10         
-#        GEX[round(upper + atr * 0.786, 2)] = 10  
-              
+#        GEX[round(lower - atr * 0.382, 2)] = -10
+#        GEX[round(upper + atr * 0.382, 2)] = 10
+#        GEX[round(lower - atr * 0.5, 2)] = -10
+#        GEX[round(upper + atr * 0.5, 2)] = 10
+#        GEX[round(lower - atr * 0.786, 2)] = -10
+#        GEX[round(upper + atr * 0.786, 2)] = 10
+
     #Uses days from the for loops above to get last date in list
     drawCharts(ticker_name=ticker_name, dte=days, price=price, chartType=chartType)
     img.save("stock-chart.png")
@@ -871,32 +871,64 @@ def getByHistoryType( totalCandles, ticker ):
     else :
         url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
 #        print(url_endpoint)
-    return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)                 
-                  
+    return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
 
-                  
-                  
-                  
-                  
-class StrikeData():
-    class OptionData():
-        Gamma = 0.0
-        Delta = 0.0
-        Vega = 0.0
-        Theta = 0.0
-        TimeValue = 0.0
-        OI = 0.0
-        Volume = 0.0
-        Bid = 0.0
-        Ask = 0.0
 
-    Strike = 0.0
-    CallData = OptionData()
-    PutData = OptionData()
-
+"""   ************Unfinished pandas code***********
 def getPandas(ticker_name, dte, chartType = 0):
     import pandas as pd
     import numpy as np
+
+    content = pullData( ticker_name, dte )
+    df = pd.DataFrame()
+    for days in content['callExpDateMap']:
+        for strikes in content['callExpDateMap'][days]:
+            df = pd.concat([df, pd.DataFrame(content['callExpDateMap'][days][strikes]), pd.DataFrame(content['putExpDateMap'][days][strikes])])
+
+    df.fillna(0, inplace = True)
+#    df['Date'] = pd.to_datetime(df['Date'])
+    df['putCall'] = df['putCall'].replace(['CALL'], '1')
+    df['putCall'] = df['putCall'].replace(['PUT'], '-1')
+
+    df = df.drop(columns=['symbol', 'description', 'exchangeName', 'bid', 'last', 'mark', 'bidSize', 'askSize', 'bidAskSize', 'lastSize', 'highPrice', 'lowPrice', 'openPrice', 'closePrice', 'tradeDate', 'tradeTimeInLong', 'quoteTimeInLong', 'netChange', 'theoreticalOptionValue', 'theoreticalVolatility', 'optionDeliverablesList', 'expirationDate', 'expirationType', 'lastTradingDay', 'multiplier', 'settlementType', 'deliverableNote', 'isIndexOption', 'percentChange', 'markChange', 'markPercentChange', 'intrinsicValue', 'nonStandard', 'mini', 'pennyPilot', 'daysToExpiration', 'inTheMoney' ])
+
+    df['strikePrice'] = df['strikePrice'].astype(float)
+    df['volatility'] = df['volatility'].astype(float)
+    df['gamma'] = df['gamma'].astype(float)
+    df['openInterest'] = df['openInterest'].astype(float)
+    df['putCall'] = df['putCall'].astype(float)
+    df['volatility'] = df['volatility'].astype(float)
+
+    df = df.fillna(0).replace(['NaN'], 0)
+
+    df['GEX'] = df['gamma'] * df['openInterest'] * df['putCall']
+    df['DEX'] = df['delta'] * df['openInterest'] * df['putCall']
+    df['VIX'] = df['vega'] * df['volatility']
+
+    df = df.drop(columns=['gamma', 'delta', 'vega', 'theta', 'rho'])
+    #df['TotalGamma'] = df.GEX / 10**9
+
+    print( df.to_string() )
+
+#    print( df[df.duplicated(['strikePrice'])] )
+#    print( np.where(df['strikePrice'] == 409.0) )
+    strikes = {}
+    strikes['Strikes'] = '0'
+    for x in df.strikePrice.unique() :
+        dfSum = df[ df['strikePrice'] == x].sum()
+        strikes['Strikes'] = str(x) + "," + strikes['Strikes']
+        strikes['GEX', x] = dfSum['GEX']
+        strikes['DEX', x] = dfSum['DEX']
+        strikes['OI', x] = dfSum['openInterest']
+
+    print( strikes )
+
+getPandas("SPY", 0, 0)
+"""
+
+
+
+def pullData(ticker_name, dte):
     ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
     today = date.today()
@@ -909,7 +941,7 @@ def getPandas(ticker_name, dte, chartType = 0):
     logCounter = 0
     while loopAgain:
         dateRange = today + datetime.timedelta(days=int(dte))
-        url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='3', toDate=dateRange)
+        url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
         json_data = requests.get(url=url_endpoint, headers=HEADER).content
         content = json.loads(json_data)
         if 'error' in content:  #happens when oauth token expires
@@ -919,67 +951,147 @@ def getPandas(ticker_name, dte, chartType = 0):
         elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
             dte = str( int(dte) + 7)
             loopAgain = int(dte) < 37
-        else: 
-            loopAgain = False 
-    if ('error' in content) or (errorCounter == 5) or (content['status'] in 'FAILED'): #Failed, we tried our best
+        else:
+            loopAgain = False
+    if ('error' in content) or (errorCounter == 5) : content = {'status': 'FAILED'}
+    return content
+
+class OptionData():
+    Gamma, Delta, Vega, Theta, TimeValue, IV, OI, Bid, Ask, GEX, DEX, Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    def addStrike(self, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask):
+        self.Gamma = gamma
+        self.Delta = delta
+        self.Vega = vega
+        self.Theta = theta
+        self.TimeValue = timeValue
+        self.IV = iv
+        self.Bid = bid
+        self.Ask = ask
+        self.OI += oi
+        self.GEX += gamma * oi  #Only need to use += for summing multiple days
+        self.DEX += delta * oi
+        self.Dollars += bid * oi * 100
+
+class StrikeData():
+    Calls, Puts, Strikes, Ticker, Price, DTE, ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
+    distFromPrice = 9999
+    MostOI, MostVol, MostGEX, MostDEX, MostCallGEX, MostPutGEX, CallDollars, PutDollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    def __init__(self, ticker, price):
+        self.Ticker = ticker
+        self.Price = price
+    def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
+        def chk( val ) : return 0.0 if math.isnan( float( val ) ) else float( val )
+        strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), chk(gamma), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
+        if not strike in self.Strikes :
+            self.Strikes.append(strike)
+            self.Calls[strike] = OptionData()
+            self.Puts[strike] = OptionData()
+
+        d = self.Calls if call else self.Puts
+        d[strike].addStrike(gamma, delta, vega, theta, timeValue, iv, oi, vol, bid, ask)
+        if call :
+            if self.Calls[strike].GEX > self.MostCallGEX : self.MostCallGEX = self.Calls[strike].GEX
+            self.CallDollars += d[strike].Dollars
+        else:  #Puts are done second, these operations only need performed once
+            if dte > self.DTE : self.DTE = dte
+            dist = abs(self.Price - strike) 
+            if dist < self.distFromPrice : 
+                self.distFromPrice = dist
+                self.ClosestStrike = strike
+            self.PutDollars += d[strike].Dollars
+
+            if self.Puts[strike].GEX > self.MostPutGEX : self.MostPutGEX = self.Puts[strike].GEX
+
+            tmp = self.Calls[strike].OI + self.Puts[strike].OI
+            if tmp > self.MostOI : self.MostOI = tmp
+
+            tmp = abs(self.Calls[strike].GEX - self.Puts[strike].GEX)
+            if tmp > self.MostGEX : self.MostGEX = tmp
+
+            tmp = abs(self.Calls[strike].DEX - self.Puts[strike].DEX)
+            if tmp > self.MostDEX : self.MostDEX = tmp    
+
+    def totalGEX(self, strike) : return self.Calls[strike].GEX - self.Puts[strike].GEX
+    def totalDEX(self, strike) : return self.Calls[strike].DEX - self.Puts[strike].DEX
+
+def getOOPS(ticker_name, dte, chartType = 0):
+    content = pullData( ticker_name, dte )
+    if (content['status'] in 'FAILED'): #Failed, we tried our best
         clearScreen()
         drawText(0,0,txt="Failed to get data", color="#FF0")
         img.save("error.png")
         return "error.png"
-    price = content['underlyingPrice']   #underlyingprice == 0.0  same as   status == FAILED
-    
-#Load the data from JSON
-    totalOI = 0
+
     if chartType == CHART_JSON :
         ticker_name = ticker_name + ".json"
         with open(ticker_name, "w") as outfile:
             outfile.write(json.dumps(content, indent=4))
         return ticker_name
+        
+    strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
+    for days in content['callExpDateMap']:
+        for stk in content['callExpDateMap'][days]:
+            def addOption(option) :
+                oi = options['totalVolume'] if chartType == CHART_VOLUME else options['openInterest']
+                strikesData.addStrike( strike=options['strikePrice'], gamma=options['gamma'], delta=options['delta'], vega=options['vega'], theta=options['theta'], timeValue=options['timeValue'], iv=options['volatility'], oi=oi, bid=options['bid'], ask=options['ask'], call=options['putCall'] == "CALL", dte=options['daysToExpiration'] )
+            for options in content['callExpDateMap'][days][stk]: addOption( options )
+            for options in content['putExpDateMap'][days][stk]: addOption( options )
+#            for i in range(len(content['callExpDateMap'][days][stk])):
+#                addOption(content['callExpDateMap'][days][stk][i])
+#                addOption(content['putExpDateMap'][days][stk][i])
+
+    print( "Call$", strikesData.CallDollars, "Put$", strikesData.PutDollars, "Total$", strikesData.CallDollars - strikesData.PutDollars )
+
+    return drawOOPSChart( strikesData, chartType )
+
+def drawOOPSChart(strikes: StrikeData, chartType) :
+    print( strikes.Ticker, " - ", strikes.Price, " - ", strikes.ClosestStrike, " - ", strikes.DTE, " DTE" )
+    img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+    draw = ImageDraw.Draw(img)
+    #drawRect(0,0,IMG_W,IMG_H, color="#000", border="#000")
+
+    for strike in strikes :
+        pass
     
-    #df = pd.DataFrame(content)
-    df = pd.DataFrame()
-    for days in content['callExpDateMap']: 
-        for strikes in content['callExpDateMap'][days]:
-            df = pd.concat([df, pd.DataFrame(content['callExpDateMap'][days][strikes]), pd.DataFrame(content['putExpDateMap'][days][strikes])])
+        
+        
+    """        
+        x = -15
+        for strikes in sorted(GEX):
+            x += FONT_SIZE - 3
+            drawRotatedText(x=x - 5, y=205, txt=str(round(strikes, 2)), color="#03F3")   # .replace('.0', '')
+            if CallOI.get(strikes) != None:
+                yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
+                yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
+                if (CallOI[strikes] != 0): drawRect(x, yOIp + 1, x + 12, yOIc + yOIp, color="#0F0", border='')
+                if (PutOI[strikes] != 0): drawRect(x, 0, x + 12, yOIp, color="#F00", border='')
 
-    df.fillna(0, inplace = True)
-#    df['Date'] = pd.to_datetime(df['Date'])
-    df['putCall'] = df['putCall'].replace(['CALL'], '1')
-    df['putCall'] = df['putCall'].replace(['PUT'], '-1')
-          
-    df = df.drop(columns=['symbol', 'description', 'exchangeName', 'bid', 'last', 'mark', 'bidSize', 'askSize', 'bidAskSize', 'lastSize', 'highPrice', 'lowPrice', 'openPrice', 'closePrice', 'tradeDate', 'tradeTimeInLong', 'quoteTimeInLong', 'netChange', 'theoreticalOptionValue', 'theoreticalVolatility', 'optionDeliverablesList', 'expirationDate', 'expirationType', 'lastTradingDay', 'multiplier', 'settlementType', 'deliverableNote', 'isIndexOption', 'percentChange', 'markChange', 'markPercentChange', 'intrinsicValue', 'nonStandard', 'mini', 'pennyPilot', 'daysToExpiration', 'inTheMoney' ])
-            
+            if (GEX[strikes] != 0): drawRect(x, 215 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 12, 215, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
+            if DEX.get(strikes) != None:
+                if (DEX[strikes] != 0): drawRect(x, 215 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 215, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
+                if (CallGEX[strikes] != 0): drawRect(x, 399 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 399, color="#0f0", border='')
+                if (PutGEX[strikes] != 0): drawRect(x, 401 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 401, color="#f00", border='')
 
-    df['strikePrice'] = df['strikePrice'].astype(float)
-    df['volatility'] = df['volatility'].astype(float)
-    df['gamma'] = df['gamma'].astype(float)
-    df['openInterest'] = df['openInterest'].astype(float)
-    df['putCall'] = df['putCall'].astype(float)
-    df['volatility'] = df['volatility'].astype(float)
+            if strikes == closestStrike:
+                if price > closestStrike : drawPriceLine(x + 10, "#FF0")
+                else : drawPriceLine(x, "#FF0")
+#        text = fundamentals['ChartType'] + ticker_name + " " + fundamentals[ticker_name] + " ExpMove " + fundamentals['ExpectedMove']
+#        drawText( 2, 475, txt=text, color="#7fF")
+#        text = "Calls " + fundamentals['Calls'] + " : Puts " +  fundamentals['Puts'] + " : Total " + fundamentals['Total']
+#        drawText( 2, 280, txt=text, color="#7F7")
+        x = IMG_W - 250
+        drawRect(x, 0, IMG_W, IMG_H, color="#000", border="#777")
+        x += 4
+        y = 5
+        for keys in fundamentals:
+            drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color= str(rateFundamental(ticker_name, keys, fundamentals[keys])) )
+            y += FONT_SIZE
+    """        
+        
+        
+    img.save("stock-chart.png")
+    return "stock-chart.png"
 
-    df['GEX'] = df['gamma'] * df['openInterest'] * df['putCall']
-    df['DEX'] = df['delta'] * df['openInterest'] * df['putCall']
-    df['VEX'] = df['vega'] * df['volatility']
-
-    df = df.drop(columns=['gamma', 'delta', 'vega', 'theta', 'rho'])
-    #df['TotalGamma'] = df.GEX / 10**9
-
-    print( df.to_string() )              
-
-#    print( df[df.duplicated(['strikePrice'])] )
-#    print( np.where(df['strikePrice'] == 409.0) )
-    strikes = {}
-    strikes['Strikes'] = '0'
-    for x in df.strikePrice.unique():
-        dfSum = df[ df['strikePrice'] == x].sum()
-        strikes['Strikes'] = str(x) + "," + strikes['Strikes']
-        strikes['GEX', x] = dfSum['GEX'] 
-        strikes['DEX', x] = dfSum['DEX']
-        strikes['OI', x] = dfSum['openInterest']
-  
-    print( strikes )
-
-#getPandas("SPY", 0, 0)
 
 #*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

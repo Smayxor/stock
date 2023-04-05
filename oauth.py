@@ -461,18 +461,18 @@ def getATRLevels(ticker_name):
 	GEX[round(upper + atr * 0.236, 2)] = 10
 	GEX[round(lower - atr * 0.618, 2)] = -10
 	GEX[round(upper + atr * 0.618, 2)] = 10
-#		GEX[round(previousClose - atr * 0.382, 2)] = -10
-#		GEX[round(previousClose + atr * 0.382, 2)] = 10
-#		GEX[round(previousClose - atr * 0.5, 2)] = -10
-#		GEX[round(previousClose + atr * 0.5, 2)] = 10
-#		GEX[round(previousClose - atr * 0.786, 2)] = -10
-#		GEX[round(previousClose + atr * 0.786, 2)] = 10
-#		GEX[round(lower - atr * 0.382, 2)] = -10
-#		GEX[round(upper + atr * 0.382, 2)] = 10
-#		GEX[round(lower - atr * 0.5, 2)] = -10
-#		GEX[round(upper + atr * 0.5, 2)] = 10
-#		GEX[round(lower - atr * 0.786, 2)] = -10
-#		GEX[round(upper + atr * 0.786, 2)] = 10
+	GEX[round(previousClose - atr * 0.382, 2)] = -1
+	GEX[round(previousClose + atr * 0.382, 2)] = 1
+	GEX[round(previousClose - atr * 0.5, 2)] = -1
+	GEX[round(previousClose + atr * 0.5, 2)] = 1
+	GEX[round(previousClose - atr * 0.786, 2)] = -1
+	GEX[round(previousClose + atr * 0.786, 2)] = 1
+	GEX[round(lower - atr * 0.382, 2)] = -1
+	GEX[round(upper + atr * 0.382, 2)] = 1
+	GEX[round(lower - atr * 0.5, 2)] = -1
+	GEX[round(upper + atr * 0.5, 2)] = 1
+	GEX[round(lower - atr * 0.786, 2)] = -1
+	GEX[round(upper + atr * 0.786, 2)] = 1
 	upper = round(upper + atr, 2)
 	lower = round(lower - atr, 2)
 	GEX[lower] = -15
@@ -485,18 +485,18 @@ def getATRLevels(ticker_name):
 	GEX[round(upper + atr * 0.618, 2)] = 10
 	GEX[round(lower - atr, 2)] = -5
 	GEX[round(upper + atr, 2)] = 5
-#		GEX[round(previousClose - atr * 0.382, 2)] = -10
-#		GEX[round(previousClose + atr * 0.382, 2)] = 10
-#		GEX[round(previousClose - atr * 0.5, 2)] = -10
-#		GEX[round(previousClose + atr * 0.5, 2)] = 10
-#		GEX[round(previousClose - atr * 0.786, 2)] = -10
-#		GEX[round(previousClose + atr * 0.786, 2)] = 10
-#		GEX[round(lower - atr * 0.382, 2)] = -10
-#		GEX[round(upper + atr * 0.382, 2)] = 10
-#		GEX[round(lower - atr * 0.5, 2)] = -10
-#		GEX[round(upper + atr * 0.5, 2)] = 10
-#		GEX[round(lower - atr * 0.786, 2)] = -10
-#		GEX[round(upper + atr * 0.786, 2)] = 10
+	GEX[round(previousClose - atr * 0.382, 2)] = -1
+	GEX[round(previousClose + atr * 0.382, 2)] = 1
+	GEX[round(previousClose - atr * 0.5, 2)] = -1
+	GEX[round(previousClose + atr * 0.5, 2)] = 1
+	GEX[round(previousClose - atr * 0.786, 2)] = -1
+	GEX[round(previousClose + atr * 0.786, 2)] = 1
+	GEX[round(lower - atr * 0.382, 2)] = -1
+	GEX[round(upper + atr * 0.382, 2)] = 1
+	GEX[round(lower - atr * 0.5, 2)] = -1
+	GEX[round(upper + atr * 0.5, 2)] = 1
+	GEX[round(lower - atr * 0.786, 2)] = -1
+	GEX[round(upper + atr * 0.786, 2)] = 1
 	return GEX
 
 def getByHistoryType( totalCandles, ticker ):
@@ -709,10 +709,18 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if lower[i] > maxUpper : maxUpper = lower[i]
 		maxLower = maxUpper
 
-#	if chartType == CHART_ATR :
-#		above[i] = getATRLevels(strikes.Ticker)
-#		maxAbove = 50
-
+	if chartType == CHART_ATR :
+		atrs = getATRLevels(strikes.Ticker)
+		strikes.Strikes = []
+		for atr in atrs :
+			strikes.Strikes.append(atr)
+			above[atr] = atrs[atr]
+			if abs(above[atr]) > maxAbove : maxAbove = abs(above[atr])
+			top[atr] = 0
+			upper[atr] = 0
+			lower[atr] = 0
+			above2[atr] = 0
+			
 	x = 0
 	if chartType == CHART_ROTATE :
 		x = IMG_W - 15

@@ -126,8 +126,8 @@ colorGradient = list(red.range_to(Color("#00FF00"),10))
 colorGradient[0] = "#FF0000"
 colorGradient[9] = "#00FF00"
 
-img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
-draw = ImageDraw.Draw(img)
+#img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+#draw = ImageDraw.Draw(img)
 
 HEADER = {
     'Accept': '*/*',
@@ -394,7 +394,8 @@ def thread_discord():
         global tickers, counter, auto_updater, update_timer, IVUpdateChannel, IVUpdateChannelCounter
         if len(tickers) != 0 :
             for tck in tickers:
-                fn = stock_price(tck[0], tck[1], tck[2])
+                #fn = stock_price(tck[0], tck[1], tck[2])
+                fn = getOOPS(tck[0], tck[1], tck[2])
                 chnl = bot.get_channel(tck[3])
                 if chnl == None : chnl = tck[4]
                 if fn == "error.png": await chnl.send("Failed to get data for " + tck[0])
@@ -449,26 +450,26 @@ def rateFundamental(ticker_name, fundamental, value):
     else: color = colorGradient[int(rating)]
     return color
 
-def drawRect(x, y, w, h, color, border):
+def drawRect(draw, x, y, w, h, color, border):
     if border in 'none': border = color
     draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
 
-def drawPriceLine(x, color):  #Draws a dashed line
+def drawPriceLine(draw, x, color):  #Draws a dashed line
     y = 100
     while y < 350:
         draw.line([x, y, x, y + 4], fill=color, width=1)
         y += 6
 
-def drawRotatedPriceLine(y, color):  #Draws a dashed line
+def drawRotatedPriceLine(draw, y, color):  #Draws a dashed line
     x = 120
     while x < 350:
         draw.line([x, y, x + 4, y], fill=color, width=1)
         x += 6
 
-def drawText(x, y, txt, color):
+def drawText(draw, x, y, txt, color):
     draw.text((x,y), text=txt, fill=color, font=font)
 
-def drawRotatedText(x, y, txt, color):
+def drawRotatedText(img, x, y, txt, color):
     text_layer = PILImg.new('L', (100, FONT_SIZE))
     dtxt = ImageDraw.Draw(text_layer)
     dtxt.text( (0, 0), txt, fill=255, font=font)
@@ -957,7 +958,7 @@ def pullData(ticker_name, dte):
     return content
 
 class OptionData():
-    Gamma, Delta, Vega, Theta, TimeValue, IV, OI, Bid, Ask, GEX, DEX, Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    Gamma, Delta, Vega, Theta, TimeValue, IV, OI, Bid, Ask, GEX, DEX, Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     def addStrike(self, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask):
         self.Gamma = gamma
         self.Delta = delta
@@ -975,7 +976,7 @@ class OptionData():
 class StrikeData():
     Calls, Puts, Strikes, Ticker, Price, DTE, ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
     distFromPrice = 9999
-    MostOI, MostVol, MostGEX, MostDEX, MostCallGEX, MostPutGEX, CallDollars, PutDollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    CallDollars, PutDollars = 0.0, 0.0
     def __init__(self, ticker, price):
         self.Ticker = ticker
         self.Price = price
@@ -986,11 +987,9 @@ class StrikeData():
             self.Strikes.append(strike)
             self.Calls[strike] = OptionData()
             self.Puts[strike] = OptionData()
-
         d = self.Calls if call else self.Puts
-        d[strike].addStrike(gamma, delta, vega, theta, timeValue, iv, oi, vol, bid, ask)
+        d[strike].addStrike(gamma, delta, vega, theta, timeValue, iv, oi, bid, ask)
         if call :
-            if self.Calls[strike].GEX > self.MostCallGEX : self.MostCallGEX = self.Calls[strike].GEX
             self.CallDollars += d[strike].Dollars
         else:  #Puts are done second, these operations only need performed once
             if dte > self.DTE : self.DTE = dte
@@ -999,20 +998,6 @@ class StrikeData():
                 self.distFromPrice = dist
                 self.ClosestStrike = strike
             self.PutDollars += d[strike].Dollars
-
-            if self.Puts[strike].GEX > self.MostPutGEX : self.MostPutGEX = self.Puts[strike].GEX
-
-            tmp = self.Calls[strike].OI + self.Puts[strike].OI
-            if tmp > self.MostOI : self.MostOI = tmp
-
-            tmp = abs(self.Calls[strike].GEX - self.Puts[strike].GEX)
-            if tmp > self.MostGEX : self.MostGEX = tmp
-
-            tmp = abs(self.Calls[strike].DEX - self.Puts[strike].DEX)
-            if tmp > self.MostDEX : self.MostDEX = tmp    
-
-    def totalGEX(self, strike) : return self.Calls[strike].GEX - self.Puts[strike].GEX
-    def totalDEX(self, strike) : return self.Calls[strike].DEX - self.Puts[strike].DEX
 
 def getOOPS(ticker_name, dte, chartType = 0):
     content = pullData( ticker_name, dte )
@@ -1036,58 +1021,69 @@ def getOOPS(ticker_name, dte, chartType = 0):
                 strikesData.addStrike( strike=options['strikePrice'], gamma=options['gamma'], delta=options['delta'], vega=options['vega'], theta=options['theta'], timeValue=options['timeValue'], iv=options['volatility'], oi=oi, bid=options['bid'], ask=options['ask'], call=options['putCall'] == "CALL", dte=options['daysToExpiration'] )
             for options in content['callExpDateMap'][days][stk]: addOption( options )
             for options in content['putExpDateMap'][days][stk]: addOption( options )
-#            for i in range(len(content['callExpDateMap'][days][stk])):
-#                addOption(content['callExpDateMap'][days][stk][i])
-#                addOption(content['putExpDateMap'][days][stk][i])
-
-    print( "Call$", strikesData.CallDollars, "Put$", strikesData.PutDollars, "Total$", strikesData.CallDollars - strikesData.PutDollars )
-
     return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
-    print( strikes.Ticker, " - ", strikes.Price, " - ", strikes.ClosestStrike, " - ", strikes.DTE, " DTE" )
-    img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+    img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
     draw = ImageDraw.Draw(img)
-    #drawRect(0,0,IMG_W,IMG_H, color="#000", border="#000")
-
-    for strike in strikes :
-        pass
+    top, above, above2, upper, lower = {}, {}, {}, {}, {}
+    maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 0.0, 0.0, 0.0, 0.0, 0.0
     
-        
-        
-    """        
+    if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
+        for i in strikes.Strikes :
+            top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
+            if top[i] > maxTop : maxTop = top[i]
+            
+            above[i] = strikes.Calls[i].GEX - strikes.Puts[i].GEX
+            if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
+            
+            above2[i] = strikes.Calls[i].DEX + strikes.Puts[i].DEX
+            if abs(above2[i]) > maxAbove2 : maxAbove2 = abs(above2[i])
+            
+            upper[i] = strikes.Calls[i].GEX
+            if upper[i] > maxUpper : maxUpper = upper[i]
+            lower[i] = strikes.Puts[i].GEX
+            if lower[i] > maxLower : maxLower = lower[i]
+
+    if chartType == CHART_ROTATE :
+        x = IMG_W - 15
+        for strike in strikes.Strikes :
+            x -= FONT_SIZE - 3
+            drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#CCC")   # .replace('.0', '')
+            drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
+
+            drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
+            drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
+            drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
+            drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
+            
+            if strike == strikes.ClosestStrike:
+                if strikes.Price > strikes.ClosestStrike : drawRotatedPriceLine(draw, x + 10, "#FF0")
+                else : drawRotatedPriceLine(draw, x, "#FF0")
+
+            drawText(draw, x=0, y=0, txt="GEX " + strikes.Ticker + " $" + str(round(strikes.Price, 2)) + " - " + str(strikes.DTE) + "-DTE", color="#3FF")
+            drawText(draw, x=0, y=FONT_SIZE, txt="Calls $"+str(strikes.CallDollars)+"    Puts $"+str(strikes.PutDollars), color="#7f7")
+            drawText(draw, x=0, y=FONT_SIZE * 2, txt="Total $"+str(strikes.CallDollars+strikes.PutDollars), color="#7f7")
+    else :
         x = -15
-        for strikes in sorted(GEX):
+        for strike in strikes.Strikes :
             x += FONT_SIZE - 3
-            drawRotatedText(x=x - 5, y=205, txt=str(round(strikes, 2)), color="#03F3")   # .replace('.0', '')
-            if CallOI.get(strikes) != None:
-                yOIc = ((abs(CallOI[strikes]) / maxOI) * 50)
-                yOIp = ((abs(PutOI[strikes]) / maxOI) * 50)
-                if (CallOI[strikes] != 0): drawRect(x, yOIp + 1, x + 12, yOIc + yOIp, color="#0F0", border='')
-                if (PutOI[strikes] != 0): drawRect(x, 0, x + 12, yOIp, color="#F00", border='')
+            drawRotatedText(img, x=x - 5, y=205, txt=str(round(strike, 2)), color="#3F3")   # .replace('.0', '')
+            drawRect(draw, x, 0, x + 12, ((top[strike] / maxTop) * 65), color="#00F", border='')
 
-            if (GEX[strikes] != 0): drawRect(x, 215 - ((abs(GEX[strikes]) / maxGEX) * 150), x + 12, 215, color=("#0f0" if (GEX[strikes] > -1) else "#f00"), border='')
-            if DEX.get(strikes) != None:
-                if (DEX[strikes] != 0): drawRect(x, 215 - ((abs(DEX[strikes]) / maxDEX) * 150), x + 2, 215, color=("#077" if (DEX[strikes] > -1) else "#f77"), border='')
-                if (CallGEX[strikes] != 0): drawRect(x, 399 - ((CallGEX[strikes] / maxCPGEX) * 100), x + 12, 399, color="#0f0", border='')
-                if (PutGEX[strikes] != 0): drawRect(x, 401 + ((PutGEX[strikes] / maxCPGEX) * 100), x + 12, 401, color="#f00", border='')
+            drawRect(draw, x, 215 - ((abs(above[strike]) / maxAbove) * 150), x + 12, 215, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
+            drawRect(draw, x, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x + 2, 215, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
+            drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
+            drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
+            
+            if strike == strikes.ClosestStrike:
+                if strikes.Price > strikes.ClosestStrike : drawPriceLine(draw, x + 10, "#FF0")
+                else : drawPriceLine(draw, x, "#FF0")
 
-            if strikes == closestStrike:
-                if price > closestStrike : drawPriceLine(x + 10, "#FF0")
-                else : drawPriceLine(x, "#FF0")
-#        text = fundamentals['ChartType'] + ticker_name + " " + fundamentals[ticker_name] + " ExpMove " + fundamentals['ExpectedMove']
-#        drawText( 2, 475, txt=text, color="#7fF")
-#        text = "Calls " + fundamentals['Calls'] + " : Puts " +  fundamentals['Puts'] + " : Total " + fundamentals['Total']
-#        drawText( 2, 280, txt=text, color="#7F7")
-        x = IMG_W - 250
-        drawRect(x, 0, IMG_W, IMG_H, color="#000", border="#777")
-        x += 4
-        y = 5
-        for keys in fundamentals:
-            drawText(x, y, txt=keys + ": " + str(fundamentals[keys]), color= str(rateFundamental(ticker_name, keys, fundamentals[keys])) )
-            y += FONT_SIZE
-    """        
-        
+        drawText(draw, x=x, y=0, txt="GEX " + strikes.Ticker + " $" + str(round(strikes.Price, 2)) + " - " + str(strikes.DTE) + "-DTE", color="#3FF")
+        drawText(draw, x=x, y=FONT_SIZE, txt="Calls $"+str(strikes.CallDollars), color="#7f7")
+        drawText(draw, x=x, y=FONT_SIZE * 2, txt="Puts $"+str(strikes.PutDollars), color="#f77")
+        drawText(draw, x=x, y=FONT_SIZE * 3, txt="Total $"+str(strikes.CallDollars+strikes.PutDollars), color="yellow")
         
     img.save("stock-chart.png")
     return "stock-chart.png"

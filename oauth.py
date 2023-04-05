@@ -607,7 +607,8 @@ def pullData(ticker_name, dte):
 	return content
 
 class OptionData():
-	Gamma, Delta, Vega, Theta, TimeValue, IV, OI, Bid, Ask, GEX, DEX, Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+	def __init__(self):
+		self.Gamma, self.Delta, self.Vega, self.Theta, self.TimeValue, self.IV, self.OI, self.Bid, self.Ask, self.GEX, self.DEX, self.Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 	def addStrike(self, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask):
 		self.Gamma = gamma
 		self.Delta = delta
@@ -618,14 +619,11 @@ class OptionData():
 		self.Bid = bid
 		self.Ask = ask
 		self.OI += oi
-		self.GEX += gamma * oi  #Only need to use += for summing multiple days
+		self.GEX += gamma * oi
 		self.DEX += delta * oi
 		self.Dollars += bid * oi * 100
 
 class StrikeData():
-	Calls, Puts, Strikes, Ticker, Price, DTE, ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
-	distFromPrice = 9999
-	CallDollars, PutDollars = 0.0, 0.0
 	def __init__(self, ticker, price):
 		self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
 		self.distFromPrice = 9999

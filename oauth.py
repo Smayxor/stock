@@ -81,7 +81,7 @@ CHART_ROTATE = 4
 CHART_JSON = 5
 CHART_ATR = 6
 
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "ROTATED ", "JSON ", "ATR+FIB "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB "]
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -256,7 +256,7 @@ def thread_discord():
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
-	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "GEX"):
+	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "R"):
 		global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
 		ticker = ticker.upper()
 		await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
@@ -447,57 +447,57 @@ def getATRLevels(ticker_name):
 	#if (int(time.strftime("%H")) > 12): previousClose = lastDayClose
 	lowerTrigger = previousClose - 0.236 * atr
 	upperTrigger = previousClose + 0.236 * atr
-	GEX = {}
+	ATRS = {}
 	upper = round(previousClose + atr, 2)
 	lower = round(previousClose - atr, 2)
-	GEX[upper] = 10
-	GEX[lower] = -10
-	GEX[round(previousClose, 2)] = 1
-	GEX[round(lowerTrigger, 2)] = -20
-	GEX[round(upperTrigger, 2)] = 20
-	GEX[round(previousClose - atr * 0.618, 2)] = -10
-	GEX[round(previousClose + atr * 0.618, 2)] = 10
-	GEX[round(lower - atr * 0.236, 2)] = -10
-	GEX[round(upper + atr * 0.236, 2)] = 10
-	GEX[round(lower - atr * 0.618, 2)] = -10
-	GEX[round(upper + atr * 0.618, 2)] = 10
-	GEX[round(previousClose - atr * 0.382, 2)] = -1
-	GEX[round(previousClose + atr * 0.382, 2)] = 1
-	GEX[round(previousClose - atr * 0.5, 2)] = -1
-	GEX[round(previousClose + atr * 0.5, 2)] = 1
-	GEX[round(previousClose - atr * 0.786, 2)] = -1
-	GEX[round(previousClose + atr * 0.786, 2)] = 1
-	GEX[round(lower - atr * 0.382, 2)] = -1
-	GEX[round(upper + atr * 0.382, 2)] = 1
-	GEX[round(lower - atr * 0.5, 2)] = -1
-	GEX[round(upper + atr * 0.5, 2)] = 1
-	GEX[round(lower - atr * 0.786, 2)] = -1
-	GEX[round(upper + atr * 0.786, 2)] = 1
+	ATRS[upper] = 10
+	ATRS[lower] = -10
+	ATRS[round(previousClose, 2)] = 1
+	ATRS[round(lowerTrigger, 2)] = -20
+	ATRS[round(upperTrigger, 2)] = 20
+	ATRS[round(previousClose - atr * 0.618, 2)] = -10
+	ATRS[round(previousClose + atr * 0.618, 2)] = 10
+	ATRS[round(lower - atr * 0.236, 2)] = -10
+	ATRS[round(upper + atr * 0.236, 2)] = 10
+	ATRS[round(lower - atr * 0.618, 2)] = -10
+	ATRS[round(upper + atr * 0.618, 2)] = 10
+	ATRS[round(previousClose - atr * 0.382, 2)] = -1
+	ATRS[round(previousClose + atr * 0.382, 2)] = 1
+	ATRS[round(previousClose - atr * 0.5, 2)] = -1
+	ATRS[round(previousClose + atr * 0.5, 2)] = 1
+	ATRS[round(previousClose - atr * 0.786, 2)] = -1
+	ATRS[round(previousClose + atr * 0.786, 2)] = 1
+	ATRS[round(lower - atr * 0.382, 2)] = -1
+	ATRS[round(upper + atr * 0.382, 2)] = 1
+	ATRS[round(lower - atr * 0.5, 2)] = -1
+	ATRS[round(upper + atr * 0.5, 2)] = 1
+	ATRS[round(lower - atr * 0.786, 2)] = -1
+	ATRS[round(upper + atr * 0.786, 2)] = 1
 	upper = round(upper + atr, 2)
 	lower = round(lower - atr, 2)
-	GEX[lower] = -15
-	GEX[upper] = 15
-	GEX[round(previousClose - atr * 0.618, 2)] = -10
-	GEX[round(previousClose + atr * 0.618, 2)] = 10
-	GEX[round(lower - atr * 0.236, 2)] = -10
-	GEX[round(upper + atr * 0.236, 2)] = 10
-	GEX[round(lower - atr * 0.618, 2)] = -10
-	GEX[round(upper + atr * 0.618, 2)] = 10
-	GEX[round(lower - atr, 2)] = -5
-	GEX[round(upper + atr, 2)] = 5
-	GEX[round(previousClose - atr * 0.382, 2)] = -1
-	GEX[round(previousClose + atr * 0.382, 2)] = 1
-	GEX[round(previousClose - atr * 0.5, 2)] = -1
-	GEX[round(previousClose + atr * 0.5, 2)] = 1
-	GEX[round(previousClose - atr * 0.786, 2)] = -1
-	GEX[round(previousClose + atr * 0.786, 2)] = 1
-	GEX[round(lower - atr * 0.382, 2)] = -1
-	GEX[round(upper + atr * 0.382, 2)] = 1
-	GEX[round(lower - atr * 0.5, 2)] = -1
-	GEX[round(upper + atr * 0.5, 2)] = 1
-	GEX[round(lower - atr * 0.786, 2)] = -1
-	GEX[round(upper + atr * 0.786, 2)] = 1
-	return GEX
+	ATRS[lower] = -15
+	ATRS[upper] = 15
+	ATRS[round(previousClose - atr * 0.618, 2)] = -10
+	ATRS[round(previousClose + atr * 0.618, 2)] = 10
+	ATRS[round(lower - atr * 0.236, 2)] = -10
+	ATRS[round(upper + atr * 0.236, 2)] = 10
+	ATRS[round(lower - atr * 0.618, 2)] = -10
+	ATRS[round(upper + atr * 0.618, 2)] = 10
+	ATRS[round(lower - atr, 2)] = -5
+	ATRS[round(upper + atr, 2)] = 5
+	ATRS[round(previousClose - atr * 0.382, 2)] = -1
+	ATRS[round(previousClose + atr * 0.382, 2)] = 1
+	ATRS[round(previousClose - atr * 0.5, 2)] = -1
+	ATRS[round(previousClose + atr * 0.5, 2)] = 1
+	ATRS[round(previousClose - atr * 0.786, 2)] = -1
+	ATRS[round(previousClose + atr * 0.786, 2)] = 1
+	ATRS[round(lower - atr * 0.382, 2)] = -1
+	ATRS[round(upper + atr * 0.382, 2)] = 1
+	ATRS[round(lower - atr * 0.5, 2)] = -1
+	ATRS[round(upper + atr * 0.5, 2)] = 1
+	ATRS[round(lower - atr * 0.786, 2)] = -1
+	ATRS[round(upper + atr * 0.786, 2)] = 1
+	return ATRS
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :

@@ -80,8 +80,9 @@ CHART_TIMEVALUE = 3
 CHART_ROTATE = 4
 CHART_JSON = 5
 CHART_ATR = 6
+CHART_LASTDTE = 7
 
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE "]
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -190,7 +191,7 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "TimeValue", "value": "TV"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -253,6 +254,7 @@ def thread_discord():
 		elif arg == 'R': return CHART_ROTATE
 		elif arg == 'JSON': return CHART_JSON
 		elif arg == 'ATR': return CHART_ATR
+		elif arg == 'LD': return CHART_LASTDTE
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
@@ -432,83 +434,44 @@ def getATRLevels(ticker_name):
 		if skip :
 			skip = False
 			previousClose = candles['close']
-		else: #timestamp = datetime.datetime.fromtimestamp( (candles['datetime'] / 1000) + 7200  ) #print( timestamp )
+		else:
 			high = candles['high']
 			low = candles['low']
 			upper = abs( high - previousClose )
 			lower = abs( low - previousClose )
 			both = abs( high - low )
 			atrs.append( max( [upper, lower, both] ) )
-			#lastDayClose = previousClose
 			previousClose = candles['close']
 	atrs = atrs[len(atrs) - 14:]
 	atr = sum(atrs) / len(atrs)
-
-	#if (int(time.strftime("%H")) > 12): previousClose = lastDayClose
-	lowerTrigger = previousClose - 0.236 * atr
-	upperTrigger = previousClose + 0.236 * atr
-	ATRS = {}
-	upper = round(previousClose + atr, 2)
-	lower = round(previousClose - atr, 2)
-	ATRS[upper] = 10
-	ATRS[lower] = -10
-	ATRS[round(previousClose, 2)] = 1
-	ATRS[round(lowerTrigger, 2)] = -20
-	ATRS[round(upperTrigger, 2)] = 20
-	ATRS[round(previousClose - atr * 0.618, 2)] = -10
-	ATRS[round(previousClose + atr * 0.618, 2)] = 10
-	ATRS[round(lower - atr * 0.236, 2)] = -10
-	ATRS[round(upper + atr * 0.236, 2)] = 10
-	ATRS[round(lower - atr * 0.618, 2)] = -10
-	ATRS[round(upper + atr * 0.618, 2)] = 10
-	ATRS[round(previousClose - atr * 0.382, 2)] = -1
-	ATRS[round(previousClose + atr * 0.382, 2)] = 1
-	ATRS[round(previousClose - atr * 0.5, 2)] = -1
-	ATRS[round(previousClose + atr * 0.5, 2)] = 1
-	ATRS[round(previousClose - atr * 0.786, 2)] = -1
-	ATRS[round(previousClose + atr * 0.786, 2)] = 1
-	ATRS[round(lower - atr * 0.382, 2)] = -1
-	ATRS[round(upper + atr * 0.382, 2)] = 1
-	ATRS[round(lower - atr * 0.5, 2)] = -1
-	ATRS[round(upper + atr * 0.5, 2)] = 1
-	ATRS[round(lower - atr * 0.786, 2)] = -1
-	ATRS[round(upper + atr * 0.786, 2)] = 1
-	upper = round(upper + atr, 2)
-	lower = round(lower - atr, 2)
-	ATRS[lower] = -15
-	ATRS[upper] = 15
-	ATRS[round(previousClose - atr * 0.618, 2)] = -10
-	ATRS[round(previousClose + atr * 0.618, 2)] = 10
-	ATRS[round(lower - atr * 0.236, 2)] = -10
-	ATRS[round(upper + atr * 0.236, 2)] = 10
-	ATRS[round(lower - atr * 0.618, 2)] = -10
-	ATRS[round(upper + atr * 0.618, 2)] = 10
-	ATRS[round(lower - atr, 2)] = -5
-	ATRS[round(upper + atr, 2)] = 5
-	ATRS[round(previousClose - atr * 0.382, 2)] = -1
-	ATRS[round(previousClose + atr * 0.382, 2)] = 1
-	ATRS[round(previousClose - atr * 0.5, 2)] = -1
-	ATRS[round(previousClose + atr * 0.5, 2)] = 1
-	ATRS[round(previousClose - atr * 0.786, 2)] = -1
-	ATRS[round(previousClose + atr * 0.786, 2)] = 1
-	ATRS[round(lower - atr * 0.382, 2)] = -1
-	ATRS[round(upper + atr * 0.382, 2)] = 1
-	ATRS[round(lower - atr * 0.5, 2)] = -1
-	ATRS[round(upper + atr * 0.5, 2)] = 1
-	ATRS[round(lower - atr * 0.786, 2)] = -1
-	ATRS[round(upper + atr * 0.786, 2)] = 1
-	return ATRS
+	FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
+	
+	price = previousClose
+	price2 = price + atr
+	price3 = price - atr
+	strikes = StrikeData(ticker_name, previousClose)
+	
+	for i in [price, price + atr, price - atr]:
+		for j in FIBS:
+			strikes.addStrike(i, 15, 0, 0, 0, 0, 0, 10, 0, 0, 1, 0)
+			strikes.addStrike(i + atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
+			strikes.addStrike(i - atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
+			
+#			strikes.addStrike(price2 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
+#			strikes.addStrike(price2 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
+			
+#			strikes.addStrike(price3 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
+#			strikes.addStrike(price3 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
+			
+	return strikes
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :
 		end = int( datetime.datetime.now().timestamp() * 1000 )
 		start = int( (datetime.datetime.now() - datetime.timedelta(days=3)).timestamp() * 1000 )
-#		print( start, end, ticker )
 		url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker, start_date=start, end_date=end)
-#		print(url_endpoint)
 	else :
 		url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
-#		print(url_endpoint)
 	return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
 
 
@@ -650,6 +613,7 @@ class StrikeData():
 			self.PutDollars += d[strike].Dollars
 
 def getOOPS(ticker_name, dte, chartType = 0):
+	if chartType == CHART_ATR : return drawOOPSChart( getATRLevels(ticker_name), chartType )
 	content = pullData( ticker_name, dte )
 	if (content['status'] in 'FAILED'): #Failed, we tried our best
 		clearScreen()
@@ -664,13 +628,14 @@ def getOOPS(ticker_name, dte, chartType = 0):
 		return ticker_name
 
 	strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
-	for days in content['callExpDateMap']:
+	for days in reversed(content['callExpDateMap']):
 		for stk in content['callExpDateMap'][days]:
 			def addOption(option) :
 				oi = options['totalVolume'] if chartType == CHART_VOLUME else options['openInterest']
 				strikesData.addStrike( strike=options['strikePrice'], gamma=options['gamma'], delta=options['delta'], vega=options['vega'], theta=options['theta'], timeValue=options['timeValue'], iv=options['volatility'], oi=oi, bid=options['bid'], ask=options['ask'], call=options['putCall'] == "CALL", dte=options['daysToExpiration'] )
 			for options in content['callExpDateMap'][days][stk]: addOption( options )
 			for options in content['putExpDateMap'][days][stk]: addOption( options )
+		if chartType == CHART_LASTDTE : break
 	return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
@@ -681,6 +646,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 	if chartType == CHART_TIMEVALUE : chartType = CHART_IV
 	strChart = CHARTS_TEXT[chartType]
+	if chartType == CHART_LASTDTE : chartType = CHART_GEX
+	if chartType == CHART_ATR : chartType = CHART_GEX  #ATR Code makes data look like GEX chart
 	if chartType == CHART_VOLUME : chartType = CHART_GEX  #Already converted Volume to OI in pullData()
 	if chartType == CHART_IV :
 		for i in sorted(strikes.Strikes) :
@@ -709,18 +676,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if lower[i] > maxUpper : maxUpper = lower[i]
 		maxLower = maxUpper
 
-	if chartType == CHART_ATR :
-		atrs = getATRLevels(strikes.Ticker)
-		strikes.Strikes = []
-		for atr in atrs :
-			strikes.Strikes.append(atr)
-			above[atr] = atrs[atr]
-			if abs(above[atr]) > maxAbove : maxAbove = abs(above[atr])
-			top[atr] = 0
-			upper[atr] = 0
-			lower[atr] = 0
-			above2[atr] = 0
-			
 	x = 0
 	if chartType == CHART_ROTATE :
 		x = IMG_W - 15

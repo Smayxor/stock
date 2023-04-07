@@ -34,10 +34,8 @@ import requests
 import json
 import math
 import os
-#import logging
 import threading
 import sys
-#from colour import Color
 import random
 import csv
 import urllib.parse
@@ -92,12 +90,6 @@ IMG_W = 1000
 IMG_H = 500
 IVUpdateChannel = []
 IVUpdateChannelCounter = 0
-
-#Generate a color gradient between red and green, used to rate fundamentals and look cool doing it
-#red = Color("#FF0000")
-#colorGradient = list(red.range_to(Color("#00FF00"),10))
-#colorGradient[0] = "#FF0000"
-#colorGradient[9] = "#00FF00"
 
 HEADER = {
 	'Accept': '*/*',
@@ -366,7 +358,7 @@ def thread_discord():
 				if chnl == None : chnl = tck[4]
 				if fn == "error.png": await chnl.send("Failed to get data for " + tck[0])
 				else: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-				tickers.clear()
+			tickers.clear()
 		if len(auto_updater) != 0:
 			counter += 1
 			if counter > update_timer :
@@ -616,9 +608,6 @@ def getOOPS(ticker_name, dte, chartType = 0):
 	if chartType == CHART_ATR : return drawOOPSChart( getATRLevels(ticker_name), chartType )
 	content = pullData( ticker_name, dte )
 	if (content['status'] in 'FAILED'): #Failed, we tried our best
-		clearScreen()
-		drawText(0,0,txt="Failed to get data", color="#FF0")
-		img.save("error.png")
 		return "error.png"
 
 	if chartType == CHART_JSON :

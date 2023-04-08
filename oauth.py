@@ -88,8 +88,8 @@ font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic") #Plac
 
 IMG_W = 1000
 IMG_H = 500
-IVUpdateChannel = []
-IVUpdateChannelCounter = 0
+#IVUpdateChannel = []
+#IVUpdateChannelCounter = 0
 
 HEADER = {
 	'Accept': '*/*',
@@ -183,7 +183,7 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -250,11 +250,12 @@ def thread_discord():
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
-	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, chart: str = "R"):
-		global tickers, updateRunning, counter, auto_updater, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
+		global tickers, updateRunning, counter, auto_updater, CallATMIV, PutATMIV#, IVUpdateChannel, IVUpdateChannelCounter
 		ticker = ticker.upper()
+		if count < 2 : count = 2
 		await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
-		tickers.append( (ticker, dte, getChartType(chart), intr.channel.id, intr.channel) )
+		tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
 		if updateRunning == False :
 			print("Starting queue")
 			updateRunning = True
@@ -295,7 +296,7 @@ def thread_discord():
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
-		global tickers, updateRunning, counter, auto_updater, update_timer, IVUpdateChannel, IVUpdateChannelCounter, CallATMIV, PutATMIV
+		global tickers, updateRunning, counter, auto_updater, update_timer, CallATMIV, PutATMIV#, IVUpdateChannel, IVUpdateChannelCounter
 		user = str(intr.user)
 		args = command.upper().split(' ')
 		print( args )
@@ -310,31 +311,22 @@ def thread_discord():
 		elif args[0] == "START" :
 			print("starting")
 			dte = args[2] if (len(args) > 2) and args[2].isnumeric() else '0'
-			chart = getChartType(args[3]) if (len(args) > 3) else CHART_GEX
-			update_timer = int(args[4]) if (len(args) > 4) and args[4].isnumeric() else 300
-			print("Appending to Auto_Updater array :", args[1], dte, chart, intr.channel.id, update_timer)
-			auto_updater.append( (args[1], dte, chart, intr.channel.id, intr.channel) )
+			count = args[3] if (len(args) > 3) and args[3].isnumeric() else '40'
+			chart = getChartType(args[4]) if (len(args) > 4) else CHART_GEX
+			update_timer = int(args[5]) if (len(args) > 5) and args[5].isnumeric() else 300
+			print("Appending to Auto_Updater array :", args[1], dte, "-dte", count, "-strikes", chart, intr.channel.id, update_timer, "-seconds")
+			auto_updater.append( (args[1], dte, count, chart, intr.channel.id, intr.channel) )
 			if updateRunning == False :
 				print("Starting queue")
 				updateRunning = True
 				channelUpdate.start()
-			await intr.response.send_message(user + " started auto-update on " + args[1] + " " + str(dte) + "dte " + str(chart) + "-Chart " + str(update_timer) + " seconds" )
+			await intr.response.send_message(user + " started auto-update on " + args[1] + " " + str(dte) + "dte " + str(count) + "-strikes " + str(chart) + "-Chart " + str(update_timer) + " seconds" )
 		elif args[0] == "STOP" :
 			auto_updater.clear()
 			CallATMIV = {}
 			PutATMIV = {}
 			IVUpdateChannel = []
 			await intr.response.send_message(user + " stopped auto-updater")
-		elif args[0] == "IV" :
-			if not BOT_USER_FOR_KILL in message.author.name: return
-			ticky = args[1].upper()
-			IVUpdateChannel = (ticky, message.channel.id)
-			IVUpdateChannelCounter = 300
-			if updateRunning == False :
-				print("Starting queue, IV Monitor")
-				updateRunning = True
-				channelUpdate.start()
-			await intr.response.send_message(user + " started IV Chart process")
 		elif args[0] == "UPDATE" :
 			await intr.response.send_message(user + " requested code update")
 			print("getting update")
@@ -349,13 +341,12 @@ def thread_discord():
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
-		global tickers, counter, auto_updater, update_timer, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, counter, auto_updater, update_timer#, IVUpdateChannel, IVUpdateChannelCounter
 		if len(tickers) != 0 :
 			for tck in tickers:
-				#fn = stock_price(tck[0], tck[1], tck[2])
-				fn = getOOPS(tck[0], tck[1], tck[2])
-				chnl = bot.get_channel(tck[3])
-				if chnl == None : chnl = tck[4]
+				fn = getOOPS(tck[0], tck[1], tck[2], tck[3])
+				chnl = bot.get_channel(tck[4])
+				if chnl == None : chnl = tck[5]
 				if fn == "error.png": await chnl.send("Failed to get data for " + tck[0])
 				else: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			tickers.clear()
@@ -364,17 +355,17 @@ def thread_discord():
 			if counter > update_timer :
 				counter = 0
 				for tck in auto_updater:
-					fn = stock_price(tck[0], tck[1], tck[2])
-					chnl = bot.get_channel(tck[3])
-					if chnl == None : chnl = tck[4]
+					fn = stock_price(tck[0], tck[1], tck[2], tck[3])
+					chnl = bot.get_channel(tck[4])
+					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		if len(IVUpdateChannel) != 0:
-			IVUpdateChannelCounter += 1
-			if IVUpdateChannelCounter > 300 :
-				IVUpdateChannelCounter = 0
-				print( "Looping ", IVUpdateChannel , IVUpdateChannelCounter )
-				fn = stock_price(IVUpdateChannel[0], 0, CHART_IV)
-				await bot.get_channel(IVUpdateChannel[1]).send(file=discord.File(open('./' + fn, 'rb'), fn))
+#		if len(IVUpdateChannel) != 0:
+#			IVUpdateChannelCounter += 1
+#			if IVUpdateChannelCounter > 300 :
+#				IVUpdateChannelCounter = 0
+#				print( "Looping ", IVUpdateChannel , IVUpdateChannelCounter )
+#				fn = stock_price(IVUpdateChannel[0], 0, CHART_IV)
+#				await bot.get_channel(IVUpdateChannel[1]).send(file=discord.File(open('./' + fn, 'rb'), fn))
 
 	@bot.command(name="s")
 	async def get_gex(ctx, *args):
@@ -382,7 +373,8 @@ def thread_discord():
 		if ctx.message.author == bot.user: return
 		if len(args) == 0: return
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
-		tickers.append( (args[0].upper(), dte, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
+		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
+		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
 		if updateRunning == False :
 			print("Starting queue")
 			updateRunning = True
@@ -533,7 +525,7 @@ getPandas("SPY", 0, 0)
 
 
 
-def pullData(ticker_name, dte):
+def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
 	today = date.today()
@@ -546,7 +538,7 @@ def pullData(ticker_name, dte):
 	logCounter = 0
 	while loopAgain:
 		dateRange = today + datetime.timedelta(days=int(dte))
-		url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count='40', toDate=dateRange)
+		url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count=str(count), toDate=dateRange)
 		json_data = requests.get(url=url_endpoint, headers=HEADER).content
 		content = json.loads(json_data)
 		if 'error' in content:  #happens when oauth token expires
@@ -604,9 +596,9 @@ class StrikeData():
 				self.ClosestStrike = strike
 			self.PutDollars += d[strike].Dollars
 
-def getOOPS(ticker_name, dte, chartType = 0):
+def getOOPS(ticker_name, dte, count, chartType = 0):
 	if chartType == CHART_ATR : return drawOOPSChart( getATRLevels(ticker_name), chartType )
-	content = pullData( ticker_name, dte )
+	content = pullData( ticker_name, dte, count )
 	if (content['status'] in 'FAILED'): #Failed, we tried our best
 		return "error.png"
 

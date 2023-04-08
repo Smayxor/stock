@@ -620,6 +620,9 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
+
+	IMG_W = ((FONT_SIZE - 3) * len(strikes.Strikes)) + 150
+	if chartType != CHART_ROTATE : IMG_W += 100
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
@@ -632,16 +635,16 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	if chartType == CHART_VOLUME : chartType = CHART_GEX  #Already converted Volume to OI in pullData()
 	if chartType == CHART_IV :
 		for i in sorted(strikes.Strikes) :
-			top[i] = strikes.Calls[i].TimeValue * 100
-			upper[i] = strikes.Calls[i].IV * 100
-			lower[i] = strikes.Calls[i].Vega * 100
-			above[i] = upper[i] * lower[i]
-			above2[i] = strikes.Calls[i].Theta * 100
+			top[i] = abs(strikes.Calls[i].TimeValue) * 1000
+			above[i] = abs(strikes.Calls[i].IV) * 1000
+			above2[i] = abs(strikes.Calls[i].Vega) * 1000
+			upper[i] = above[i] * above2[i]
+			lower[i] = abs(strikes.Calls[i].Theta) * 1000
 			if top[i] > maxTop : maxTop = top[i]
-			if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
-			if abs(above2[i]) > maxAbove2 : maxAbove2 = abs(above2[i])
-			if upper[i] > maxUpper : maxUpper = upper[i]
-			if lower[i] > maxUpper : maxUpper = lower[i]
+			if above[i] > maxAbove : maxAbove = above[i]
+			if above2[i] > maxAbove2 : maxAbove2 = above2[i]
+			if upper[i] > maxUpper :   maxUpper = upper[i]
+			if lower[i] > maxLower :   maxLower = lower[i]
 			
 	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
 		for i in sorted(strikes.Strikes) :

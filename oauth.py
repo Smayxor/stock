@@ -26,8 +26,7 @@
 #Version 1.2  Got it to save chart as a png.  Preparing for a discord bot
 #Version 1.1  Improved display of data on charts to scale with max values
 
-from datetime import date
-from datetime import datetime as dt
+#from datetime import date
 import datetime
 import time
 import requests
@@ -38,7 +37,7 @@ import threading
 import sys
 import random
 import csv
-import urllib.parse
+from urllib.parse import unquote as unenc
 from urllib.parse import quote as enc
 from os.path import exists
 from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont
@@ -69,8 +68,7 @@ price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quot
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
-atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=false"
-
+atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=true"
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
@@ -129,7 +127,7 @@ def serverOAUTH():
 			self.end_headers()
 			self.wfile.write("<html><body>It works</body></html>".encode('utf8'))
 			if "code=" in self.path:
-				code = urllib.parse.unquote( self.path.split(str('code='))[1] )# urllib.parse.unquote()
+				code = unenc( self.path.split(str('code='))[1] )# unenc()
 				print(code)
 				oauth_params['code'] = code
 				oauth_params['grant_type'] = 'authorization_code'
@@ -137,9 +135,9 @@ def serverOAUTH():
 				oauth_params['access_type'] = 'offline'
 				oauth_params['redirect_uri'] = 'https://localhost:8080/'
 				page = requests.post(url=auth_endpoint.format(api_key=MY_API_KEY), headers=SERVER_HEADER, data=oauth_params)
-				print(urllib.parse.unquote(page.content))
+				print(unenc(page.content))
 				with open("access-token.json", "w") as outfile:
-					outfile.write(urllib.parse.unquote(page.content))
+					outfile.write(unenc(page.content))
 					loadAccessTokens()
 
 	httpd = HTTPServer(('127.0.0.1', 8080), requesthandler)
@@ -162,7 +160,7 @@ def loadAccessTokens():
 #loadAccessTokens()
 
 def refreshTokens():
-	if exists('access-token.json'):   #Mysteriously REFRESH_TOKEN was empty *********** loadAccessTokens() should of happened?????
+	if exists('access-token.json'): 
 		init = json.load(open('access-token.json', 'rb'))
 		if 'refresh_token' in init:
 			REFRESH_TOKEN = init['refresh_token']
@@ -172,7 +170,7 @@ def refreshTokens():
 	oauth_params['redirect_uri'] = ''
 	oauth_params['code'] = ''
 	#When Refresh Token ultimately times out, this method will fail in 90 days   *******************************
-	page = urllib.parse.unquote(requests.post(url="https://api.tdameritrade.com/v1/oauth2/token", headers=SERVER_HEADER, data=oauth_params).content)
+	page = unenc(requests.post(url="https://api.tdameritrade.com/v1/oauth2/token", headers=SERVER_HEADER, data=oauth_params).content)
 	merge = "{\n  \"refresh_token\": \"" + REFRESH_TOKEN + "\", \n  \"refresh_token_expires_in\": " + str(init['refresh_token_expires_in']) + ", " + page.split("{")[1]
 	with open("access-token.json", "w") as outfile:
 		outfile.write(merge)
@@ -206,18 +204,12 @@ def getTenorGIF( search ):
 		return random.choice( dctResults )
 	else: return "https://media.tenor.com/F2clNh5qPRoAAAAM/pump-stocks.gif"
 
-gms = [enc("gm friends"), enc("good morning coffee"), enc("wake up"), enc("time to work")]
+gms = [enc("gm friends"), enc("good morning"), enc("wake up"), enc("time to work")]
 pumps = [enc("stock pump rocket moon"), enc("stock bull"), enc("pepe money rain")]
 dumps = [enc("stock dump crash"), enc("bear stock")]
 titties = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
 asses = [enc("women ass twerk poggers"), enc("women sexy butt"), enc("latina big ass")]
-
-tickers = []
-counter = 0
-auto_updater = []
-intents = discord.Intents.all()
-updateRunning = False
-
+		
 class MyNewHelp(commands.MinimalHelpCommand):
 	async def send_pages(self):
 		strHelp = """}? for commands for Smayxor
@@ -235,8 +227,12 @@ Smayxor has switched to using /gex
 #			emby = discord.Embed(description=page)
 #			await destination.send(embed=emby)
 			await destination.send(strHelp)
+tickers = []
+counter = 0
+auto_updater = []
+updateRunning = False
 update_timer = 300
-bot = commands.Bot(command_prefix='}', intents=intents, help_command=MyNewHelp(), sync_commands=True)
+bot = commands.Bot(command_prefix='}', intents=discord.Intents.all(), help_command=MyNewHelp(), sync_commands=True)
 def thread_discord():
 	def getChartType( arg ):
 		arg = arg.upper()
@@ -251,42 +247,27 @@ def thread_discord():
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
 	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
-		global tickers, updateRunning, counter, auto_updater, CallATMIV, PutATMIV#, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, updateRunning#, auto_updater, counter, CallATMIV, PutATMIV, IVUpdateChannel, IVUpdateChannelCounter
 		ticker = ticker.upper()
 		if count < 2 : count = 2
 		await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
 		tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
-		if updateRunning == False :
-			print("Starting queue")
-			updateRunning = True
-			channelUpdate.start()
+#		if updateRunning == False :
+#			print("Starting queue")
+#			updateRunning = True
+#			channelUpdate.start()
 
 	@bot.command(name="pump")
-	async def command_pump(ctx, *args):
-		if random.random() < 0.91 :
-			await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
-		else:
-			await ctx.send(file=discord.File(random.choice(["./pepe-money.gif", "./wojak-pump.gif"])))
-
+	async def command_pump(ctx, *args): await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
 	@bot.command(name="dump")
-	async def command_dump(ctx, *args):
-		await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
-
+	async def command_dump(ctx, *args): await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
 	@bot.command(name="tits")
-	async def command_tits(ctx, *args):
-		await ctx.send( getTenorGIF( random.choice(titties) + enc(" " + ' '.join(args)) ) )
-
+	async def command_tits(ctx, *args): await ctx.send( getTenorGIF( random.choice(titties) + enc(" " + ' '.join(args)) ) )
 	@bot.command(name="ass")
-	async def command_ass(ctx, *args):
-		await ctx.send( getTenorGIF( random.choice(asses) + enc(" " + ' '.join(args)) ) )
-
+	async def command_ass(ctx, *args): await ctx.send( getTenorGIF( random.choice(asses) + enc(" " + ' '.join(args)) ) )
 	@bot.command(name="gm")
-	async def command_gm(ctx, *args):
-		if random.random() < 0.91 :
-			await ctx.send( getTenorGIF( random.choice(gms) + enc(" " + ' '.join(args)) ) )
-		else:
-			await ctx.send(file=discord.File('./bobo-gm-frens.gif'))
-
+	async def command_gm(ctx, *args): await ctx.send( getTenorGIF( random.choice(gms) + enc(" " + ' '.join(args)) ) )
+	
 	@bot.tree.command(name="8ball", description="Answers your question?")
 	async def slash_command_8ball(intr: discord.Interaction, question: str):
 		future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
@@ -296,7 +277,7 @@ def thread_discord():
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
-		global tickers, updateRunning, counter, auto_updater, update_timer, CallATMIV, PutATMIV#, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, updateRunning, auto_updater, update_timer#, counter, CallATMIV, PutATMIV, IVUpdateChannel, IVUpdateChannelCounter
 		user = str(intr.user)
 		args = command.upper().split(' ')
 		print( args )
@@ -316,16 +297,9 @@ def thread_discord():
 			update_timer = int(args[5]) if (len(args) > 5) and args[5].isnumeric() else 300
 			print("Appending to Auto_Updater array :", args[1], dte, "-dte", count, "-strikes", chart, intr.channel.id, update_timer, "-seconds")
 			auto_updater.append( (args[1], dte, count, chart, intr.channel.id, intr.channel) )
-			if updateRunning == False :
-				print("Starting queue")
-				updateRunning = True
-				channelUpdate.start()
 			await intr.response.send_message(user + " started auto-update on " + args[1] + " " + str(dte) + "dte " + str(count) + "-strikes " + str(chart) + "-Chart " + str(update_timer) + " seconds" )
 		elif args[0] == "STOP" :
 			auto_updater.clear()
-			CallATMIV = {}
-			PutATMIV = {}
-			IVUpdateChannel = []
 			await intr.response.send_message(user + " stopped auto-updater")
 		elif args[0] == "UPDATE" :
 			await intr.response.send_message(user + " requested code update")
@@ -359,14 +333,18 @@ def thread_discord():
 					chnl = bot.get_channel(tck[4])
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-#		if len(IVUpdateChannel) != 0:
-#			IVUpdateChannelCounter += 1
-#			if IVUpdateChannelCounter > 300 :
-#				IVUpdateChannelCounter = 0
-#				print( "Looping ", IVUpdateChannel , IVUpdateChannelCounter )
-#				fn = stock_price(IVUpdateChannel[0], 0, CHART_IV)
-#				await bot.get_channel(IVUpdateChannel[1]).send(file=discord.File(open('./' + fn, 'rb'), fn))
 
+	dailyTaskTime = datetime.time(hour=7, minute=30)#, tzinfo=datetime.timezone.utc
+#	dailyTaskTime = dailyTaskTime.astimezone(timezone('US/Pacific'))
+	@tasks.loop(time=dailyTaskTime)
+	async def dailyTask(self):
+		print("Daily Task Execution")
+	@bot.event
+	async def on_ready():
+		channelUpdate.start()
+		dailyTask.start()
+		#print("Running it")
+		
 	@bot.command(name="s")
 	async def get_gex(ctx, *args):
 		global tickers, updateRunning
@@ -375,10 +353,10 @@ def thread_discord():
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
 		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
-		if updateRunning == False :
-			print("Starting queue")
-			updateRunning = True
-			channelUpdate.start()
+#		if updateRunning == False :
+#			print("Starting queue")
+#			updateRunning = True
+#			channelUpdate.start()
 
 	bot.run(BOT_TOKEN)
 
@@ -451,13 +429,14 @@ def getATRLevels(ticker_name):
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :
-		end = int( datetime.datetime.now().timestamp() * 1000 )
+		end =  2680811140000#int( datetime.datetime.now().timestamp() * 1000 )
 		start = int( (datetime.datetime.now() - datetime.timedelta(days=3)).timestamp() * 1000 )
+#		start = int( datetime.datetime.now().timestamp() * 1000 )
+		start = end - 140000
 		url_endpoint = atr2_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker, start_date=start, end_date=end)
 	else :
 		url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
 	return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
-
 
 """   ************Unfinished pandas code***********
 def getPandas(ticker_name, dte, chartType = 0):
@@ -522,16 +501,15 @@ return total_gex/dex/vix
 
 getPandas("SPY", 0, 0)
 """
-
-
-
 def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
-	today = date.today()
+	today = datetime.date.today()
 	if "SPX" in ticker_name: ticker_name = "$SPX.X"
 	if "VIX" in ticker_name: ticker_name = "$VIX.X"
 	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
+
+#	print( today )
 
 	loopAgain = True
 	errorCounter = 0
@@ -702,6 +680,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-
+#{'open': 409.13, 'high': 409.24, 'low': 409.03, 'close': 409.2, 'volume': 1101684, 'datetime': 1680811140000}], 'symbol': 'SPY', 'empty': False}
+#print( getByHistoryType( True, "SPY" ) )
 #*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

@@ -338,8 +338,9 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
-		print("Daily Task Execution")
 		chnl = bot.get_channel(1055967445652865130)
+		print("Daily Task Execution")
+		await chnl.send("Fethcing Morning Charts")
 		tickers.append( ("VIX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
 		logData("SPX")

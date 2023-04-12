@@ -72,13 +72,13 @@ atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/price
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
-CHART_TIMEVALUE = 3
+CHART_DAILYIV = 3
 CHART_ROTATE = 4
 CHART_JSON = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
 CHART_LOG = 9
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA "]
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -181,7 +181,7 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -239,7 +239,7 @@ def thread_discord():
 		arg = arg.upper()
 		if arg == 'V': return CHART_VOLUME
 		elif arg == 'IV': return CHART_IV
-		elif arg == 'TV': return CHART_TIMEVALUE
+		elif arg == 'DAILYIV': return CHART_DAILYIV
 		elif arg == 'R': return CHART_ROTATE
 		elif arg == 'JSON': return CHART_JSON
 		elif arg == 'ATR': return CHART_ATR
@@ -640,12 +640,12 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 
-	if chartType == CHART_TIMEVALUE : chartType = CHART_IV
+	#if chartType == CHART_TIMEVALUE : chartType = CHART_IV
 	strChart = CHARTS_TEXT[chartType]
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
 	if chartType == CHART_ATR : chartType = CHART_GEX  #ATR Code makes data look like GEX chart
 	if chartType == CHART_VOLUME : chartType = CHART_GEX  #Already converted Volume to OI in pullData()
-	if chartType == CHART_IV :
+	if chartType == CHART_DAILYIV :
 		for i in sorted(strikes.Strikes) :
 			top[i] = abs(strikes.Calls[i].TimeValue) * 1000
 			above[i] = abs(strikes.Calls[i].IV) * 1000

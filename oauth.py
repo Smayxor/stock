@@ -709,7 +709,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
-	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars+strikes.PutDollars), color="yellow")
+	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"

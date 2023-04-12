@@ -338,6 +338,7 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
+		if datetime.datetime.now().weekday() > 4 : return
 		chnl = bot.get_channel(1055967445652865130)
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
@@ -510,60 +511,6 @@ return total_gex/dex/vix
 
 getPandas("SPY", 0, 0)
 """
-def logData(ticker_name):
-	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
-	fileName = ticker_name + "-IV.json"
-	today = str(datetime.date.today())
-	atmIV = strikes.Calls[strikes.ClosestStrike].IV
-	print( fileName, " - ", strikes.ClosestStrike, " - ", atmIV, " - ", today )
-	if not exists(fileName):  
-		with open(fileName, "w") as outfile:  
-			outfile.write('{"IVData": "SPX"}')
-	
-	data = json.load(open(fileName,'r+'))
-	
-	callIV = 0.0
-	putsIV = 0.0
-	for x in range(len(strikes.Strikes)) :
-		if strikes.Strikes[x] == strikes.ClosestStrike : 
-			callIV = strikes.Calls[strikes.Strikes[x + 5]].IV
-			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
-	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
-	print( newData )
-	data[str(today)] = newData
-
-	json.dump(data, open(fileName,'r+'), indent = 4)
-
-def pullData(ticker_name, dte, count):
-	ticker_name = ticker_name.upper()
-#Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
-	today = datetime.date.today()
-	if "SPX" in ticker_name: ticker_name = "$SPX.X"
-	if "VIX" in ticker_name: ticker_name = "$VIX.X"
-	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
-
-#	print( today )
-
-	loopAgain = True
-	errorCounter = 0
-	logCounter = 0
-	while loopAgain:
-		dateRange = today + datetime.timedelta(days=int(dte))
-		url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count=str(count), toDate=dateRange)
-		json_data = requests.get(url=url_endpoint, headers=HEADER).content
-		content = json.loads(json_data)
-		if 'error' in content:  #happens when oauth token expires
-			refreshTokens()
-			errorCounter += 1
-			if errorCounter == 5: break
-		elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
-			dte = str( int(dte) + 7)
-			loopAgain = int(dte) < 37
-		else:
-			loopAgain = False
-	if ('error' in content) or (errorCounter == 5) : content = {'status': 'FAILED'}
-	return content
-
 class OptionData():
 	def __init__(self):
 		self.Gamma, self.Delta, self.Vega, self.Theta, self.TimeValue, self.IV, self.OI, self.Bid, self.Ask, self.GEX, self.DEX, self.Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -607,8 +554,39 @@ class StrikeData():
 				self.ClosestStrike = strike
 			self.PutDollars += d[strike].Dollars
 
+def pullData(ticker_name, dte, count):
+	ticker_name = ticker_name.upper()
+#Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
+	today = datetime.date.today()
+	if "SPX" in ticker_name: ticker_name = "$SPX.X"
+	if "VIX" in ticker_name: ticker_name = "$VIX.X"
+	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
+
+#	print( today )
+
+	loopAgain = True
+	errorCounter = 0
+	logCounter = 0
+	while loopAgain:
+		dateRange = today + datetime.timedelta(days=int(dte))
+		url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count=str(count), toDate=dateRange)
+		json_data = requests.get(url=url_endpoint, headers=HEADER).content
+		content = json.loads(json_data)
+		if 'error' in content:  #happens when oauth token expires
+			refreshTokens()
+			errorCounter += 1
+			if errorCounter == 5: break
+		elif (content['status'] in 'FAILED'):   #happens when stock has no options, or stock doesnt exist
+			dte = str( int(dte) + 7)
+			loopAgain = int(dte) < 37
+		else:
+			loopAgain = False
+	if ('error' in content) or (errorCounter == 5) : content = {'status': 'FAILED'}
+	return content
+
 def getOOPS(ticker_name, dte, count, chartType = 0):
 	if chartType == CHART_ATR : return drawOOPSChart( getATRLevels(ticker_name), chartType )
+	if chartType == CHART_IV : return drawIVLogs(ticker_name)
 	content = pullData( ticker_name, dte, count )
 	if (content['status'] in 'FAILED'): #Failed, we tried our best
 		return "error.png"
@@ -713,6 +691,37 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
+
+def logData(ticker_name):
+	fileName = ticker_name + "-IV.json"
+	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
+	today = str(datetime.date.today())
+	atmIV = strikes.Calls[strikes.ClosestStrike].IV
+	data = loadIVLog(ticker_name)
+	callIV = 0.0
+	putsIV = 0.0
+	for x in range(len(strikes.Strikes)) :
+		if strikes.Strikes[x] == strikes.ClosestStrike : 
+			callIV = strikes.Calls[strikes.Strikes[x + 5]].IV
+			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
+	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
+	print( fileName, " - ", strikes.ClosestStrike, " - ", atmIV, " - ", today )
+	print( newData )
+	data[str(today)] = newData
+
+	json.dump(data, open(fileName,'r+'), indent = 4)
+
+def loadIVLog(ticker_name):
+	fileName = ticker_name + "-IV.json"
+	if not exists(fileName):  
+		with open(fileName, "w") as outfile:  
+			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
+	return json.load(open(fileName,'r+'))
+
+def drawIVLogs(ticker_name):
+	data = loadIVLog(ticker_name)
+	print( data )
+	return "error.png"
 
 #{'open': 409.13, 'high': 409.24, 'low': 409.03, 'close': 409.2, 'volume': 1101684, 'datetime': 1680811140000}], 'symbol': 'SPY', 'empty': False}
 #print( getByHistoryType( True, "SPY" ) )

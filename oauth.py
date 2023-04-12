@@ -77,8 +77,8 @@ CHART_ROTATE = 4
 CHART_JSON = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
-
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE "]
+CHART_LOG = 9
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "TIME VALUE ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA "]
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -232,6 +232,7 @@ counter = 0
 auto_updater = []
 updateRunning = False
 update_timer = 300
+blnFirstTime = True
 bot = commands.Bot(command_prefix='}', intents=discord.Intents.all(), help_command=MyNewHelp(), sync_commands=True)
 def thread_discord():
 	def getChartType( arg ):
@@ -334,15 +335,22 @@ def thread_discord():
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
-	dailyTaskTime = datetime.time(hour=7, minute=30)#, tzinfo=datetime.timezone.utc
-#	dailyTaskTime = dailyTaskTime.astimezone(timezone('US/Pacific'))
+	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
-	async def dailyTask(self):
+	async def dailyTask():
 		print("Daily Task Execution")
+		chnl = bot.get_channel(1055967445652865130)
+		tickers.append( ("VIX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		logData("SPX")
+
 	@bot.event
 	async def on_ready():
-		channelUpdate.start()
-		dailyTask.start()
+		global blnFirstTime
+		if blnFirstTime :
+			channelUpdate.start()
+			dailyTask.start()
+			blnFirstTime = False
 		#print("Running it")
 		
 	@bot.command(name="s")
@@ -501,6 +509,30 @@ return total_gex/dex/vix
 
 getPandas("SPY", 0, 0)
 """
+def logData(ticker_name):
+	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
+	fileName = ticker_name + "-IV.json"
+	today = str(datetime.date.today())
+	atmIV = strikes.Calls[strikes.ClosestStrike].IV
+	print( fileName, " - ", strikes.ClosestStrike, " - ", atmIV, " - ", today )
+	if not exists(fileName):  
+		with open(fileName, "w") as outfile:  
+			outfile.write('{"IVData": "SPX"}')
+	
+	data = json.load(open(fileName,'r+'))
+	
+	callIV = 0.0
+	putsIV = 0.0
+	for x in range(len(strikes.Strikes)) :
+		if strikes.Strikes[x] == strikes.ClosestStrike : 
+			callIV = strikes.Calls[strikes.Strikes[x + 5]].IV
+			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
+	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
+	print( newData )
+	data[str(today)] = newData
+
+	json.dump(data, open(fileName,'r+'), indent = 4)
+
 def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
@@ -595,6 +627,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			for options in content['callExpDateMap'][days][stk]: addOption( options )
 			for options in content['putExpDateMap'][days][stk]: addOption( options )
 		if chartType == CHART_LASTDTE : break
+	if chartType == CHART_LOG : return strikesData
 	return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
@@ -671,11 +704,11 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 				if strikes.Price > strikes.ClosestStrike : drawPriceLine(draw, x + 10, "#FF0")
 				else : drawPriceLine(draw, x, "#FF0")
 		x += 15
-	drawText(draw, x=x, y=0, txt=strikes.Ticker + " $" + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
+	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
-	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls $"+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
-	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts $"+"${:,.2f}".format(strikes.PutDollars), color="#f00")
-	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total $"+"${:,.2f}".format(strikes.CallDollars+strikes.PutDollars), color="yellow")
+	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
+	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
+	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars+strikes.PutDollars), color="yellow")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"

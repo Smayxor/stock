@@ -414,6 +414,9 @@ def getATRLevels(ticker_name):
 			both = abs( high - low )
 			atrs.append( max( [upper, lower, both] ) )
 			previousClose = candles['close']
+	if len(atrs) < 14 : 
+		print("No ATR Data")
+		return 0
 	atrs = atrs[len(atrs) - 14:]
 	atr = sum(atrs) / len(atrs)
 	FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
@@ -585,7 +588,10 @@ def pullData(ticker_name, dte, count):
 	return content
 
 def getOOPS(ticker_name, dte, count, chartType = 0):
-	if chartType == CHART_ATR : return drawOOPSChart( getATRLevels(ticker_name), chartType )
+	if chartType == CHART_ATR : 
+		atrs = getATRLevels(ticker_name)
+		if atrs == 0: return "error.png"
+		return drawOOPSChart( atrs, chartType )
 	if chartType == CHART_IV : return drawIVLogs(ticker_name)
 	content = pullData( ticker_name, dte, count )
 	if (content['status'] in 'FAILED'): #Failed, we tried our best

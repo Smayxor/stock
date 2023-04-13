@@ -335,7 +335,7 @@ def thread_discord():
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
-	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=14, minute=30, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
@@ -363,10 +363,6 @@ def thread_discord():
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
 		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
-#		if updateRunning == False :
-#			print("Starting queue")
-#			updateRunning = True
-#			channelUpdate.start()
 
 	bot.run(BOT_TOKEN)
 

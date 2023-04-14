@@ -77,8 +77,10 @@ CHART_ROTATE = 4
 CHART_JSON = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
-CHART_LOG = 9
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA "]
+CHART_LOG = 8
+CHART_CHANGE = 9
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX "]
+storedStrikes = []
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -181,7 +183,7 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -244,6 +246,7 @@ def thread_discord():
 		elif arg == 'JSON': return CHART_JSON
 		elif arg == 'ATR': return CHART_ATR
 		elif arg == 'LD': return CHART_LASTDTE
+		elif arg == 'CHANGE': return CHART_CHANGE
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
@@ -609,7 +612,31 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			for options in content['putExpDateMap'][days][stk]: addOption( options )
 		if chartType == CHART_LASTDTE : break
 	if chartType == CHART_LOG : return strikesData
+	if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
 	return drawOOPSChart( strikesData, chartType )
+
+def getChange(strikes: StrikeData) :
+	l = len(storedStrikes)
+	if l == 0:
+		storedStrikes.append(strikes)
+		print("adding new entry")
+		return strikes
+	blnExists = False
+	x = strikes
+	for s in storedStrikes:
+		if s.Ticker == strikes.Ticker :  
+			blnExists = True
+			x = s
+			break
+	if not blnExists : 
+		storedStrikes.append(strikes)
+		return strikes
+	print("found ", x.Ticker)
+#			for x in s.Strikes:
+#				for y in strikes.Strikes:
+#					if x == y :
+#						strikes.Calls[x]
+	return strikes
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
 
@@ -622,6 +649,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 	#if chartType == CHART_TIMEVALUE : chartType = CHART_IV
 	strChart = CHARTS_TEXT[chartType]
+	if chartType == CHART_CHANGE : chartType = CHART_GEX
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
 	if chartType == CHART_ATR : chartType = CHART_GEX  #ATR Code makes data look like GEX chart
 	if chartType == CHART_VOLUME : chartType = CHART_GEX  #Already converted Volume to OI in pullData()

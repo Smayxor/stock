@@ -723,14 +723,14 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		lY = lower[date]
 		lastX = x
 		y = IMG_H - 120
-		drawText(draw, x=IMG_W - 80, y=y-200, txt=str(maxUpper / 1000), color="#CCC")
+		drawText(draw, x=IMG_W - 80, y=y-200-FONT_SIZE, txt=str(maxUpper / 1000), color="#CCC")
 		drawRotatedPriceLine(draw, y - 200, "#FF0")
 		
 		drawText(draw, x=IMG_W - 80, y=y-FONT_SIZE, txt=str(maxLower / 1000), color="#CCC")
 		drawRotatedPriceLine(draw, y, "#FF0")
 		
 		drawRotatedPriceLine(draw, y-100, "#FF0")
-		drawText(draw, x=IMG_W - 80, y=y-100, txt=str((maxLower + ((maxUpper - maxLower) / 2)) / 1000), color="#CCC")
+		drawText(draw, x=IMG_W - 80, y=y-100-FONT_SIZE, txt=str((maxLower + ((maxUpper - maxLower) / 2)) / 1000), color="#CCC")
 		
 		maxUpper -= maxLower
 

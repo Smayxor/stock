@@ -700,6 +700,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			strikes.CallDollars = data[days]['calls']
 			strikes.PutDollars = data[days]['puts']
 			strikes.ClosestStrike = data[days]['atm']
+		for days in data:
+			above[days] -= maxLower
+			upper[days] -= maxLower
+			lower[days] -= maxLower
 		count = len(above)
 		strikes.DTE = count
 		if count == 0 : return "error.png"
@@ -721,13 +725,18 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		y = IMG_H - 120
 		drawText(draw, x=IMG_W - 80, y=y-200, txt=str(maxUpper / 1000), color="#CCC")
 		drawRotatedPriceLine(draw, y - 200, "#FF0")
-		mly = y - ((maxLower / maxUpper) * 200)
-		drawText(draw, x=IMG_W - 80, y=mly, txt=str(maxLower / 1000), color="#CCC")
-		drawRotatedPriceLine(draw, mly, "#FF0")
 		
+		drawText(draw, x=IMG_W - 80, y=y-FONT_SIZE, txt=str(maxLower / 1000), color="#CCC")
+		drawRotatedPriceLine(draw, y, "#FF0")
+		
+		drawRotatedPriceLine(draw, y-100, "#FF0")
+		drawText(draw, x=IMG_W - 80, y=y-100, txt=str((maxLower + ((maxUpper - maxLower) / 2)) / 1000), color="#CCC")
+		
+		maxUpper -= maxLower
+
 		for i in above:
 			x += FONT_SIZE - 3
-			drawRotatedText(img, x=x - 5, y=y, txt=i, color="#77F")
+			drawRotatedText(img, x=x - 5, y=y + 15, txt=i, color="#77F")
 			draw.line([lastX, y - ((aY / maxUpper) * 200), x, y - ((above[i] / maxUpper) * 200)], fill="yellow", width=1)
 			aY = above[i]
 			

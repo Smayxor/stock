@@ -747,6 +747,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			lY = lower[i]
 			
 			lastX = x
+		x = 5
 	elif chartType == CHART_ROTATE :
 		x = IMG_W - 15
 		for strike in sorted(strikes.Strikes) :

@@ -558,43 +558,36 @@ class StrikeData():
 				self.ClosestStrike = strike
 			self.PutDollars += d[strike].Dollars
 
-def getChange(strikes: StrikeData) :
-	l = len(storedStrikes)
-	if l == 0:
-		storedStrikes.append(strikes)
-		return strikes
-	blnExists = False
-	x = strikes  #x becomes the storedStrike if the ticker has previously been stored
+def getChange(new: StrikeData) :
+	blnExists = False #Check for an existing stored ticker,  add it if its new
+	stored = new  #stored becomes the storedStrike if the ticker has previously been stored
 	for s in storedStrikes:
-		if s.Ticker == strikes.Ticker :  
+		if s.Ticker == new.Ticker :  
 			blnExists = True
-			x = s
+			stored = s
 			break
 	if not blnExists :
-		storedStrikes.append(strikes)
-		return strikes
-
-	newStrikes = StrikeData(x.Ticker, x.Price)
-	newStrikes.DTE = x.DTE
-	newStrikes.ClosestStrike = x.ClosestStrike
-	newStrikes.distFromPrice = x.distFromPrice
-	newStrikes.CallDollars = x.CallDollars - strikes.CallDollars
-	newStrikes.PutDollars = x.PutDollars - strikes.PutDollars
-	for ss in x.Strikes:
-		for s in strikes.Strikes:
-			if s == ss :  # Only show strikes both lists contain
-				newStrikes.Strikes.append(s)
-				newStrikes.Calls[s] = OptionData()
-				newStrikes.Calls[s].GEX = strikes.Calls[s].GEX - x.Calls[s].GEX
-				newStrikes.Calls[s].DEX = strikes.Calls[s].DEX - x.Calls[s].DEX
-				newStrikes.Calls[s].OI = strikes.Calls[s].OI - x.Calls[s].OI
-				
-				newStrikes.Puts[s] = OptionData()
-				newStrikes.Puts[s].GEX = strikes.Puts[s].GEX - x.Puts[s].GEX
-				newStrikes.Puts[s].DEX = strikes.Puts[s].DEX - x.Puts[s].DEX
-				newStrikes.Puts[s].OI = strikes.Puts[s].OI - x.Puts[s].OI
-
-	return newStrikes
+		storedStrikes.append(new)
+		return new
+	#Generate temporary differential values to draw
+	changeStrikes = StrikeData(new.Ticker, new.Price)
+	changeStrikes.DTE = new.DTE
+	changeStrikes.ClosestStrike = new.ClosestStrike
+	changeStrikes.distFromPrice = new.distFromPrice
+	changeStrikes.CallDollars = new.CallDollars - stored.CallDollars
+	changeStrikes.PutDollars = new.PutDollars - stored.PutDollars
+	for ss, s in zip(stored.Strikes, new.Strikes):
+		if s == ss :  # Only show strikes both lists contain
+			changeStrikes.Strikes.append(s)
+			changeStrikes.Calls[s] = OptionData()
+			changeStrikes.Calls[s].GEX = new.Calls[s].GEX - stored.Calls[s].GEX
+			changeStrikes.Calls[s].DEX = new.Calls[s].DEX - stored.Calls[s].DEX
+			changeStrikes.Calls[s].OI = new.Calls[s].OI - stored.Calls[s].OI
+			changeStrikes.Puts[s] = OptionData()
+			changeStrikes.Puts[s].GEX = new.Puts[s].GEX - stored.Puts[s].GEX
+			changeStrikes.Puts[s].DEX = new.Puts[s].DEX - stored.Puts[s].DEX
+			changeStrikes.Puts[s].OI = new.Puts[s].OI - stored.Puts[s].OI
+	return changeStrikes
 
 def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
@@ -656,7 +649,6 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
-
 	IMG_W = ((FONT_SIZE - 3) * len(strikes.Strikes)) + 150
 	if chartType != CHART_ROTATE : IMG_W += 100
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
@@ -664,8 +656,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 
-	#if chartType == CHART_TIMEVALUE : chartType = CHART_IV
-	strChart = CHARTS_TEXT[chartType]
+	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
 	if chartType == CHART_ATR : chartType = CHART_GEX  #ATR Code makes data look like GEX chart
@@ -696,39 +687,31 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if upper[i] > maxUpper : maxUpper = upper[i]
 			if lower[i] > maxUpper : maxUpper = lower[i]
 		maxLower = maxUpper
-
+#Draw the data
 	x = 0
 	if chartType == CHART_ROTATE :
 		x = IMG_W - 15
 		for strike in sorted(strikes.Strikes) :
 			x -= FONT_SIZE - 3
 			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#CCC")   # .replace('.0', '')
-			drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
-
-			drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
-			drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
-			drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
-			drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
-			
-			if strike == strikes.ClosestStrike:
-				if strikes.Price > strikes.ClosestStrike : drawRotatedPriceLine(draw, x - 5, "#FF0")
-				else : drawRotatedPriceLine(draw, x + FONT_SIZE, "#FF0")
+			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
+			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
+			if (above2[strike] != 0) : drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
+			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
+			if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
+			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
 		x = 0
 	else :
 		x = -15
 		for strike in sorted(strikes.Strikes) :
 			x += FONT_SIZE - 3
 			drawRotatedText(img, x=x - 5, y=205, txt=str(round(strike, 2)), color="#3F3")   # .replace('.0', '')
-			drawRect(draw, x, 0, x + 12, ((top[strike] / maxTop) * 65), color="#00F", border='')
-
-			drawRect(draw, x, 215 - ((abs(above[strike]) / maxAbove) * 150), x + 12, 215, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
-			drawRect(draw, x, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x + 2, 215, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
-			drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
-			drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
-			
-			if strike == strikes.ClosestStrike:
-				if strikes.Price > strikes.ClosestStrike : drawPriceLine(draw, x + 10, "#FF0")
-				else : drawPriceLine(draw, x, "#FF0")
+			if (top[strike] != 0) : drawRect(draw, x, 0, x + 12, ((top[strike] / maxTop) * 65), color="#00F", border='')
+			if (above[strike] != 0) : drawRect(draw, x, 215 - ((abs(above[strike]) / maxAbove) * 150), x + 12, 215, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
+			if (above2[strike] != 0) : drawRect(draw, x, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x + 2, 215, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
+			if (upper[strike] != 0) : drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
+			if (lower[strike] != 0) : drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
+			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")

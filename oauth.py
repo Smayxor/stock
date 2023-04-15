@@ -578,8 +578,8 @@ def getChange(strikes: StrikeData) :
 	newStrikes.DTE = x.DTE
 	newStrikes.ClosestStrike = x.ClosestStrike
 	newStrikes.distFromPrice = x.distFromPrice
-	newStrikes.CallDollars = x.CallDollars
-	newStrikes.PutDollars = x.PutDollars
+	newStrikes.CallDollars = x.CallDollars - strikes.CallDollars
+	newStrikes.PutDollars = x.PutDollars - strikes.PutDollars
 	for ss in x.Strikes:
 		for s in strikes.Strikes:
 			if s == ss :  # Only show strikes both lists contain
@@ -711,8 +711,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			
 			if strike == strikes.ClosestStrike:
-				if strikes.Price > strikes.ClosestStrike : drawRotatedPriceLine(draw, x + 10, "#FF0")
-				else : drawRotatedPriceLine(draw, x, "#FF0")
+				if strikes.Price > strikes.ClosestStrike : drawRotatedPriceLine(draw, x - 5, "#FF0")
+				else : drawRotatedPriceLine(draw, x + FONT_SIZE, "#FF0")
 		x = 0
 	else :
 		x = -15

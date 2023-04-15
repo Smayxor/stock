@@ -395,7 +395,7 @@ def drawRotatedText(img, x, y, txt, color):
 	dtxt = ImageDraw.Draw(text_layer)
 	dtxt.text( (0, 0), txt, fill=255, font=font)
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
-	PILImg.Image.paste( img, rotated_text_layer, (x,220) )
+	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 def getATRLevels(ticker_name):
 	content = getByHistoryType( False, ticker_name )
@@ -559,34 +559,28 @@ class StrikeData():
 			self.PutDollars += d[strike].Dollars
 
 def getChange(new: StrikeData) :
-	blnExists = False #Check for an existing stored ticker,  add it if its new
-	stored = new  #stored becomes the storedStrike if the ticker has previously been stored
-	for s in storedStrikes:
-		if s.Ticker == new.Ticker :  
-			blnExists = True
-			stored = s
-			break
-	if not blnExists :
+	stored = next((x for x in storedStrikes if new.Ticker == x.Ticker), None)
+	if stored == None :
 		storedStrikes.append(new)
 		return new
-	#Generate temporary differential values to draw
+	#Generate differential values to draw
 	changeStrikes = StrikeData(new.Ticker, new.Price)
 	changeStrikes.DTE = new.DTE
 	changeStrikes.ClosestStrike = new.ClosestStrike
 	changeStrikes.distFromPrice = new.distFromPrice
 	changeStrikes.CallDollars = new.CallDollars - stored.CallDollars
 	changeStrikes.PutDollars = new.PutDollars - stored.PutDollars
-	for ss, s in zip(stored.Strikes, new.Strikes):
-		if s == ss :  # Only show strikes both lists contain
-			changeStrikes.Strikes.append(s)
-			changeStrikes.Calls[s] = OptionData()
-			changeStrikes.Calls[s].GEX = new.Calls[s].GEX - stored.Calls[s].GEX
-			changeStrikes.Calls[s].DEX = new.Calls[s].DEX - stored.Calls[s].DEX
-			changeStrikes.Calls[s].OI = new.Calls[s].OI - stored.Calls[s].OI
-			changeStrikes.Puts[s] = OptionData()
-			changeStrikes.Puts[s].GEX = new.Puts[s].GEX - stored.Puts[s].GEX
-			changeStrikes.Puts[s].DEX = new.Puts[s].DEX - stored.Puts[s].DEX
-			changeStrikes.Puts[s].OI = new.Puts[s].OI - stored.Puts[s].OI
+	changeStrikes.Strikes = [s for s in new.Strikes for ss in stored.Strikes if s == ss] #Only add duplicates
+#	changeStrikes.Strikes = [s for s, ss in zip(new.Strikes, stored.Strikes) if s == ss] #Only add duplicates
+	for s in changeStrikes.Strikes:
+		changeStrikes.Calls[s] = OptionData()
+		changeStrikes.Calls[s].GEX = new.Calls[s].GEX - stored.Calls[s].GEX
+		changeStrikes.Calls[s].DEX = new.Calls[s].DEX - stored.Calls[s].DEX
+		changeStrikes.Calls[s].OI = new.Calls[s].OI - stored.Calls[s].OI
+		changeStrikes.Puts[s] = OptionData()
+		changeStrikes.Puts[s].GEX = new.Puts[s].GEX - stored.Puts[s].GEX
+		changeStrikes.Puts[s].DEX = new.Puts[s].DEX - stored.Puts[s].DEX
+		changeStrikes.Puts[s].OI = new.Puts[s].OI - stored.Puts[s].OI	
 	return changeStrikes
 
 def pullData(ticker_name, dte, count):
@@ -624,10 +618,12 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		atrs = getATRLevels(ticker_name)
 		if atrs == 0: return "error.png"
 		return drawOOPSChart( atrs, chartType )
-	if chartType == CHART_IV : return drawIVLogs(ticker_name)
+	if chartType == CHART_IV : 
+		strikes = StrikeData(ticker_name, 0.0)
+		return drawOOPSChart(strikes, chartType)
+		
 	content = pullData( ticker_name, dte, count )
-	if (content['status'] in 'FAILED'): #Failed, we tried our best
-		return "error.png"
+	if (content['status'] in 'FAILED'): return "error.png" #Failed, we tried our best
 
 	if chartType == CHART_JSON :
 		ticker_name = ticker_name + ".json"
@@ -649,12 +645,9 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	return drawOOPSChart( strikesData, chartType )
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
-	IMG_W = ((FONT_SIZE - 3) * len(strikes.Strikes)) + 150
-	if chartType != CHART_ROTATE : IMG_W += 100
-	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
-	draw = ImageDraw.Draw(img)
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
+	count = len(strikes.Strikes)
 
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
@@ -673,7 +666,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if above2[i] > maxAbove2 : maxAbove2 = above2[i]
 			if upper[i] > maxUpper :   maxUpper = upper[i]
 			if lower[i] > maxLower :   maxLower = lower[i]
-			
+		
 	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
@@ -687,9 +680,48 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if upper[i] > maxUpper : maxUpper = upper[i]
 			if lower[i] > maxUpper : maxUpper = lower[i]
 		maxLower = maxUpper
+	if chartType == CHART_IV :
+		data = loadIVLog(strikes.Ticker)
+		data.pop('IVData')
+		for days in data:
+			above[days] = data[days]['atm'] * 1000
+			upper[days] = data[days]['calls'] * 1000
+			lower[days] = data[days]['puts'] * 1000
+			if above[days] > maxAbove : maxAbove = above[days]
+			if upper[days] > maxAbove : maxAbove = upper[days]
+			if lower[days] > maxAbove : maxAbove = lower[days]	
+		count = len(above)
+		strikes.DTE = count
+		if count == 0 : return "error.png"
+	
 #Draw the data
+	IMG_W = ((FONT_SIZE - 3) * count) + 150
+	if chartType != CHART_ROTATE : IMG_W += 100
+	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)
 	x = 0
-	if chartType == CHART_ROTATE :
+	if chartType == CHART_IV :
+		x = 15
+		date = list(above.keys())[0]
+		aY = above[date]
+		uY = upper[date]
+		lY = lower[date]
+		lastX = x
+		y = IMG_H - 120
+		for i in above:
+			x += FONT_SIZE - 3
+			drawRotatedText(img, x=x - 5, y=y, txt=i, color="#77F")
+			draw.line([lastX, y - ((aY / maxAbove) * 200), x, y - ((above[i] / maxAbove) * 200)], fill="yellow", width=1)
+			aY = above[i]
+			
+			draw.line([lastX, y - ((uY / maxAbove) * 200), x, y - ((upper[i] / maxAbove) * 200)], fill="#7F7", width=1)
+			uY = upper[i]
+			
+			draw.line([lastX, y - ((lY / maxAbove) * 200), x, y - ((lower[i] / maxAbove) * 200)], fill="#F77", width=1)
+			lY = lower[i]
+			
+			lastX = x
+	elif chartType == CHART_ROTATE :
 		x = IMG_W - 15
 		for strike in sorted(strikes.Strikes) :
 			x -= FONT_SIZE - 3
@@ -705,7 +737,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		x = -15
 		for strike in sorted(strikes.Strikes) :
 			x += FONT_SIZE - 3
-			drawRotatedText(img, x=x - 5, y=205, txt=str(round(strike, 2)), color="#3F3")   # .replace('.0', '')
+			drawRotatedText(img, x=x - 5, y=220, txt=str(round(strike, 2)), color="#3F3")   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, x, 0, x + 12, ((top[strike] / maxTop) * 65), color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, x, 215 - ((abs(above[strike]) / maxAbove) * 150), x + 12, 215, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, x, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x + 2, 215, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
@@ -721,6 +753,14 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
+
+def drawIVText(img, x, y, txt, color):
+	text_layer = PILImg.new('L', (100, FONT_SIZE))
+	dtxt = ImageDraw.Draw(text_layer)
+	dtxt.text( (0, 0), txt, fill=255, font=font)
+	rotated_text_layer = text_layer.rotate(270.0, expand=1)
+	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
+
 
 def logData(ticker_name):
 	fileName = ticker_name + "-IV.json"
@@ -748,12 +788,4 @@ def loadIVLog(ticker_name):
 			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
 	return json.load(open(fileName,'r+'))
 
-def drawIVLogs(ticker_name):
-	data = loadIVLog(ticker_name)
-	print( data )
-	return "error.png"
-
-#{'open': 409.13, 'high': 409.24, 'low': 409.03, 'close': 409.2, 'volume': 1101684, 'datetime': 1680811140000}], 'symbol': 'SPY', 'empty': False}
-#print( getByHistoryType( True, "SPY" ) )
-#*************Main "constructor" for GUI, starts thread for Server ********************
 thread_discord()

@@ -392,7 +392,7 @@ def drawText(draw, x, y, txt, color):
 	draw.text((x,y), text=txt, fill=color, font=font)
 
 def drawRotatedText(img, x, y, txt, color):
-	text_layer = PILImg.new('L', (100, FONT_SIZE))
+	text_layer = PILImg.new('L', (120, FONT_SIZE))
 	dtxt = ImageDraw.Draw(text_layer)
 	dtxt.text( (0, 0), txt, fill=255, font=font)
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
@@ -722,7 +722,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		uY = upper[date]
 		lY = lower[date]
 		lastX = x
-		y = IMG_H - 120
+		y = IMG_H - 140
 		drawText(draw, x=IMG_W - 80, y=y-200-FONT_SIZE, txt=str(maxUpper / 1000), color="#CCC")
 		drawRotatedPriceLine(draw, y - 200, "#FF0")
 		
@@ -736,7 +736,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 		for i in above:
 			x += FONT_SIZE - 3
-			drawRotatedText(img, x=x - 5, y=y + 15, txt=i, color="#77F")
+			drawRotatedText(img, x=x - 5, y=y + 20, txt=i, color="#77F")
+			
 			draw.line([lastX, y - ((aY / maxUpper) * 200), x, y - ((above[i] / maxUpper) * 200)], fill="yellow", width=1)
 			aY = above[i]
 			

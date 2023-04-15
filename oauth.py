@@ -338,15 +338,17 @@ def thread_discord():
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
-	dailyTaskTime = datetime.time(hour=14, minute=30, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
 		chnl = bot.get_channel(1055967445652865130)
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
-		tickers.append( ("VIX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
-		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		storedStrikes = []
+		tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		logData("SPX")
 
 	@bot.event
@@ -556,6 +558,44 @@ class StrikeData():
 				self.ClosestStrike = strike
 			self.PutDollars += d[strike].Dollars
 
+def getChange(strikes: StrikeData) :
+	l = len(storedStrikes)
+	if l == 0:
+		storedStrikes.append(strikes)
+		return strikes
+	blnExists = False
+	x = strikes  #x becomes the storedStrike if the ticker has previously been stored
+	for s in storedStrikes:
+		if s.Ticker == strikes.Ticker :  
+			blnExists = True
+			x = s
+			break
+	if not blnExists :
+		storedStrikes.append(strikes)
+		return strikes
+
+	newStrikes = StrikeData(x.Ticker, x.Price)
+	newStrikes.DTE = x.DTE
+	newStrikes.ClosestStrike = x.ClosestStrike
+	newStrikes.distFromPrice = x.distFromPrice
+	newStrikes.CallDollars = x.CallDollars
+	newStrikes.PutDollars = x.PutDollars
+	for ss in x.Strikes:
+		for s in strikes.Strikes:
+			if s == ss :  # Only show strikes both lists contain
+				newStrikes.Strikes.append(s)
+				newStrikes.Calls[s] = OptionData()
+				newStrikes.Calls[s].GEX = strikes.Calls[s].GEX - x.Calls[s].GEX
+				newStrikes.Calls[s].DEX = strikes.Calls[s].DEX - x.Calls[s].DEX
+				newStrikes.Calls[s].OI = strikes.Calls[s].OI - x.Calls[s].OI
+				
+				newStrikes.Puts[s] = OptionData()
+				newStrikes.Puts[s].GEX = strikes.Puts[s].GEX - x.Puts[s].GEX
+				newStrikes.Puts[s].DEX = strikes.Puts[s].DEX - x.Puts[s].DEX
+				newStrikes.Puts[s].OI = strikes.Puts[s].OI - x.Puts[s].OI
+
+	return newStrikes
+
 def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
@@ -614,29 +654,6 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	if chartType == CHART_LOG : return strikesData
 	if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
 	return drawOOPSChart( strikesData, chartType )
-
-def getChange(strikes: StrikeData) :
-	l = len(storedStrikes)
-	if l == 0:
-		storedStrikes.append(strikes)
-		print("adding new entry")
-		return strikes
-	blnExists = False
-	x = strikes
-	for s in storedStrikes:
-		if s.Ticker == strikes.Ticker :  
-			blnExists = True
-			x = s
-			break
-	if not blnExists : 
-		storedStrikes.append(strikes)
-		return strikes
-	print("found ", x.Ticker)
-#			for x in s.Strikes:
-#				for y in strikes.Strikes:
-#					if x == y :
-#						strikes.Calls[x]
-	return strikes
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
 

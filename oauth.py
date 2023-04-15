@@ -338,7 +338,7 @@ def thread_discord():
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
-	dailyTaskTime = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=13, minute=40, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
@@ -350,6 +350,7 @@ def thread_discord():
 		tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		logData("SPX")
+		logData("SPY")
 
 	@bot.event
 	async def on_ready():

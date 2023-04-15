@@ -683,17 +683,26 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
+		maxLower = 9999999
 		for days in data:
 			above[days] = data[days]['atm'] * 1000
 			upper[days] = data[days]['calls'] * 1000
 			lower[days] = data[days]['puts'] * 1000
-			if above[days] > maxAbove : maxAbove = above[days]
-			if upper[days] > maxAbove : maxAbove = upper[days]
-			if lower[days] > maxAbove : maxAbove = lower[days]	
+			if above[days] > maxUpper : maxUpper = above[days]
+			if upper[days] > maxUpper : maxUpper = upper[days]
+			if lower[days] > maxUpper : maxUpper = lower[days]	
+
+			if above[days] < maxLower : maxLower = above[days]
+			if upper[days] < maxLower : maxLower = upper[days]
+			if lower[days] < maxLower : maxLower = lower[days]
+			
+			strikes.CallDollars = data[days]['calls']
+			strikes.PutDollars = data[days]['puts']
+			strikes.ClosestStrike = data[days]['atm']
 		count = len(above)
 		strikes.DTE = count
 		if count == 0 : return "error.png"
-	
+
 #Draw the data
 	IMG_W = ((FONT_SIZE - 3) * count) + 150
 	if chartType != CHART_ROTATE : IMG_W += 100
@@ -701,23 +710,30 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	draw = ImageDraw.Draw(img)
 	x = 0
 	if chartType == CHART_IV :
-		x = 15
+	
+		x = -5
 		date = list(above.keys())[0]
 		aY = above[date]
 		uY = upper[date]
 		lY = lower[date]
 		lastX = x
 		y = IMG_H - 120
+		drawText(draw, x=IMG_W - 80, y=y-200, txt=str(maxUpper / 1000), color="#CCC")
+		drawRotatedPriceLine(draw, y - 200, "#FF0")
+		mly = y - ((maxLower / maxUpper) * 200)
+		drawText(draw, x=IMG_W - 80, y=mly, txt=str(maxLower / 1000), color="#CCC")
+		drawRotatedPriceLine(draw, mly, "#FF0")
+		
 		for i in above:
 			x += FONT_SIZE - 3
 			drawRotatedText(img, x=x - 5, y=y, txt=i, color="#77F")
-			draw.line([lastX, y - ((aY / maxAbove) * 200), x, y - ((above[i] / maxAbove) * 200)], fill="yellow", width=1)
+			draw.line([lastX, y - ((aY / maxUpper) * 200), x, y - ((above[i] / maxUpper) * 200)], fill="yellow", width=1)
 			aY = above[i]
 			
-			draw.line([lastX, y - ((uY / maxAbove) * 200), x, y - ((upper[i] / maxAbove) * 200)], fill="#7F7", width=1)
+			draw.line([lastX, y - ((uY / maxUpper) * 200), x, y - ((upper[i] / maxUpper) * 200)], fill="#7F7", width=1)
 			uY = upper[i]
 			
-			draw.line([lastX, y - ((lY / maxAbove) * 200), x, y - ((lower[i] / maxAbove) * 200)], fill="#F77", width=1)
+			draw.line([lastX, y - ((lY / maxUpper) * 200), x, y - ((lower[i] / maxUpper) * 200)], fill="#F77", width=1)
 			lY = lower[i]
 			
 			lastX = x
@@ -747,9 +763,14 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
-	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
-	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
-	drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
+	if chartType == CHART_IV :
+		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls " + str(strikes.CallDollars) + "%", color="#0f0")
+		drawText(draw, x=x, y=FONT_SIZE * 3, txt="ATM " + str(strikes.ClosestStrike) + "%", color="yellow")
+		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Puts " + str(strikes.PutDollars) + "%", color="#f00")
+	else : 
+		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
+		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
+		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"

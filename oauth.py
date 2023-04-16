@@ -680,7 +680,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if abs(above2[i]) > maxAbove2 : maxAbove2 = abs(above2[i])
 			if upper[i] > maxUpper : maxUpper = upper[i]
 			if lower[i] > maxUpper : maxUpper = lower[i]
-		maxLower = maxUpper
+		maxLower = maxUpper		
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -783,6 +783,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
+		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero_gex( above )), color="orange")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
@@ -820,5 +821,24 @@ def loadIVLog(ticker_name):
 		with open(fileName, "w") as outfile:  
 			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
 	return json.load(open(fileName,'r+'))
+
+
+
+
+from itertools import accumulate
+def zero_gex(data):
+	def add(a, b): return (b[0], a[1] + b[1])
+	strikes = [] #convert data to the tuples list function requires
+	for d in data : strikes.append( (d, data[d]) )
+
+	cumsum = list(accumulate(strikes, add))
+	if cumsum[len(strikes) // 10][1] < 0:
+		op = min
+	else:
+		op = max
+	return op(cumsum, key=lambda i: i[1])[0]
+
+#print(zero_gex(new.StrikeAndGamma))
+
 
 thread_discord()

@@ -46,6 +46,7 @@ from discord.ext import tasks
 import discord
 from discord.ext import commands
 from discord import app_commands
+from itertools import accumulate
 
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
@@ -649,7 +650,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 	count = len(strikes.Strikes)
-
+	zero = 0
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
@@ -680,7 +681,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if abs(above2[i]) > maxAbove2 : maxAbove2 = abs(above2[i])
 			if upper[i] > maxUpper : maxUpper = upper[i]
 			if lower[i] > maxUpper : maxUpper = lower[i]
-		maxLower = maxUpper		
+		maxLower = maxUpper
+		zero = zero_gex( above )
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -760,6 +762,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
+			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
 		x = 0
 	else :
 		x = -15
@@ -772,6 +775,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
+			if strike == zero : drawPriceLine(draw, x + 5, "#FFF")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
@@ -783,7 +787,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
-		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero_gex( above )), color="orange")
+		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
@@ -822,10 +826,6 @@ def loadIVLog(ticker_name):
 			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
 	return json.load(open(fileName,'r+'))
 
-
-
-
-from itertools import accumulate
 def zero_gex(data):
 	def add(a, b): return (b[0], a[1] + b[1])
 	strikes = [] #convert data to the tuples list function requires
@@ -837,8 +837,5 @@ def zero_gex(data):
 	else:
 		op = max
 	return op(cumsum, key=lambda i: i[1])[0]
-
-#print(zero_gex(new.StrikeAndGamma))
-
 
 thread_discord()

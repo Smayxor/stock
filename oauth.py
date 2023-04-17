@@ -650,7 +650,9 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 	count = len(strikes.Strikes)
-	zero = 0
+	zero = (0, 0)
+	biggy = strikes.Strikes[0]
+	biggySize = 0
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
@@ -681,6 +683,12 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if abs(above2[i]) > maxAbove2 : maxAbove2 = abs(above2[i])
 			if upper[i] > maxUpper : maxUpper = upper[i]
 			if lower[i] > maxUpper : maxUpper = lower[i]
+
+			tmp = lower[i] + upper[i]
+			if tmp > biggySize : 
+				biggySize = tmp
+				biggy = i
+
 		maxLower = maxUpper
 		zero = zero_gex( above )
 	if chartType == CHART_IV :
@@ -762,7 +770,9 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
-			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			if strike == zero[0] : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x = 0
 	else :
 		x = -15
@@ -775,7 +785,9 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
-			if strike == zero : drawPriceLine(draw, x + 5, "#FFF")
+			if strike == zero[0] : drawPriceLine(draw, x + 5, "#FFF")
+			if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
+			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
@@ -787,7 +799,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
-		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
+		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero[0])+" - ${:,.2f}".format(zero[1]), color="orange")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
@@ -798,7 +810,6 @@ def drawIVText(img, x, y, txt, color):
 	dtxt.text( (0, 0), txt, fill=255, font=font)
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
-
 
 def logData(ticker_name):
 	fileName = ticker_name + "-IV.json"
@@ -828,14 +839,15 @@ def loadIVLog(ticker_name):
 
 def zero_gex(data):
 	def add(a, b): return (b[0], a[1] + b[1])
-	strikes = [] #convert data to the tuples list function requires
-	for d in data : strikes.append( (d, data[d]) )
-
-	cumsum = list(accumulate(strikes, add))
-	if cumsum[len(strikes) // 10][1] < 0:
-		op = min
-	else:
-		op = max
-	return op(cumsum, key=lambda i: i[1])[0]
-
+	strikes = [] #convert data dict to the tuples list function requires
+	for d in data : strikes.append( (d, data[d]) )   # list(strike, GEX)
+	cumsum = list(accumulate(strikes, add)) #each elements gamma is added to the one after it
+	return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
+#	if cumsum[len(strikes) // 10][1] < 0: #[en(strikes) // 10] should always have a negative gamma?
+#		op = min  #assigning a variable to a function
+#	else: 
+#		op = max
+#	result = op(cumsum, key=lambda i: i[1])[0]   # lambda returns the strike, from 2nd element in list
+#	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
+#	print( result, test )
 thread_discord()

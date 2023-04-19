@@ -316,7 +316,11 @@ def thread_discord():
 			exit(9)
 			await bot.close()
 			await bot.logout()
-			print("Finished SUDO")
+		elif args[0] == "LOGIV":
+			logData("SPX")
+			logData("SPY")
+		
+		print("Finished SUDO")
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
@@ -636,11 +640,27 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
 	for days in reversed(content['callExpDateMap']):
 		for stk in content['callExpDateMap'][days]:
-			def addOption(option) :
-				oi = options['totalVolume'] if chartType == CHART_VOLUME else options['openInterest']
-				strikesData.addStrike( strike=options['strikePrice'], gamma=options['gamma'], delta=options['delta'], vega=options['vega'], theta=options['theta'], timeValue=options['timeValue'], iv=options['volatility'], oi=oi, bid=options['bid'], ask=options['ask'], call=options['putCall'] == "CALL", dte=options['daysToExpiration'] )
-			for options in content['callExpDateMap'][days][stk]: addOption( options )
-			for options in content['putExpDateMap'][days][stk]: addOption( options )
+			def addOption(opt, hasData) :
+				oi = 0
+				call = opt['putCall'] == "CALL"
+				if hasData : oi = opt['totalVolume'] if chartType == CHART_VOLUME else opt['openInterest'] 
+				else: call = not call
+				strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
+#			for options in content['callExpDateMap'][days][stk]: 
+#				addOption( options, notBlank=True )
+#				if not stk in content['putExpDateMap'][days] : addOption( options, notBlank=False )
+#			for options in content['putExpDateMap'][days][stk]: 
+#				if not stk in content['callExpDateMap'][days] : addOption( options, notBlank=False )
+#				addOption( options, notBlank=True )
+
+			for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
+				addOption(content['callExpDateMap'][days][stk][i], True)
+				if 	(stk in content['putExpDateMap'][days]) :
+					addOption(content['putExpDateMap'][days][stk][i], True)
+				else :   # Always add put data or else
+					print( "BOOM ", stk )
+					addOption(content['callExpDateMap'][days][stk][i], False)
+			
 		if chartType == CHART_LASTDTE : break
 	if chartType == CHART_LOG : return strikesData
 	if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
@@ -651,7 +671,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 	count = len(strikes.Strikes)
 	zero = (0, 0)
-	biggy = strikes.Strikes[0]
+	biggy = 0
 	biggySize = 0
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX

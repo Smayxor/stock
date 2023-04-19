@@ -317,6 +317,7 @@ def thread_discord():
 			await bot.close()
 			await bot.logout()
 		elif args[0] == "LOGIV":
+			await intr.response.send_message(user + " loggin IV data manually")
 			logData("SPX")
 			logData("SPY")
 		
@@ -643,7 +644,8 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			def addOption(opt, hasData) :
 				oi = 0
 				call = opt['putCall'] == "CALL"
-				if hasData : oi = opt['totalVolume'] if chartType == CHART_VOLUME else opt['openInterest'] 
+				if hasData :
+					oi = opt['totalVolume'] if (chartType == CHART_VOLUME) or (chartType == CHART_CHANGE) else opt['openInterest'] 
 				else: call = not call
 				strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
 #			for options in content['callExpDateMap'][days][stk]: 

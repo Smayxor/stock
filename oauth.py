@@ -627,52 +627,55 @@ def pullData(ticker_name, dte, count):
 	return content
 
 def getOOPS(ticker_name, dte, count, chartType = 0):
-	if chartType == CHART_ATR : 
-		atrs = getATRLevels(ticker_name)
-		if atrs == 0: return "error.png"
-		return drawOOPSChart( atrs, chartType )
-	if chartType == CHART_IV : 
-		strikes = StrikeData(ticker_name, 0.0)
-		return drawOOPSChart(strikes, chartType)
-		
-	content = pullData( ticker_name, dte, count )
-	if (content['status'] in 'FAILED'): return "error.png" #Failed, we tried our best
+	try:
+		if chartType == CHART_ATR : 
+			atrs = getATRLevels(ticker_name)
+			if atrs == 0: return "error.png"
+			return drawOOPSChart( atrs, chartType )
+		if chartType == CHART_IV : 
+			strikes = StrikeData(ticker_name, 0.0)
+			return drawOOPSChart(strikes, chartType)
 
-	if chartType == CHART_JSON :
-		ticker_name = ticker_name + ".json"
-		with open(ticker_name, "w") as outfile:
-			outfile.write(json.dumps(content, indent=4))
-		return ticker_name
+		content = pullData( ticker_name, dte, count )
+		if (content['status'] in 'FAILED'): return "error.png" #Failed, we tried our best
 
-	strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
-	for days in reversed(content['callExpDateMap']):
-		for stk in content['callExpDateMap'][days]:
-			def addOption(opt, hasData) :
-				oi = 0
-				call = opt['putCall'] == "CALL"
-				if hasData :
-					oi = opt['totalVolume'] if (chartType == CHART_VOLUME) or (chartType == CHART_CHANGE) else opt['openInterest'] 
-				else: call = not call
-				strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
-#			for options in content['callExpDateMap'][days][stk]: 
-#				addOption( options, notBlank=True )
-#				if not stk in content['putExpDateMap'][days] : addOption( options, notBlank=False )
-#			for options in content['putExpDateMap'][days][stk]: 
-#				if not stk in content['callExpDateMap'][days] : addOption( options, notBlank=False )
-#				addOption( options, notBlank=True )
+		if chartType == CHART_JSON :
+			ticker_name = ticker_name + ".json"
+			with open(ticker_name, "w") as outfile:
+				outfile.write(json.dumps(content, indent=4))
+			return ticker_name
 
-			for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
-				addOption(content['callExpDateMap'][days][stk][i], True)
-				if 	(stk in content['putExpDateMap'][days]) :
-					addOption(content['putExpDateMap'][days][stk][i], True)
-				else :   # Always add put data or else
-					print( "BOOM ", stk )
-					addOption(content['callExpDateMap'][days][stk][i], False)
-			
-		if chartType == CHART_LASTDTE : break
-	if chartType == CHART_LOG : return strikesData
-	if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
-	return drawOOPSChart( strikesData, chartType )
+		strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
+		for days in reversed(content['callExpDateMap']):
+			for stk in content['callExpDateMap'][days]:
+				def addOption(opt, hasData) :
+					oi = 0
+					call = opt['putCall'] == "CALL"
+					if hasData :
+						oi = opt['totalVolume'] if (chartType == CHART_VOLUME) or (chartType == CHART_CHANGE) else opt['openInterest'] 
+					else: call = not call
+					strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
+	#			for options in content['callExpDateMap'][days][stk]: 
+	#				addOption( options, notBlank=True )
+	#				if not stk in content['putExpDateMap'][days] : addOption( options, notBlank=False )
+	#			for options in content['putExpDateMap'][days][stk]: 
+	#				if not stk in content['callExpDateMap'][days] : addOption( options, notBlank=False )
+	#				addOption( options, notBlank=True )
+
+				for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
+					addOption(content['callExpDateMap'][days][stk][i], True)
+					if 	(stk in content['putExpDateMap'][days]) :
+						addOption(content['putExpDateMap'][days][stk][i], True)
+					else :   # Always add put data or else
+						print( "BOOM ", stk )
+						addOption(content['callExpDateMap'][days][stk][i], False)
+
+			if chartType == CHART_LASTDTE : break
+		if chartType == CHART_LOG : return strikesData
+		if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
+		return drawOOPSChart( strikesData, chartType )
+	except:
+		return "error.png"
 
 def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
@@ -878,4 +881,25 @@ def zero_gex(data):
 #	result = op(cumsum, key=lambda i: i[1])[0]   # lambda returns the strike, from 2nd element in list
 #	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
 #	print( result, test )
+
+def fetchEvents():
+	WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+	url = "https://www.marketwatch.com/economy-politics/calendar"
+	print("fetching calender")
+	data = requests.get(url=url)
+	day = datetime.datetime.now().weekday()
+	txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].split( WEEKDAY[day] )[1].split("<b>")[0].split('<td style="text-align: left;">')
+	
+	import re
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
+	
+	for s in txt:
+		
+		print( re.sub(clean, '', s) )
+	
+#	for each tr find <td style="text-align: left;">8:30 am</td>
+#	print( txt )
+fetchEvents()
+
 thread_discord()

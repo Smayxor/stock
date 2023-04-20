@@ -321,7 +321,7 @@ def thread_discord():
 			logData("SPX")
 			logData("SPY")
 		elif args[0] == "CLEAR":
-			await intr.response.send_message(user + " Clearing stored values")
+			await intr.response.send_message(user + " has cleared stored values")
 			storedStrikes = []
 			chnl = bot.get_channel(1055967445652865130)
 			tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )

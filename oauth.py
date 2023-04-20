@@ -320,7 +320,12 @@ def thread_discord():
 			await intr.response.send_message(user + " loggin IV data manually")
 			logData("SPX")
 			logData("SPY")
-		
+		elif args[0] == "CLEAR":
+			await intr.response.send_message(user + " Clearing stored values")
+			storedStrikes = []
+			tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+			tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+			tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		print("Finished SUDO")
 
 	@tasks.loop(seconds=1)

@@ -47,6 +47,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from itertools import accumulate
+import re
 
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
@@ -190,7 +191,10 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "sudo", "type": 1, "description": "Shuts off Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+slash_command_json = { "name": "sudo", "type": 1, "description": "Stuff you cant do on Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+print( requests.post(url, headers=headers, json=slash_command_json) )
+
+slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events"}
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -278,6 +282,10 @@ def thread_discord():
 		future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
 		if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
 		else: await intr.response.send_message("Please phrase that as a question")
+
+	@bot.tree.command(name="news")
+	async def slash_command_news(intr: discord.Interaction):
+		await intr.response.send_message(fetchEvents())
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -664,9 +672,9 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 				err = 4
 				for options in content['callExpDateMap'][days][stk]: 
 					addOption( options, True )
-					if not stk in content['putExpDateMap'][days] : addOption( options, False )
+					if (not days in content['putExpDateMap']) or (not stk in content['putExpDateMap'][days]) : addOption( options, False )
 				for options in content['putExpDateMap'][days][stk]: 
-					if not stk in content['callExpDateMap'][days] : addOption( options, False )
+					if (not days in content['callExpDateMap']) or (not stk in content['callExpDateMap'][days]) : addOption( options, False )
 					addOption( options, True )
 
 #				for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
@@ -891,58 +899,40 @@ def zero_gex(data):
 #	result = op(cumsum, key=lambda i: i[1])[0]   # lambda returns the strike, from 2nd element in list
 #	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
 #	print( result, test )
-"""
+
 def fetchEvents():
-	WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
-	url = "https://www.marketwatch.com/economy-politics/calendar"
-	print("fetching calender")
-	data = requests.get(url=url)
-	day = datetime.datetime.now().weekday()
-	txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].split( WEEKDAY[day] )[1].split("<b>")[0].split('<td style="text-align: left;">')
-	
-	import re
-    clean = re.compile('<.*?>')
-    return re.sub(clean, '', text)
-	
-	for s in txt:
-		
-		print( re.sub(clean, '', s) )
-	
-#	for each tr find <td style="text-align: left;">8:30 am</td>
-#	print( txt )
-fetchEvents()
-"""
+	try :
+		WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+		url = "https://www.marketwatch.com/economy-politics/calendar"
+		print("fetching calender")
+		data = requests.get(url=url)
+		day = datetime.datetime.now().weekday()
+		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].split( WEEKDAY[day] )[1].split("<b>")[0].strip(', ').split('<td style="text-align: left;">')
+		firstWord = txt[0].split(' ')[0]
 
-def loadBugData():
-	content = json.load(open('SPX-Buggy.json', 'rb'))
-	chartType = CHART_GEX
-	strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
-	
-	for days in reversed(content['callExpDateMap']):
-		for stk in content['callExpDateMap'][days]:
-			def addOption(opt, hasData) :
-				oi = 0
-				call = opt['putCall'] == "CALL"
-				if hasData :
-					oi = opt['totalVolume'] if (chartType == CHART_VOLUME) or (chartType == CHART_CHANGE) else opt['openInterest'] 
-				else: call = not call
-				strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
-			err = 4
-			for options in content['callExpDateMap'][days][stk]: 
-				addOption( options, hasData=True )
-				if not stk in content['putExpDateMap'][days] : addOption( options, hasData=False )
-			for options in content['putExpDateMap'][days][stk]: 
-				if not stk in content['callExpDateMap'][days] : addOption( options, hasData=False )
-				addOption( options, hasData=True )
+		clean = re.compile('<.*?>')
+		#return re.sub(clean, '', text)
+		text = txt[0].split('</b>')[0] + '\n'
+		counter = 0
+		for s in txt:
+			tmp = re.sub(clean, '', s).strip('\n')#.strip('S&amp;P')
+			if ' am' in tmp or ' pm' in tmp: counter = 1
 
-#				for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
-#					addOption(content['callExpDateMap'][days][stk][i], True)
-#					if 	(stk in content['putExpDateMap'][days]) :
-#						addOption(content['putExpDateMap'][days][stk][i], True)
-#					else :   # Always add put data or else
-#						print( "BOOM ", stk )
-#						addOption(content['callExpDateMap'][days][stk][i], False)
+			if counter > 0:
+				counter += 1
+				xtmp = tmp.split('S&amp;P')
+				text += xtmp[0]
+				if len(xtmp) > 1 : text += xtmp[1]
+				#if firstWord in tmp.upper() : text += '\n'
+				#elif tmp != '' : text += tmp
+			if counter == 3:
+				counter = 0
+				text += '\n'
 
-#loadBugData()
+		return text
+	except :
+		return "Tell Smay its broke....."
+
+
 
 thread_discord()

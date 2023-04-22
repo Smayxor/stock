@@ -924,5 +924,5 @@ def fetchEvents(dayRange):
 		return text
 	except :
 		return "Tell Smay its broke....."
-fetchEvents('WEEK')
+
 thread_discord()

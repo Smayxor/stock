@@ -83,7 +83,7 @@ CHART_LOG = 8
 CHART_CHANGE = 9
 CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX "]
 storedStrikes = []
-
+WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
 font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic") #Place font file in same folder, or use supply path if needed in Linux
@@ -185,7 +185,9 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
+	{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
+	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -194,7 +196,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 slash_command_json = { "name": "sudo", "type": 1, "description": "Stuff you cant do on Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events"}
+slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}] }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -284,8 +286,9 @@ def thread_discord():
 		else: await intr.response.send_message("Please phrase that as a question")
 
 	@bot.tree.command(name="news")
-	async def slash_command_news(intr: discord.Interaction):
-		await intr.response.send_message(fetchEvents())
+	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
+		print( days )
+		await intr.response.send_message(fetchEvents(days))
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -417,6 +420,8 @@ def drawRotatedText(img, x, y, txt, color):
 	dtxt.text( (0, 0), txt, fill=255, font=font)
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
+
+def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
 
 def getATRLevels(ticker_name):
 	content = getByHistoryType( False, ticker_name )
@@ -592,7 +597,6 @@ def getChange(new: StrikeData) :
 	changeStrikes.CallDollars = new.CallDollars - stored.CallDollars
 	changeStrikes.PutDollars = new.PutDollars - stored.PutDollars
 	changeStrikes.Strikes = [s for s in new.Strikes for ss in stored.Strikes if s == ss] #Only add duplicates
-#	changeStrikes.Strikes = [s for s, ss in zip(new.Strikes, stored.Strikes) if s == ss] #Only add duplicates
 	for s in changeStrikes.Strikes:
 		changeStrikes.Calls[s] = OptionData()
 		changeStrikes.Calls[s].GEX = new.Calls[s].GEX - stored.Calls[s].GEX
@@ -611,8 +615,6 @@ def pullData(ticker_name, dte, count):
 	if "SPX" in ticker_name: ticker_name = "$SPX.X"
 	if "VIX" in ticker_name: ticker_name = "$VIX.X"
 	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
-
-#	print( today )
 
 	loopAgain = True
 	errorCounter = 0
@@ -900,39 +902,27 @@ def zero_gex(data):
 #	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
 #	print( result, test )
 
-def fetchEvents():
+def fetchEvents(dayRange):
+	url = "https://www.marketwatch.com/economy-politics/calendar"
 	try :
-		WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
-		url = "https://www.marketwatch.com/economy-politics/calendar"
-		print("fetching calender")
 		data = requests.get(url=url)
-		day = datetime.datetime.now().weekday()
-		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].split( WEEKDAY[day] )[1].split("<b>")[0].strip(', ').split('<td style="text-align: left;">')
-		firstWord = txt[0].split(' ')[0]
-
-		clean = re.compile('<.*?>')
-		#return re.sub(clean, '', text)
-		text = txt[0].split('</b>')[0] + '\n'
-		counter = 0
+		text = ""
+		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am ').replace(' pm', ' pm ').replace('</b>', '').replace('<b>', '').split('<tr>')
+		
 		for s in txt:
-			tmp = re.sub(clean, '', s).strip('\n')#.strip('S&amp;P')
-			if ' am' in tmp or ' pm' in tmp: counter = 1
+			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').split('</td>')
+			for t in s:
+				text = text + t
+			text = text + "\n"
 
-			if counter > 0:
-				counter += 1
-				xtmp = tmp.split('S&amp;P')
-				text += xtmp[0]
-				if len(xtmp) > 1 : text += xtmp[1]
-				#if firstWord in tmp.upper() : text += '\n'
-				#elif tmp != '' : text += tmp
-			if counter == 3:
-				counter = 0
-				text += '\n'
+		if dayRange == "TODAY":	
+			day = datetime.datetime.now().weekday()
+			if day > 4 : day = 0
+			mopex = isThirdFriday(datetime.datetime.now())
+			text = WEEKDAY[day] + text.split(WEEKDAY[day])[1].split(WEEKDAY[day+1])[0]
 
 		return text
 	except :
 		return "Tell Smay its broke....."
-
-
-
+fetchEvents('WEEK')
 thread_discord()

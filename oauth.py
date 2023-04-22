@@ -81,6 +81,7 @@ CHART_ATR = 6
 CHART_LASTDTE = 7
 CHART_LOG = 8
 CHART_CHANGE = 9
+
 CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX "]
 storedStrikes = []
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
@@ -286,18 +287,20 @@ def thread_discord():
 		else: await intr.response.send_message("Please phrase that as a question")
 
 	@bot.tree.command(name="news")
-	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
-#		day = datetime.datetime.now().weekday()
-#		if day > 4 : day = 0
-#		mopex = isThirdFriday(datetime.datetime.now())
-#embedVar = discord.Embed(title="Title", description="Desc", color=0x00ff00)
-#embedVar.add_field(name="Field1", value="hi", inline=False)
-#embedVar.add_field(name="Field2", value="hi2", inline=False)
-#await message.channel.send(embed=embedVar)	
-		text = fetchEvents(days)
+	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
+		await intr.response.send_message("Fetching news")
+		chnl = bot.get_channel(intr.channel.id)
+		events = fetchEvents(days)
 		
-		
-		await intr.response.send_message(text)
+		for j in range(len(events) - 1):
+			lines = events[j].split('\n')
+			emby = discord.Embed(title=lines[0], color=0x00ff00)
+			for i in range( len( lines ) - 1 ):
+				#if i == 0: continue
+				tmp = lines[i].split('<s>')
+				if len(tmp) > 1:
+					emby.add_field(name=tmp[0], value=tmp[1], inline=True)
+			await chnl.send(embed=emby)
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -431,6 +434,39 @@ def drawRotatedText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
+
+def fetchEvents(dayRange):
+	url = "https://www.marketwatch.com/economy-politics/calendar"
+	try :
+		data = requests.get(url=url)
+		text = ""
+		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am<s> ').replace(' pm', ' pm<s> ').replace('</b>', '').split('<tr>')#.replace('<b>', '')
+		
+		for s in txt:
+			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').split('</td>')
+			counter = 0
+			for t in s:
+				if counter < 2:	text = text + t
+				counter += 1
+			text = text + "\n"
+		
+		now = datetime.datetime.now()
+		day = now.weekday()
+		if day > 4 : day = 0
+		if 15 <= now.day <= 21 : text = text.replace('FRIDAY', 'MOPEX - FRIDAY')
+		text = text.split('<b>')
+		del text[0]
+
+		if dayRange == "TODAY": 
+			for t in text:
+				if WEEKDAY[day] in t:
+					text = (t, '')
+					break
+		else: text.append('')
+		return text
+	except Exception as e:
+		print( e )
+		return (url, '')
 
 def getATRLevels(ticker_name):
 	content = getByHistoryType( False, ticker_name )
@@ -911,29 +947,10 @@ def zero_gex(data):
 #	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
 #	print( result, test )
 
-def fetchEvents(dayRange):
-	url = "https://www.marketwatch.com/economy-politics/calendar"
-	try :
-		data = requests.get(url=url)
-		text = ""
-		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am ').replace(' pm', ' pm ').replace('</b>', '').replace('<b>', '').split('<tr>')
-		
-		for s in txt:
-			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').split('</td>')
-			counter = 0
-			for t in s:
-				if counter < 2:	text = text + t
-				counter += 1
-			text = text + "\n"
-
-		if dayRange == "TODAY":	
-			day = datetime.datetime.now().weekday()
-			if day > 4 : day = 0
-			mopex = isThirdFriday(datetime.datetime.now())
-			text = WEEKDAY[day] + text.split(WEEKDAY[day])[1].split(WEEKDAY[day+1])[0]
-
-		return text
-	except :
-		return "Tell Smay its broke....."
-
+def algoLevels(ticker):
+	atrs = getATRLevels(ticker)
+	nodes = getOOPS(ticker, 0, 40, CHART_LOG)
+	
+	
+	
 thread_discord()

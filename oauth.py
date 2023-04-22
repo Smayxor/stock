@@ -287,8 +287,17 @@ def thread_discord():
 
 	@bot.tree.command(name="news")
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
-		print( days )
-		await intr.response.send_message(fetchEvents(days))
+#		day = datetime.datetime.now().weekday()
+#		if day > 4 : day = 0
+#		mopex = isThirdFriday(datetime.datetime.now())
+#embedVar = discord.Embed(title="Title", description="Desc", color=0x00ff00)
+#embedVar.add_field(name="Field1", value="hi", inline=False)
+#embedVar.add_field(name="Field2", value="hi2", inline=False)
+#await message.channel.send(embed=embedVar)	
+		text = fetchEvents(days)
+		
+		
+		await intr.response.send_message(text)
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -911,8 +920,10 @@ def fetchEvents(dayRange):
 		
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').split('</td>')
+			counter = 0
 			for t in s:
-				text = text + t
+				if counter < 2:	text = text + t
+				counter += 1
 			text = text + "\n"
 
 		if dayRange == "TODAY":	

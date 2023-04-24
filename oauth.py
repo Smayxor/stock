@@ -754,8 +754,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 	count = len(strikes.Strikes)
-	zero = (0, 0)
-	zeroD = (0, 0)
+	zero = 0
+	zeroD = 0
 	biggy = 0
 	biggySize = 0
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
@@ -795,8 +795,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 				biggy = i
 
 		maxLower = maxUpper
-		zero = zero_gex( above )
-		zeroD = zero_gex( above2 )
+		zero = zero_gex( above, strikes.ClosestStrike )
+		zeroD = zero_gex( above2, strikes.ClosestStrike )
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -876,10 +876,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
-			if strike == zero[0] : drawRotatedPriceLine(draw, x + 8, "#FFF")
-			if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
-			if strike == zeroD[0] : drawRotatedPriceLine(draw, x + 3, "#0FF")
-			if strike == zeroD[1] : drawRotatedPriceLine(draw, x + 3, "#0FF")
+			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			#if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
+			#if strike == zeroD[1] : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x = 0
 	else :
@@ -893,10 +893,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, x, 399 - ((upper[strike] / maxUpper) * 100), x + 12, 399, color="#0f0", border='')
 			if (lower[strike] != 0) : drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
-			if strike == zero[0] : drawPriceLine(draw, x + 5, "#FFF")
-			if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
-			if strike == zeroD[0] : drawPriceLine(draw, x + 7, "#0FF")
-			if strike == zeroD[1] : drawPriceLine(draw, x + 7, "#0FF")
+			if strike == zero : drawPriceLine(draw, x + 5, "#FFF")
+			#if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
+			if strike == zeroD : drawPriceLine(draw, x + 7, "#0FF")
+			#if strike == zeroD[1] : drawPriceLine(draw, x + 7, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
@@ -909,7 +909,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
-		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero[0])+" - ${:,.2f}".format(zero[1]), color="orange")
+#		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero[0])+" - ${:,.2f}".format(zero[1]), color="orange")
+		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
 
 		y = 0
 		if chartType == CHART_ROTATE :
@@ -917,8 +918,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		else: 
 			y = FONT_SIZE * 6
 		drawText(draw, x=x, y=y, txt="Zero Delta", color="#0FF")
-		drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD[0]), color="#0FF")
-		drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="${:,.2f}".format(zeroD[1]), color="#0FF")
+		drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD), color="#0FF")
+		#drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="${:,.2f}".format(zeroD[1]), color="#0FF")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
@@ -956,12 +957,16 @@ def loadIVLog(ticker_name):
 			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
 	return json.load(open(fileName,'r+'))
 
-def zero_gex(data):
+def zero_gex(data, price):
 	def add(a, b): return (b[0], a[1] + b[1])
 	strikes = [] #convert data dict to the tuples list function requires
 	for d in data : strikes.append( (d, data[d]) )   # list(strike, GEX)
 	cumsum = list(accumulate(strikes, add)) #each elements gamma is added to the one after it
-	return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
+	#return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
+	a = min(cumsum, key=lambda i: i[1])[0]
+	b = max(cumsum, key=lambda i: i[1])[0]
+	return a if abs(a - price) < abs(b - price) else b
+	
 #	if cumsum[len(strikes) // 10][1] < 0: #[en(strikes) // 10] should always have a negative gamma?
 #		op = min  #assigning a variable to a function
 #	else: 

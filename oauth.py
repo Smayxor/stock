@@ -47,7 +47,6 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from itertools import accumulate
-import re
 
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
@@ -91,8 +90,12 @@ font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic") #Plac
 
 IMG_W = 1000
 IMG_H = 500
-#IVUpdateChannel = []
-#IVUpdateChannelCounter = 0
+
+guiMode = False
+n = len(sys.argv)
+if (n > 1) : 
+	guiMode = sys.argv[1] in "gui"
+	print("Running as client GUI Mode")
 
 HEADER = {
 	'Accept': '*/*',
@@ -234,8 +237,6 @@ Smayxor has switched to using /gex
 }gm }tits }ass }pump }dump also exist"""
 		destination = self.get_destination()
 		for page in self.paginator.pages:
-#			emby = discord.Embed(description=page)
-#			await destination.send(embed=emby)
 			await destination.send(strHelp)
 tickers = []
 counter = 0
@@ -259,15 +260,11 @@ def thread_discord():
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
 	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
-		global tickers, updateRunning#, auto_updater, counter, CallATMIV, PutATMIV, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, updateRunning
 		ticker = ticker.upper()
 		if count < 2 : count = 2
 		await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
 		tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
-#		if updateRunning == False :
-#			print("Starting queue")
-#			updateRunning = True
-#			channelUpdate.start()
 
 	@bot.command(name="pump")
 	async def command_pump(ctx, *args): await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
@@ -305,7 +302,7 @@ def thread_discord():
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
-		global tickers, updateRunning, auto_updater, update_timer#, counter, CallATMIV, PutATMIV, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, updateRunning, auto_updater, update_timer
 		user = str(intr.user)
 		args = command.upper().split(' ')
 		print( args )
@@ -354,7 +351,7 @@ def thread_discord():
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
-		global tickers, counter, auto_updater, update_timer#, IVUpdateChannel, IVUpdateChannelCounter
+		global tickers, counter, auto_updater, update_timer
 		if len(tickers) != 0 :
 			for tck in tickers:
 				fn = getOOPS(tck[0], tck[1], tck[2], tck[3])
@@ -377,7 +374,7 @@ def thread_discord():
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
-		chnl = bot.get_channel(1055967445652865130)
+		chnl = bot.get_channel(1055967445652865130)    # <--- hard coded channel ID
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		storedStrikes = []
@@ -387,14 +384,25 @@ def thread_discord():
 		logData("SPX")
 		logData("SPY")
 
+	dailyTaskTime2 = datetime.time(hour=14, minute=40, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	@tasks.loop(time=dailyTaskTime2)
+	async def dailyTask2():
+		if datetime.datetime.now().weekday() > 4 : return
+		chnl = bot.get_channel(1055967445652865130)
+		print("Daily Task Execution 2")
+		await chnl.send("Fethcing Morning Charts")
+		tickers.append( ("VIX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+
 	@bot.event
 	async def on_ready():
 		global blnFirstTime
 		if blnFirstTime :
 			channelUpdate.start()
 			dailyTask.start()
+			dailyTask2.start()
 			blnFirstTime = False
-		#print("Running it")
 		
 	@bot.command(name="s")
 	async def get_gex(ctx, *args):
@@ -747,6 +755,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0
 	count = len(strikes.Strikes)
 	zero = (0, 0)
+	zeroD = (0, 0)
 	biggy = 0
 	biggySize = 0
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
@@ -787,6 +796,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 		maxLower = maxUpper
 		zero = zero_gex( above )
+		zeroD = zero_gex( above2 )
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -868,6 +878,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
 			if strike == zero[0] : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			if strike == zeroD[0] : drawRotatedPriceLine(draw, x + 3, "#0FF")
+			if strike == zeroD[1] : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x = 0
 	else :
@@ -883,6 +895,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
 			if strike == zero[0] : drawPriceLine(draw, x + 5, "#FFF")
 			if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
+			if strike == zeroD[0] : drawPriceLine(draw, x + 7, "#0FF")
+			if strike == zeroD[1] : drawPriceLine(draw, x + 7, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
@@ -896,6 +910,15 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
 		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero[0])+" - ${:,.2f}".format(zero[1]), color="orange")
+
+		y = 0
+		if chartType == CHART_ROTATE :
+			x = x + 350
+		else: 
+			y = FONT_SIZE * 6
+		drawText(draw, x=x, y=y, txt="Zero Delta", color="#0FF")
+		drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD[0]), color="#0FF")
+		drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="${:,.2f}".format(zeroD[1]), color="#0FF")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
@@ -950,7 +973,72 @@ def zero_gex(data):
 def algoLevels(ticker):
 	atrs = getATRLevels(ticker)
 	nodes = getOOPS(ticker, 0, 40, CHART_LOG)
+	keyLevels = []
+	mostOI = 0
+	mostOIStrike = nodes.Strikes[0]
+	for s in nodes.Strikes:
+		gex = nodes.Calls[s].GEX - nodes.Puts[s].GEX
+		dex = nodes.Calls[s].DEX + nodes.Puts[s].DEX
+		if ((gex < 0) and (dex > 0)) or ((gex > 0) and (dex < 0)) :
+			keyLevels.append( s )
+		tmp = nodes.Calls[s].OI + nodes.Puts[s].OI
+		if tmp > mostOI:
+			mostOI = tmp
+			mostOIStrike = s
+	keyLevels.append( mostOIStrike )
+	gex = {}
+	for i in sorted(nodes.Strikes) : gex[i] = nodes.Calls[i].GEX - nodes.Puts[i].GEX
+	keyLevels.append( zero_gex( gex )[0] )
 	
-	
-	
+	print( keyLevels )
+#algoLevels("SPY")
+
 thread_discord()
+
+"""
+  calcVannaEx(
+                level,
+                df["StrikePrice"],
+                df["PutIV"],
+                df["daysTillExp"],
+                yield_10yr,
+                dividend_yield,
+                "put",
+                df["PutOpenInt"],
+            ),
+def calcVannaEx(S, K, vol, T, r, q, optType, OI):
+    dp = (np.log(S / K) + (r - q + 0.5 * vol**2) * T) / (vol * np.sqrt(T))
+    dm = dp - vol * np.sqrt(T)
+    if optType == "call":
+        vanna = -np.exp(-q * T) * norm.pdf(dp) * (dm / vol)
+        # change in delta per one percent move in IV
+        # or change in vega per one percent move in underlying
+        return OI * 100 * vol * 100 * vanna
+    else:  # Vanna is same formula for calls and puts
+        vanna = -np.exp(-q * T) * norm.pdf(dp) * (dm / vol)
+        return OI * 100 * vol * 100 * vanna
+
+            calcCharmEx(
+                level,
+                df["StrikePrice"],
+                df["CallIV"],
+                df["daysTillExp"],
+                yield_10yr,
+                dividend_yield,
+                "call",
+                df["CallOpenInt"],
+            ),
+def calcCharmEx(S, K, vol, T, r, q, optType, OI):
+    dp = (np.log(S / K) + (r - q + 0.5 * vol**2) * T) / (vol * np.sqrt(T))
+    dm = dp - vol * np.sqrt(T)
+    if optType == "call":
+        charm = (q * np.exp(-q * T) * norm.cdf(dp)) - np.exp(-q * T) * norm.pdf(dp) * (
+            2 * (r - q) * T - dm * vol * np.sqrt(T)
+        ) / (2 * T * vol * np.sqrt(T))
+        return OI * 100 * T * charm  # change in delta per day until expiration
+    else:
+        charm = (-q * np.exp(-q * T) * norm.cdf(-dp)) - np.exp(-q * T) * norm.pdf(
+            dp
+        ) * (2 * (r - q) * T - dm * vol * np.sqrt(T)) / (2 * T * vol * np.sqrt(T))
+        return OI * 100 * T * charm
+"""

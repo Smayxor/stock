@@ -279,7 +279,7 @@ def thread_discord():
 	
 	@bot.tree.command(name="8ball", description="Answers your question?")
 	async def slash_command_8ball(intr: discord.Interaction, question: str):
-		future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good']
+		future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good', 'You should ask Siri, that slut.', 'I rolled a dice to answer you, and it said the answer is C.', 'Follow your heart, I wouldn\'t trust your mind though.', 'I don\'t know and I don\'t care.', 'Did you ask ChatGPT?', 'Just google it.']
 		if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
 		else: await intr.response.send_message("Please phrase that as a question")
 
@@ -298,6 +298,22 @@ def thread_discord():
 				if len(tmp) > 1:
 					emby.add_field(name=tmp[0], value=tmp[1], inline=True)
 			await chnl.send(embed=emby)
+
+
+
+
+
+		#8:30 am<s> <a href="https://www.marketwatch.com/story/u-s-trade-deficit-in-goods-shrinks-8-4-to-four-month-low-as-exports-rebound-bd946f03?mod=mw_latestnews">Advanced wholesale inventories
+#		for i in range( len( text ) ):
+#			print( text[i])
+#			t = text[i].replace("</a>",'').split("\">")
+#			if len(t) > 1: 
+#				text[i] = t[0] + t[1].split('<a href=\"')[0]
+
+
+
+
+
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -342,12 +358,14 @@ def thread_discord():
 			logData("SPY")
 		elif args[0] == "CLEAR":
 			await intr.response.send_message(user + " has cleared stored values")
-			storedStrikes = []
+			clearStoredStrikes()
 			chnl = bot.get_channel(1055967445652865130)
-			tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
-			tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
-			tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+			#tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+			#tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+			#tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		print("Finished SUDO")
+
+	def clearStoredStrikes(): 	for i in range(len(storedStrikes)): del storedStrikes[i]
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
@@ -377,14 +395,13 @@ def thread_discord():
 		chnl = bot.get_channel(1055967445652865130)    # <--- hard coded channel ID
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
-		storedStrikes = []
-		tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+		clearStoredStrikes()
 		tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		logData("SPX")
 		logData("SPY")
 
-	dailyTaskTime2 = datetime.time(hour=14, minute=40, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime2 = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime2)
 	async def dailyTask2():
 		if datetime.datetime.now().weekday() > 4 : return
@@ -451,7 +468,7 @@ def fetchEvents(dayRange):
 		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am<s> ').replace(' pm', ' pm<s> ').replace('</b>', '').split('<tr>')#.replace('<b>', '')
 		
 		for s in txt:
-			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').split('</td>')
+			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').split('</td>')
 			counter = 0
 			for t in s:
 				if counter < 2:	text = text + t
@@ -471,10 +488,24 @@ def fetchEvents(dayRange):
 					text = (t, '')
 					break
 		else: text.append('')
+		
 		return text
 	except Exception as e:
 		print( e )
 		return (url, '')
+
+def fetchEarnings():
+	url = "https://www.earningswhispers.com/calendar?sb=p&d=0&t=all&v=t"
+	data = requests.get(url=url)
+	text = ""
+	text = data.text.split('<div id="fb-root">')[1].replace('<script', '').replace('\r\n', '').split('<div class="ticker" onclick="javascript:location.href=\'epsdetails/')
+	tmp = []
+	for x in text:
+		x = x.split('>')[1].split('</div')[0]
+		if ' ' not in x : tmp.append( x )
+		
+	return tmp
+#fetchEarnings()
 
 def getATRLevels(ticker_name):
 	content = getByHistoryType( False, ticker_name )
@@ -649,16 +680,16 @@ def getChange(new: StrikeData) :
 	changeStrikes.distFromPrice = new.distFromPrice
 	changeStrikes.CallDollars = new.CallDollars - stored.CallDollars
 	changeStrikes.PutDollars = new.PutDollars - stored.PutDollars
-	changeStrikes.Strikes = [s for s in new.Strikes for ss in stored.Strikes if s == ss] #Only add duplicates
+	changeStrikes.Strikes = [s for s in new.Strikes for ss in stored.Strikes if s == ss] #Only add strikes that exist in both lists
 	for s in changeStrikes.Strikes:
 		changeStrikes.Calls[s] = OptionData()
-		changeStrikes.Calls[s].GEX = new.Calls[s].GEX - stored.Calls[s].GEX
-		changeStrikes.Calls[s].DEX = new.Calls[s].DEX - stored.Calls[s].DEX
-		changeStrikes.Calls[s].OI = new.Calls[s].OI - stored.Calls[s].OI
+		changeStrikes.Calls[s].GEX = abs(new.Calls[s].GEX - stored.Calls[s].GEX)
+		changeStrikes.Calls[s].DEX = abs(new.Calls[s].DEX - stored.Calls[s].DEX)
+		changeStrikes.Calls[s].OI = abs(new.Calls[s].OI - stored.Calls[s].OI)
 		changeStrikes.Puts[s] = OptionData()
-		changeStrikes.Puts[s].GEX = new.Puts[s].GEX - stored.Puts[s].GEX
-		changeStrikes.Puts[s].DEX = new.Puts[s].DEX - stored.Puts[s].DEX
-		changeStrikes.Puts[s].OI = new.Puts[s].OI - stored.Puts[s].OI	
+		changeStrikes.Puts[s].GEX = abs(new.Puts[s].GEX - stored.Puts[s].GEX)
+		changeStrikes.Puts[s].DEX = abs(new.Puts[s].DEX - stored.Puts[s].DEX)
+		changeStrikes.Puts[s].OI = abs(new.Puts[s].OI - stored.Puts[s].OI)
 	return changeStrikes
 
 def pullData(ticker_name, dte, count):
@@ -942,13 +973,24 @@ def logData(ticker_name):
 	for x in range(len(strikes.Strikes)) :
 		if strikes.Strikes[x] == strikes.ClosestStrike : 
 			callIV = strikes.Calls[strikes.Strikes[x + 5]].IV
+			if callIV == 0.0 : callIV = strikes.Puts[strikes.Strikes[x + 5]].IV
 			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
+			if putsIV == 0.0 : putsIV = strikes.Puts[strikes.Strikes[x - 5]].IV
+			break
+	if callIV == 0.0 or putIV == 0.0 or atmIV == 0.0 : 
+		print("Bad IV data")
+		return
 	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
 	print( fileName, " - ", strikes.ClosestStrike, " - ", atmIV, " - ", today )
 	print( newData )
 	data[str(today)] = newData
 
-	json.dump(data, open(fileName,'r+'), indent = 4)
+
+	with open(fileName,'w') as f: 
+		json.dump(data, f, indent=4)  
+	#json.dump(data, open(fileName,'r+'), indent = 4)
+	#with open('data{}.txt'.format(self.timestamp), 'a') as f:
+	#	f.write(data + '\n')
 
 def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"
@@ -962,10 +1004,10 @@ def zero_gex(data, price):
 	strikes = [] #convert data dict to the tuples list function requires
 	for d in data : strikes.append( (d, data[d]) )   # list(strike, GEX)
 	cumsum = list(accumulate(strikes, add)) #each elements gamma is added to the one after it
-	#return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
 	a = min(cumsum, key=lambda i: i[1])[0]
 	b = max(cumsum, key=lambda i: i[1])[0]
 	return a if abs(a - price) < abs(b - price) else b
+	#return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
 	
 #	if cumsum[len(strikes) // 10][1] < 0: #[en(strikes) // 10] should always have a negative gamma?
 #		op = min  #assigning a variable to a function

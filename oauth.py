@@ -294,26 +294,10 @@ def thread_discord():
 			emby = discord.Embed(title=lines[0], color=0x00ff00)
 			for i in range( len( lines ) - 1 ):
 				#if i == 0: continue
-				tmp = lines[i].split('<s>')
+				tmp = lines[i].split('^')
 				if len(tmp) > 1:
 					emby.add_field(name=tmp[0], value=tmp[1], inline=True)
 			await chnl.send(embed=emby)
-
-
-
-
-
-		#8:30 am<s> <a href="https://www.marketwatch.com/story/u-s-trade-deficit-in-goods-shrinks-8-4-to-four-month-low-as-exports-rebound-bd946f03?mod=mw_latestnews">Advanced wholesale inventories
-#		for i in range( len( text ) ):
-#			print( text[i])
-#			t = text[i].replace("</a>",'').split("\">")
-#			if len(t) > 1: 
-#				text[i] = t[0] + t[1].split('<a href=\"')[0]
-
-
-
-
-
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -467,13 +451,18 @@ def fetchEvents(dayRange):
 	try :
 		data = requests.get(url=url)
 		text = ""
-		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am<s> ').replace(' pm', ' pm<s> ').replace('</b>', '').split('<tr>')#.replace('<b>', '')
+		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')#.replace('<b>', '')
 		
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').split('</td>')
 			counter = 0
 			for t in s:
-				if counter < 2:	text = text + t
+				if counter < 2:
+					if '<a href=' in t:
+						print(t)
+						t = t.split('<a href=')[0] + t.split('">')[1]
+						print(t)
+					text = text + t
 				counter += 1
 			text = text + "\n"
 		
@@ -495,6 +484,14 @@ def fetchEvents(dayRange):
 	except Exception as e:
 		print( e )
 		return (url, '')
+
+		#8:30 am^ <a href="https://www.marketwatch.com/story/u-s-trade-deficit-in-goods-shrinks-8-4-to-four-month-low-as-exports-rebound-bd946f03?mod=mw_latestnews">Advanced wholesale inventories
+#		for i in range( len( text ) ):
+#			print( text[i])
+#			t = text[i].replace("</a>",'').split("\">")
+#			if len(t) > 1: 
+#				text[i] = t[0] + t[1].split('<a href=\"')[0]
+
 
 def fetchEarnings():
 	url = "https://www.earningswhispers.com/calendar?sb=p&d=0&t=all&v=t"
@@ -979,7 +976,7 @@ def logData(ticker_name):
 			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
 			if putsIV == 0.0 : putsIV = strikes.Puts[strikes.Strikes[x - 5]].IV
 			break
-	if callIV == 0.0 or putIV == 0.0 or atmIV == 0.0 : 
+	if callIV == 0.0 or putsIV == 0.0 or atmIV == 0.0 : 
 		print("Bad IV data")
 		return
 	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
@@ -999,8 +996,21 @@ def loadIVLog(ticker_name):
 	if not exists(fileName):  
 		with open(fileName, "w") as outfile:  
 			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
-	return json.load(open(fileName,'r+'))
-
+	try:
+		data = json.load(open(fileName,'r'))
+	except:
+		print('Check file contents ', fileName)
+		return {}
+	return data
+"""
+with open('geeks.txt','w') as file_reader:
+	file_reader.write("GeeksforGeeks")
+print("File before removing the last character",open('geeks.txt').read())
+with open('geeks.txt', 'rb+') as fh:
+	fh.seek(-1, 2)
+	fh.truncate()
+print("File after removing the last character",open('geeks.txt').read())
+"""
 def zero_gex(data, price):
 	def add(a, b): return (b[0], a[1] + b[1])
 	strikes = [] #convert data dict to the tuples list function requires

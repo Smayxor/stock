@@ -349,9 +349,9 @@ def thread_discord():
 			#tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		print("Finished SUDO")
 
-	def clearStoredStrikes(): 	
-		for i in range(len(storedStrikes)): 
-			del storedStrikes[i]
+	def clearStoredStrikes():
+		global storedStrikes
+		storedStrikes = []
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():

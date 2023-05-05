@@ -80,8 +80,9 @@ CHART_ATR = 6
 CHART_LASTDTE = 7
 CHART_LOG = 8
 CHART_CHANGE = 9
+CHART_SKEW = 10
 
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX "]
 storedStrikes = []
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
 FONT_SIZE = 22
@@ -191,7 +192,7 @@ headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
 	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
 	{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
-	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }]}   ] }
+	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }, { "name": "SKEW", "value": "SKEW"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -256,6 +257,7 @@ def thread_discord():
 		elif arg == 'ATR': return CHART_ATR
 		elif arg == 'LD': return CHART_LASTDTE
 		elif arg == 'CHANGE': return CHART_CHANGE
+		elif arg == 'SKEW': return CHART_SKEW
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
@@ -805,7 +807,21 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if above2[i] > maxAbove2 : maxAbove2 = above2[i]
 			if upper[i] > maxUpper :   maxUpper = upper[i]
 			if lower[i] > maxLower :   maxLower = lower[i]
-		
+	
+	if chartType == CHART_SKEW :
+		chartType = CHART_ROTATE
+		callBids = 0.0
+		putBids = 0.0
+		for i in sorted(strikes.Strikes) :
+			if i <= strikes.Price : 
+				callBids += strikes.Calls[i].Bid
+			else:
+				putBids += strikes.Puts[i].Bid
+		l = len(strikes.Strikes)
+		#callBids = callBids / l
+		#putBids = putBids / l
+		print( "Calls $", callBids, " Puts $", putBids)
+	
 	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI

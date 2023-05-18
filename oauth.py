@@ -201,7 +201,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 slash_command_json = { "name": "sudo", "type": 1, "description": "Stuff you cant do on Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}] }] }
+slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -239,6 +239,10 @@ Smayxor has switched to using /gex
 		destination = self.get_destination()
 		for page in self.paginator.pages:
 			await destination.send(strHelp)
+			
+logCounter = 0
+logTimer = 300
+			
 tickers = []
 counter = 0
 auto_updater = []
@@ -289,9 +293,15 @@ def thread_discord():
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
 		await intr.response.send_message("Fetching news")
 		chnl = bot.get_channel(intr.channel.id)
-		events = fetchEvents(days)
+		
+		day = 0
+		if days.isnumeric() : day = int(days) - 1
+		if days == "TODAY" : day = datetime.datetime.now().weekday()
+		if days == "WEEK" : day = 9
+		events = fetchEvents("WEEK")
 		
 		for j in range(len(events) - 1):
+			if day != j and day < 6 : continue
 			lines = events[j].split('\n')
 			emby = discord.Embed(title=lines[0], color=0x00ff00)
 			for i in range( len( lines ) - 1 ):
@@ -357,7 +367,7 @@ def thread_discord():
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
-		global tickers, counter, auto_updater, update_timer
+		global tickers, counter, auto_updater, update_timer, logCounter, logTimer
 		if len(tickers) != 0 :
 			for tck in tickers:
 				fn = getOOPS(tck[0], tck[1], tck[2], tck[3])
@@ -375,6 +385,14 @@ def thread_discord():
 					chnl = bot.get_channel(tck[4])
 					if chnl == None : chnl = tck[5]
 					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+#		logTimer += 1
+#		if logTimer > 60:
+#			logTimer = 0
+#			log = " ./logs/" + str(logCounter) + "log.json"
+#			fn = "./" + getOOPS("SPX", 0, 40, CHART_JSON)
+#			os.popen('cp ' + fn + log) 
+#			logCounter += 1
+			
 
 	dailyTaskTime = datetime.time(hour=13, minute=40, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
@@ -461,9 +479,9 @@ def fetchEvents(dayRange):
 			for t in s:
 				if counter < 2:
 					if '<a href=' in t:
-						print(t)
+						#print(t)
 						t = t.split('<a href=')[0] + t.split('">')[1]
-						print(t)
+						#print(t)
 					text = text + t
 				counter += 1
 			text = text + "\n"
@@ -484,7 +502,7 @@ def fetchEvents(dayRange):
 		
 		return text
 	except Exception as e:
-		print( e )
+		#print( e )
 		return (url, '')
 
 		#8:30 am^ <a href="https://www.marketwatch.com/story/u-s-trade-deficit-in-goods-shrinks-8-4-to-four-month-low-as-exports-rebound-bd946f03?mod=mw_latestnews">Advanced wholesale inventories

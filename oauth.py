@@ -295,7 +295,10 @@ def thread_discord():
 		chnl = bot.get_channel(intr.channel.id)
 		
 		today = datetime.datetime.now().weekday()
-		if days.isnumeric() : day = today + int(days) - 1
+		
+		if today > 4 : today = 4
+		
+		if days.isnumeric() : day = today + int(days)
 		if days == "TODAY" : day = today
 		if days == "WEEK" : day = 4
 		events = fetchEvents("WEEK")

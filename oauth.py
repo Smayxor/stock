@@ -476,6 +476,12 @@ def fetchEvents(dayRange):
 		text = ""
 		tables = data.text.split( "<tbody>" )
 		
+		now = datetime.datetime.now()
+		day = now.weekday()
+		if day > 4 : day = 0
+		if 15 <= now.day <= 21 : tables[1] = tables[1].replace('FRIDAY', 'MOPEX - FRIDAY')
+		if 22 <= now.day <= 28 : tables[2] = tables[2].replace('FRIDAY', 'MOPEX - FRIDAY')
+		
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')
 		
@@ -498,10 +504,6 @@ def fetchEvents(dayRange):
 				counter += 1
 			text = text + "\n"
 		
-		now = datetime.datetime.now()
-		day = now.weekday()
-		if day > 4 : day = 0
-		if 15 <= now.day <= 21 : text = text.replace('FRIDAY', 'MOPEX - FRIDAY')
 		text = text.split('<b>')
 		del text[0]
 

@@ -294,14 +294,14 @@ def thread_discord():
 		await intr.response.send_message("Fetching news")
 		chnl = bot.get_channel(intr.channel.id)
 		
-		day = 0
-		if days.isnumeric() : day = int(days) - 1
-		if days == "TODAY" : day = datetime.datetime.now().weekday()
-		if days == "WEEK" : day = 9
+		today = datetime.datetime.now().weekday()
+		if days.isnumeric() : day = today + int(days) - 1
+		if days == "TODAY" : day = today
+		if days == "WEEK" : day = 4
 		events = fetchEvents("WEEK")
 		
 		for j in range(len(events) - 1):
-			if day != j and day < 6 : continue
+			if j < today or (j > day): continue
 			lines = events[j].split('\n')
 			emby = discord.Embed(title=lines[0], color=0x00ff00)
 			for i in range( len( lines ) - 1 ):
@@ -471,18 +471,27 @@ def fetchEvents(dayRange):
 	try :
 		data = requests.get(url=url)
 		text = ""
-		txt = data.text.split( "<tbody>" )[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')#.replace('<b>', '')
+		tables = data.text.split( "<tbody>" )
 		
+		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
+		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')
+		
+#		txt = tables[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')#.replace('<b>', '')
+		
+		
+		COLUMN = ['time', 'event', 'Per:', 'Act:', 'Med:', 'Prev:', '', '', '', '', '', '']
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').split('</td>')
 			counter = 0
-			for t in s:
-				if counter < 2:
-					if '<a href=' in t:
-						#print(t)
-						t = t.split('<a href=')[0] + t.split('">')[1]
-						#print(t)
-					text = text + t
+			for t in s:		
+				if '<a href=' in t:
+					#print(t)
+					t = t.split('<a href=')[0] + t.split('">')[1]
+					#print(t)
+				if counter > 1 and counter < 6 and len(t) > 1:					
+					t = " " + COLUMN[counter] + t
+				text = text + t
+				
 				counter += 1
 			text = text + "\n"
 		
@@ -493,25 +502,17 @@ def fetchEvents(dayRange):
 		text = text.split('<b>')
 		del text[0]
 
-		if dayRange == "TODAY": 
-			for t in text:
-				if WEEKDAY[day] in t:
-					text = (t, '')
-					break
-		else: text.append('')
+		#if dayRange == "TODAY": 
+		#	for t in text:
+		#		if WEEKDAY[day] in t:
+		#			text = (t, '')
+		#			break
+		"""else: """
+		text.append('')
 		
 		return text
 	except Exception as e:
-		#print( e )
 		return (url, '')
-
-		#8:30 am^ <a href="https://www.marketwatch.com/story/u-s-trade-deficit-in-goods-shrinks-8-4-to-four-month-low-as-exports-rebound-bd946f03?mod=mw_latestnews">Advanced wholesale inventories
-#		for i in range( len( text ) ):
-#			print( text[i])
-#			t = text[i].replace("</a>",'').split("\">")
-#			if len(t) > 1: 
-#				text[i] = t[0] + t[1].split('<a href=\"')[0]
-
 
 def fetchEarnings():
 	url = "https://www.earningswhispers.com/calendar?sb=p&d=0&t=all&v=t"
@@ -669,7 +670,7 @@ class StrikeData():
 		self.Ticker = ticker
 		self.Price = round(price, 2)
 	def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
-		def chk( val ) : return 0.0 if math.isnan( float( val ) ) else float( val )
+		def chk( val ) : return 0.0 if math.isnan( float( val ) ) or (val == -999.0) else float( val )
 		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), chk(gamma), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
 		if not strike in self.Strikes :
 			self.Strikes.append(strike)

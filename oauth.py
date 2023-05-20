@@ -316,10 +316,9 @@ def thread_discord():
 
 			txt = ''
 			for l in lines:
-				index = l.find('^')
-				txt = txt + l
-				if index == 7 : txt = txt + ' '
-				txt = txt.replace('^', '|').replace('#', '|') + '\n'
+				txt = txt + l + '\n'
+				#if index == 7 : txt = txt + ' '
+				#txt = txt.replace('^', '|').replace('#', '|') + '\n'
 			#txt = events[j].replace('^', '\t').replace('#', '\t')
 			await chnl.send( txt )
 
@@ -486,9 +485,9 @@ def fetchEvents():
 		text = ""
 		tables = data.text.split( "<tbody>" )
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').split('<tr>')
+		txt = txt.replace('\t', ' ').replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').split('<tr>')
 		for s in txt:
-			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').replace('</b>', '**').split('</td>')
+			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').replace('</b>', '**END*').split('</td>')
 			counter = 0
 			for t in s:
 				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
@@ -497,16 +496,19 @@ def fetchEvents():
 				if counter > 1 and counter < 6 and len(t) > 1:	
 					t = " " + COLUMN[counter] + t
 				counter += 1
-				isTime = t.find('#')
-				if isTime > 0:
-					rplc = '   ' if isTime == 7 else ' '
-					t = t.replace('#', rplc)
+				if counter == 1 :
+					ind = t.find('m#')
+					t = t.replace('m#', 'm  ')
+					if ind == 6: t = t + ' '
 				text = text + t
 				
 			text = text + "\n"
 		text = text.split('@')
 		del text[0]
 		
+		for i in range(len(text) - 1) :
+			text[i] = text[i].replace('END*\n', '\n```fix\n') + '\n```'
+
 		text.append('')
 		return text
 	except Exception as e:

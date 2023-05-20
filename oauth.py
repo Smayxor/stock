@@ -447,6 +447,20 @@ def thread_discord():
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
 		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
 
+	@bot.command()
+	@commands.is_owner()
+	async def leaveg(ctx, *, guild_name):
+		user = str(intr.user)
+		if BOT_USER_FOR_KILL != user:
+			await intr.response.send_message(user + " you can't kill meme!")
+			return
+		guild = discord.utils.get(bot.guilds, name=guild_name) # Get the guild by name
+		if guild is None:
+			print("No guild with that name found.") # No guild found
+			return
+		await guild.leave() # Guild found
+		await ctx.send(f"I left: {guild.name}!")
+	
 	bot.run(BOT_TOKEN)
 
 def drawRect(draw, x, y, w, h, color, border):
@@ -500,7 +514,7 @@ def fetchEvents():
 				if counter == 1 :
 					ind = t.find('m#')
 					t = t.replace('m#', 'm  ')
-					if ind == 6: t = t + ' '
+					if ind == 6: t = t[0:5] + ' ' + t[5:]
 				while (counter == 2) and (len(t) < 40): t = t + ' '
 				#while (counter == 4) and (len(text) < 56): text = text + ' '
 				if counter == 2 and t[0] == ' ' : t = t + ' '

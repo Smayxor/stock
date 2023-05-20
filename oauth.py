@@ -478,7 +478,7 @@ def drawRotatedText(img, x, y, txt, color):
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
 
 def fetchEvents():
-	COLUMN = ['time', 'event', '\t', 'Actual:', 'Forecast:', 'Prev:', '', '', '', '', '', '']
+	COLUMN = ['time', 'event', '\t ', 'Actual: ', 'Forecast: ', 'Prev: ', '', '', '', '', '', '']
 	url = "https://www.marketwatch.com/economy-politics/calendar"
 	try :
 		data = requests.get(url=url)
@@ -489,18 +489,22 @@ def fetchEvents():
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').replace('</b>', '**END*').split('</td>')
 			counter = 0
+			largestSize = 0
 			for t in s:
 				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
 				if '<a href=' in t:
 					t = t.split('<a href=')[0] + t.split('">')[1]  #****  Use masked link  [text](url)
 				if counter > 1 and counter < 6 and len(t) > 1:	
-					t = " " + COLUMN[counter] + t
+					t = " " + COLUMN[counter] + t + " "
 				counter += 1
 				if counter == 1 :
 					ind = t.find('m#')
 					t = t.replace('m#', 'm  ')
 					if ind == 6: t = t + ' '
-				text = text + t
+				while (counter == 2) and (len(t) < 40): t = t + ' '
+				#while (counter == 4) and (len(text) < 56): text = text + ' '
+				if counter == 2 and t[0] == ' ' : t = t + ' '
+				text = text + t.lstrip()
 				
 			text = text + "\n"
 		text = text.split('@')

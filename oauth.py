@@ -301,18 +301,27 @@ def thread_discord():
 		if days.isnumeric() : day = today + int(days)
 		if days == "TODAY" : day = today
 		if days == "WEEK" : day = 4
-		events = fetchEvents("WEEK")
+		events = fetchEvents()
 		
 		for j in range(len(events) - 1):
 			if j < today or (j > day): continue
 			lines = events[j].split('\n')
-			emby = discord.Embed(title=lines[0], color=0x00ff00)
-			for i in range( len( lines ) - 1 ):
+#			emby = discord.Embed(title=lines[0], color=0x00ff00)
+#			for i in range( len( lines ) - 1 ):
 				#if i == 0: continue
-				tmp = lines[i].split('^')
-				if len(tmp) > 1:
-					emby.add_field(name=tmp[0], value=tmp[1], inline=True)
-			await chnl.send(embed=emby)
+#				tmp = lines[i].split('^')
+#				if len(tmp) > 1:
+#					emby.add_field(name=tmp[0], value=tmp[1], inline=False)
+#			await chnl.send(embed=emby)
+
+			txt = ''
+			for l in lines:
+				index = l.find('^')
+				txt = txt + l
+				if index == 7 : txt = txt + ' '
+				txt = txt.replace('^', '|').replace('#', '|') + '\n'
+			#txt = events[j].replace('^', '\t').replace('#', '\t')
+			await chnl.send( txt )
 
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
@@ -469,32 +478,39 @@ def drawRotatedText(img, x, y, txt, color):
 
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
 
-def fetchEvents(dayRange):
-	COLUMN = ['time', 'event', '-', 'Actual:', 'Forecast:', 'Prev:', '', '', '', '', '', '']
+def fetchEvents():
+	COLUMN = ['time', 'event', '\t', 'Actual:', 'Forecast:', 'Prev:', '', '', '', '', '', '']
 	url = "https://www.marketwatch.com/economy-politics/calendar"
 	try :
 		data = requests.get(url=url)
 		text = ""
 		tables = data.text.split( "<tbody>" )
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')
+		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').split('<tr>')
 		for s in txt:
-			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').split('</td>')
+			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').replace('</b>', '**').split('</td>')
 			counter = 0
 			for t in s:
-				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
+				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
 				if '<a href=' in t:
-					t = t.split('<a href=')[0] + t.split('">')[1]
-				if counter > 1 and counter < 6 and len(t) > 1:					
+					t = t.split('<a href=')[0] + t.split('">')[1]  #****  Use masked link  [text](url)
+				if counter > 1 and counter < 6 and len(t) > 1:	
 					t = " " + COLUMN[counter] + t
-				text = text + t
 				counter += 1
+				isTime = t.find('#')
+				if isTime > 0:
+					rplc = '   ' if isTime == 7 else ' '
+					t = t.replace('#', rplc)
+				text = text + t
+				
 			text = text + "\n"
-		text = text.split('<b>')
+		text = text.split('@')
 		del text[0]
+		
 		text.append('')
 		return text
 	except Exception as e:
+		print( e )
 		return (url, '')
 
 def fetchEarnings():

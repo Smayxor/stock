@@ -296,7 +296,7 @@ def thread_discord():
 		
 		today = datetime.datetime.now().weekday()
 		
-		if today > 4 : today = 4
+		if today > 4 : today = 0
 		
 		if days.isnumeric() : day = today + int(days)
 		if days == "TODAY" : day = today

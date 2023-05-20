@@ -470,51 +470,29 @@ def drawRotatedText(img, x, y, txt, color):
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
 
 def fetchEvents(dayRange):
+	COLUMN = ['time', 'event', '-', 'Actual:', 'Forecast:', 'Prev:', '', '', '', '', '', '']
 	url = "https://www.marketwatch.com/economy-politics/calendar"
 	try :
 		data = requests.get(url=url)
 		text = ""
 		tables = data.text.split( "<tbody>" )
-		
-		now = datetime.datetime.now()
-		day = now.weekday()
-		if day > 4 : day = 0
-		if 15 <= now.day <= 21 : tables[1] = tables[1].replace('FRIDAY', 'MOPEX - FRIDAY')
-		if 22 <= now.day <= 28 : tables[2] = tables[2].replace('FRIDAY', 'MOPEX - FRIDAY')
-		
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')
-		
-#		txt = tables[1].split("</tbody>")[0].replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am^ ').replace(' pm', ' pm^ ').replace('</b>', '').replace('</a>', '').split('<tr>')#.replace('<b>', '')
-		
-		
-		COLUMN = ['time', 'event', 'Per:', 'Act:', 'Med:', 'Prev:', '', '', '', '', '', '']
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').split('</td>')
 			counter = 0
-			for t in s:		
+			for t in s:
+				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
 				if '<a href=' in t:
-					#print(t)
 					t = t.split('<a href=')[0] + t.split('">')[1]
-					#print(t)
 				if counter > 1 and counter < 6 and len(t) > 1:					
 					t = " " + COLUMN[counter] + t
 				text = text + t
-				
 				counter += 1
 			text = text + "\n"
-		
 		text = text.split('<b>')
 		del text[0]
-
-		#if dayRange == "TODAY": 
-		#	for t in text:
-		#		if WEEKDAY[day] in t:
-		#			text = (t, '')
-		#			break
-		"""else: """
 		text.append('')
-		
 		return text
 	except Exception as e:
 		return (url, '')

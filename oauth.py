@@ -119,10 +119,10 @@ oauth_params = {
 	'apikey': MY_API_KEY
 }
 
-"""   **********Uncomment this section to enable HTTPServer to catch Auth Token and Refresh Token from Auth Code ***********
-* This is the server for the redirect URL.  You will have to run the link at top of this file in a web browser to login to TDA Account *
+#   **********Uncomment this section to enable HTTPServer to catch Auth Token and Refresh Token from Auth Code ***********
+#* This is the server for the redirect URL.  You will have to run the link at top of this file in a web browser to login to TDA Account *
 #fetches new access tokens
-def serverOAUTH():
+"""def serverOAUTH():
 	#for redirect url, to fetch tokens
 	import socket
 	import ssl
@@ -250,6 +250,7 @@ updateRunning = False
 update_timer = 300
 blnFirstTime = True
 bot = commands.Bot(command_prefix='}', intents=discord.Intents.all(), help_command=MyNewHelp(), sync_commands=True)
+needsQueue = 0
 def thread_discord():
 	def getChartType( arg ):
 		arg = arg.upper()
@@ -266,11 +267,19 @@ def thread_discord():
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
 	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
-		global tickers, updateRunning
+		global tickers, updateRunning, needsQueue
 		ticker = ticker.upper()
 		if count < 2 : count = 2
-		await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
-		tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
+		
+		if needsQueue == 0:
+			needsQueue = 1
+			fn = getOOPS(ticker, dte, count, getChartType(chart))
+			try: await intr.response.send_message(file=discord.File(open('./' + fn, 'rb'), fn))
+			except: await intr.response.send_message("No image permissions")
+			needsQueue = 0
+		else:
+			await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
+			tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
 
 	@bot.command(name="pump")
 	async def command_pump(ctx, *args): await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
@@ -291,7 +300,7 @@ def thread_discord():
 
 	@bot.tree.command(name="news")
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
-		await intr.response.send_message("Fetching news")
+		#await intr.response.send_message("Fetching news")
 		chnl = bot.get_channel(intr.channel.id)
 		
 		today = datetime.datetime.now().weekday()
@@ -303,6 +312,7 @@ def thread_discord():
 		if days == "WEEK" : day = 4
 		events = fetchEvents()
 		
+		finalMessage = ""
 		for j in range(len(events) - 1):
 			if j < today or (j > day): continue
 			lines = events[j].split('\n')
@@ -313,15 +323,12 @@ def thread_discord():
 #				if len(tmp) > 1:
 #					emby.add_field(name=tmp[0], value=tmp[1], inline=False)
 #			await chnl.send(embed=emby)
-
 			txt = ''
 			for l in lines:
 				txt = txt + l + '\n'
-				#if index == 7 : txt = txt + ' '
-				#txt = txt.replace('^', '|').replace('#', '|') + '\n'
-			#txt = events[j].replace('^', '\t').replace('#', '\t')
-			await chnl.send( txt )
-
+			finalMessage += txt
+		try: await intr.response.send_message( finalMessage )
+		except: print("News BOOM")
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
@@ -378,24 +385,29 @@ def thread_discord():
 
 	@tasks.loop(seconds=1)
 	async def channelUpdate():
-		global tickers, counter, auto_updater, update_timer, logCounter, logTimer
+		global tickers, counter, auto_updater, update_timer, logCounter, logTimer, needsQueue
+		needsQueue = 0
 		if len(tickers) != 0 :
 			for tck in tickers:
 				fn = getOOPS(tck[0], tck[1], tck[2], tck[3])
 				chnl = bot.get_channel(tck[4])
 				if chnl == None : chnl = tck[5]
 				if fn == "error.png": await chnl.send("Failed to get data for " + tck[0])
-				else: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+				else: 
+					try: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+					except: await chnl.send("No image permissions")
 			tickers.clear()
 		if len(auto_updater) != 0:
 			counter += 1
 			if counter > update_timer :
 				counter = 0
 				for tck in auto_updater:
-					fn = stock_price(tck[0], tck[1], tck[2], tck[3])
+					fn = getOOPS(tck[0], tck[1], tck[2], tck[3])
 					chnl = bot.get_channel(tck[4])
 					if chnl == None : chnl = tck[5]
-					await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+					try: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+					except: await chnl.send("No image permissions")
+#const message = await interaction.reply({ content: 'Pinging...', fetchReply: true }).catch((e) => console.log(e))
 #		logTimer += 1
 #		if logTimer > 60:
 #			logTimer = 0
@@ -445,8 +457,16 @@ def thread_discord():
 		if len(args) == 0: return
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
-		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
+		#tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
 
+		print(1)
+		fn = stock_price(args[0].upper(), dte, count, CHART_ROTATE)
+		print(2)
+		try: 
+			await ctx.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			print(3)
+		except: await ctx.send("No image permissions")
+		print(4)			
 	@bot.command()
 	@commands.is_owner()
 	async def leaveg(ctx, *, guild_name):
@@ -738,7 +758,6 @@ def pullData(ticker_name, dte, count):
 	if "SPX" in ticker_name: ticker_name = "$SPX.X"
 	if "VIX" in ticker_name: ticker_name = "$VIX.X"
 	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
-
 	loopAgain = True
 	errorCounter = 0
 	logCounter = 0
@@ -747,6 +766,7 @@ def pullData(ticker_name, dte, count):
 		url_endpoint = options_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker_name, count=str(count), toDate=dateRange)
 		json_data = requests.get(url=url_endpoint, headers=HEADER).content
 		content = json.loads(json_data)
+		#print(content)
 		if 'error' in content:  #happens when oauth token expires
 			refreshTokens()
 			errorCounter += 1
@@ -773,7 +793,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 
 		content = pullData( ticker_name, dte, count )
 		if (content['status'] in 'FAILED'): 
-			print( content )
+			#print( content )
 			return "error.png" #Failed, we tried our best
 
 		err = 2
@@ -958,7 +978,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
-			if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
+			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
+			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
 			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			#if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")

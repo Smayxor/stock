@@ -332,12 +332,12 @@ def thread_discord():
 		
 		finalMessage = finalMessage.replace("\n\n", "\n")	
 		finalMessage = finalMessage.replace("\n```\n", "```\n")	
-		print(finalMessage)
+		nextMessage = ""
 		
 		if len(finalMessage) > 2000: 
 			txt = finalMessage.split("\n")
 			finalMessage = ""
-			nextMessage = ""
+			
 			for i in range(len(txt)):
 				if finalMessage == "" : 
 					finalMessage = txt[i]

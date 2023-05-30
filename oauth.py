@@ -201,7 +201,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 slash_command_json = { "name": "sudo", "type": 1, "description": "Stuff you cant do on Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
-slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
+slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "all", "value": "ALL"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
@@ -301,20 +301,22 @@ def thread_discord():
 	@bot.tree.command(name="news")
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
 		#await intr.response.send_message("Fetching news")
-		chnl = bot.get_channel(intr.channel.id)
-		
 		today = datetime.datetime.now().weekday()
 		
 		if today > 4 : today = 0
-		
-		if days.isnumeric() : day = today + int(days)
-		if days == "TODAY" : day = today
-		if days == "WEEK" : day = 4
+		day = 0
+		if days.isnumeric() : day = today + int(days) - 1
+		elif days == "TODAY" : day = today
+		elif days == "WEEK" : day = -1
+		elif days == "ALL" : day = -2
 		events = fetchEvents()
 		
 		finalMessage = ""
 		for j in range(len(events) - 1):
-			if j < today or (j > day): continue
+			if day != -2:
+				if day == -1:
+					if j > 4: continue
+				elif j < today or (j > day): continue
 			lines = events[j].split('\n')
 #			emby = discord.Embed(title=lines[0], color=0x00ff00)
 #			for i in range( len( lines ) - 1 ):
@@ -327,8 +329,31 @@ def thread_discord():
 			for l in lines:
 				txt = txt + l + '\n'
 			finalMessage += txt
+		
+		finalMessage = finalMessage.replace("\n\n", "\n")	
+		finalMessage = finalMessage.replace("\n```\n", "```\n")	
+		print(finalMessage)
+		
+		if len(finalMessage) > 2000: 
+			txt = finalMessage.split("\n")
+			finalMessage = ""
+			nextMessage = ""
+			for i in range(len(txt)):
+				if finalMessage == "" : 
+					finalMessage = txt[i]
+				elif len(finalMessage) + len(txt[i]) < 1998 :
+					finalMessage = finalMessage + "\n" + txt[i]
+				else:
+					if nextMessage == "": nextMessage = txt[i]
+					else: nextMessage = nextMessage + "\n" + txt[i]
+
 		try: await intr.response.send_message( finalMessage )
-		except: print("News BOOM")
+		except Exception as e: print("News BOOM", e)
+		if len(nextMessage) != 0:
+			chnl = bot.get_channel(intr.channel.id)
+			try: await chnl.send( nextMessage )	
+			except Exception as e: print("News 2 BOOM", e)
+		
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):

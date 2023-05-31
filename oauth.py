@@ -268,17 +268,18 @@ def thread_discord():
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
 	async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 		global tickers, updateRunning, needsQueue
+		await intr.response.defer(thinking=True)
 		ticker = ticker.upper()
 		if count < 2 : count = 2
 		
 		if needsQueue == 0:
 			needsQueue = 1
 			fn = getOOPS(ticker, dte, count, getChartType(chart))
-			try: await intr.response.send_message(file=discord.File(open('./' + fn, 'rb'), fn))
-			except: await intr.response.send_message("No image permissions")
+			try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			except: await intr.followup.send("No image permissions")
 			needsQueue = 0
 		else:
-			await intr.response.send_message("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
+			await intr.followup.send("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
 			tickers.append( (ticker, dte, count, getChartType(chart), intr.channel.id, intr.channel) )
 
 	@bot.command(name="pump")
@@ -300,9 +301,9 @@ def thread_discord():
 
 	@bot.tree.command(name="news")
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
-		#await intr.response.send_message("Fetching news")
+		await intr.response.defer(thinking=True)
 		today = datetime.datetime.now().weekday()
-		
+
 		if today > 4 : today = 0
 		day = 0
 		if days.isnumeric() : day = today + int(days) - 1
@@ -347,13 +348,24 @@ def thread_discord():
 					if nextMessage == "": nextMessage = txt[i]
 					else: nextMessage = nextMessage + "\n" + txt[i]
 
-		try: await intr.response.send_message( finalMessage )
-		except Exception as e: print("News BOOM", e)
+		chnl = bot.get_channel(intr.channel.id)
+		try: 
+			#await intr.response.send_message( finalMessage )
+			await intr.followup.send( finalMessage )
+		except Exception as e: 
+			try: await chnl.send( finalMessage )
+			except Exception as er: print("News BOOM", er)
 		if len(nextMessage) != 0:
-			chnl = bot.get_channel(intr.channel.id)
+			
 			try: await chnl.send( nextMessage )	
 			except Exception as e: print("News 2 BOOM", e)
-		
+	
+	#msg = await interaction.response.defer(thinking=True)
+	#await interaction.followup.send(embed=embed, view=view)
+	#await self.msg.edit(embed=embed)
+	#msg = await interaction.original_response()
+	#await msg.edit(embed=embed)
+			
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
@@ -482,16 +494,8 @@ def thread_discord():
 		if len(args) == 0: return
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
-		#tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
+		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
 
-		print(1)
-		fn = stock_price(args[0].upper(), dte, count, CHART_ROTATE)
-		print(2)
-		try: 
-			await ctx.send(file=discord.File(open('./' + fn, 'rb'), fn))
-			print(3)
-		except: await ctx.send("No image permissions")
-		print(4)			
 	@bot.command()
 	@commands.is_owner()
 	async def leaveg(ctx, *, guild_name):
@@ -510,8 +514,11 @@ def thread_discord():
 
 def drawRect(draw, x, y, w, h, color, border):
 	if border in 'none': border = color
-	draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
-
+	try:	draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
+	except:
+		if x > w: drawRect( draw, w, y, x, h, color, border )
+		if y > h: drawRect( draw, x, h, w, y, color, border )
+	
 def drawPriceLine(draw, x, color):  #Draws a dashed line
 	y = 100
 	while y < 350:
@@ -873,6 +880,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	zeroD = 0
 	biggy = 0
 	biggySize = 0
+	maxPain = 0
+	
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
 	if chartType == CHART_LASTDTE : chartType = CHART_GEX
@@ -906,6 +915,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		print( "Calls $", callBids, " Puts $", putBids)
 	
 	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
+		maxP = {}
+		maxPain = next(iter(strikes.Strikes))
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
 			above[i] = strikes.Calls[i].GEX - strikes.Puts[i].GEX
@@ -923,6 +934,17 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 				biggySize = tmp
 				biggy = i
 
+#			calls = 0
+#			puts = 0
+#			for j in strikes.Strikes :
+#				if i > j : calls += (i - j) * strikes.Calls[i].OI
+#				if j > i : puts += (j - i) * strikes.Puts[i].OI
+#			maxP[i] = calls + puts
+#			if maxP[i] > maxP[maxPain] : maxPain = i
+#			above[i] = maxP[i]
+#			if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
+		#print(maxPain, maxP)	
+		
 		maxLower = maxUpper
 		zero = zero_gex( above, strikes.ClosestStrike )
 		zeroD = zero_gex( above2, strikes.ClosestStrike )
@@ -997,6 +1019,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	elif chartType == CHART_ROTATE :
 		x = IMG_W - 15
 		for strike in sorted(strikes.Strikes) :
+		
 			x -= FONT_SIZE - 3
 			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#CCC")   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')

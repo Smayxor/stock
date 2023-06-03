@@ -275,8 +275,10 @@ def thread_discord():
 		if needsQueue == 0:
 			needsQueue = 1
 			fn = getOOPS(ticker, dte, count, getChartType(chart))
-			try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
-			except: await intr.followup.send("No image permissions")
+			if fn == "error.png": await intr.followup.send("Failed to get data")
+			else:
+				try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
+				except: await intr.followup.send("No image permissions")
 			needsQueue = 0
 		else:
 			await intr.followup.send("Fetching " + CHARTS_TEXT[getChartType(chart)] + " chart for " + ticker + " " + str(dte) + "DTE")
@@ -359,13 +361,7 @@ def thread_discord():
 			
 			try: await chnl.send( nextMessage )	
 			except Exception as e: print("News 2 BOOM", e)
-	
-	#msg = await interaction.response.defer(thinking=True)
-	#await interaction.followup.send(embed=embed, view=view)
-	#await self.msg.edit(embed=embed)
-	#msg = await interaction.original_response()
-	#await msg.edit(embed=embed)
-			
+
 	@bot.tree.command(name="sudo")
 	@commands.is_owner()
 	async def slash_command_sudo(intr: discord.Interaction, command: str):
@@ -411,9 +407,6 @@ def thread_discord():
 			await intr.response.send_message(user + " has cleared stored values")
 			clearStoredStrikes()
 			chnl = bot.get_channel(1055967445652865130)
-			#tickers.append( ("VIX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
-			#tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
-			#tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
 		print("Finished SUDO")
 
 	def clearStoredStrikes():
@@ -454,7 +447,7 @@ def thread_discord():
 #			logCounter += 1
 			
 
-	dailyTaskTime = datetime.time(hour=13, minute=40, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
@@ -462,8 +455,8 @@ def thread_discord():
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
-		tickers.append( ("SPX", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_CHANGE, 1055967445652865130, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
 		logData("SPX")
 		logData("SPY")
 
@@ -517,7 +510,7 @@ def drawRect(draw, x, y, w, h, color, border):
 	try:	draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
 	except:
 		if x > w: drawRect( draw, w, y, x, h, color, border )
-		if y > h: drawRect( draw, x, h, w, y, color, border )
+		elif y > h: drawRect( draw, x, h, w, y, color, border )
 	
 def drawPriceLine(draw, x, color):  #Draws a dashed line
 	y = 100
@@ -742,7 +735,7 @@ class StrikeData():
 		self.Price = round(price, 2)
 	def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
 		def chk( val ) : return 0.0 if math.isnan( float( val ) ) or (val == -999.0) else float( val )
-		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), chk(gamma), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
+		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), abs(chk(gamma)), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
 		if not strike in self.Strikes :
 			self.Strikes.append(strike)
 			self.Calls[strike] = OptionData()
@@ -917,6 +910,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
 		maxP = {}
 		maxPain = next(iter(strikes.Strikes))
+		maxP[maxPain] = 0
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
 			above[i] = strikes.Calls[i].GEX - strikes.Puts[i].GEX
@@ -933,21 +927,22 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if tmp > biggySize : 
 				biggySize = tmp
 				biggy = i
-
-#			calls = 0
-#			puts = 0
-#			for j in strikes.Strikes :
-#				if i > j : calls += (i - j) * strikes.Calls[i].OI
-#				if j > i : puts += (j - i) * strikes.Puts[i].OI
-#			maxP[i] = calls + puts
-#			if maxP[i] > maxP[maxPain] : maxPain = i
-#			above[i] = maxP[i]
-#			if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
-		#print(maxPain, maxP)	
+			#calc max pain
+			calls = 0
+			puts = 0
+			for j in strikes.Strikes :
+				if i > j : calls += abs(j - i) * strikes.Calls[j].OI
+				if j > i : puts += abs(j - i) * strikes.Puts[j].OI
+			maxP[i] = calls + puts
+			if maxP[i] < maxP[maxPain] : maxPain = i
+			#above[i] = maxP[i]
+			#if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
+		#print(maxPain)	
 		
 		maxLower = maxUpper
 		zero = zero_gex( above, strikes.ClosestStrike )
 		zeroD = zero_gex( above2, strikes.ClosestStrike )
+		
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -1021,7 +1016,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		for strike in sorted(strikes.Strikes) :
 		
 			x -= FONT_SIZE - 3
-			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#CCC")   # .replace('.0', '')
+			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#F00" if strike == maxPain else "#CCC")   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
@@ -1039,7 +1034,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		x = -15
 		for strike in sorted(strikes.Strikes) :
 			x += FONT_SIZE - 3
-			drawRotatedText(img, x=x - 5, y=220, txt=str(round(strike, 2)), color="#3F3")   # .replace('.0', '')
+			drawRotatedText(img, x=x - 5, y=220, txt=str(round(strike, 2)), color="#F00" if strike == maxPain else "#CCC")   #color needs to change on rotated text.....
 			if (top[strike] != 0) : drawRect(draw, x, 0, x + 12, ((top[strike] / maxTop) * 65), color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, x, 215 - ((abs(above[strike]) / maxAbove) * 150), x + 12, 215, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, x, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x + 2, 215, color=("#077" if (above2[strike] > -1) else "#f77"), border='')
@@ -1067,12 +1062,14 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 		y = 0
 		if chartType == CHART_ROTATE :
-			x = x + 350
+			x = x + 280
 		else: 
 			y = FONT_SIZE * 6
-		drawText(draw, x=x, y=y, txt="Zero Delta", color="#0FF")
-		drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD), color="#0FF")
-		#drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="${:,.2f}".format(zeroD[1]), color="#0FF")
+		drawText(draw, x=x, y=y, txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
+		#drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD), color="#0FF")
+		
+		drawText(draw, x=x, y=y + (FONT_SIZE * 1), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
+		#drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt="${:,.2f}".format(maxPain), color="#F00")
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"

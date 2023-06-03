@@ -57,6 +57,7 @@ BOT_USER_FOR_KILL = init['BOT_KILL_USER']  #make it your discord user name
 BOT_APP_ID = init['DISCORD_APP_ID']
 BOT_CLIENT_ID = init['BOT_CLIENT_ID']
 TENOR_API_KEY = init['TENOR_API_KEY']
+UPDATE_CHANNEL = init['UPDATE_CHANNEL']    #Channel ID stored as Integer not string
 #POLYGON_API_KEY = init['POLYGON']#DISCORD_ID = init['DISCORD_APP_ID']#DISCORD_KEY = init['DISCORD_API_KEY']#BOT_ID = init['BOT_CLIENT_ID']#BOT_SECRET = init['BOT_SECRET']
 #************************************************************
 
@@ -406,7 +407,6 @@ def thread_discord():
 		elif args[0] == "CLEAR":
 			await intr.response.send_message(user + " has cleared stored values")
 			clearStoredStrikes()
-			chnl = bot.get_channel(1055967445652865130)
 		print("Finished SUDO")
 
 	def clearStoredStrikes():
@@ -455,8 +455,8 @@ def thread_discord():
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
-		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		logData("SPX")
 		logData("SPY")
 
@@ -464,12 +464,12 @@ def thread_discord():
 	@tasks.loop(time=dailyTaskTime2)
 	async def dailyTask2():
 		if datetime.datetime.now().weekday() > 4 : return
-		chnl = bot.get_channel(1055967445652865130)
+		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution 2")
 		await chnl.send("Fethcing Morning Charts")
-		tickers.append( ("VIX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
-		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_ROTATE, 1055967445652865130, chnl) )
+		tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 
 	@bot.event
 	async def on_ready():

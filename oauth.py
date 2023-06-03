@@ -89,7 +89,9 @@ WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
 font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic") #Place font file in same folder, or use supply path if needed in Linux
-
+#ascent, descent = font.getmetrics()
+#text_width = font.getmask(strike).getbbox()[2]
+#text_height = font.getmask(text_string).getbbox()[3] + descent
 IMG_W = 1000
 IMG_H = 500
 
@@ -1023,7 +1025,15 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
-			if strike == strikes.ClosestStrike: drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
+			if strike == strikes.ClosestStrike: 
+				
+				text_width = font.getmask(str(strike)).getbbox()[2]
+				#text_height = font.getmask(text_string).getbbox()[3] + descent
+				#strikes.Price = 428.50
+				height = 12 - ((strikes.Price % 1) * 12)
+				drawPointer(img, 218 + text_width, x + height, "#FF7")
+			
+				#drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
 			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			#if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
@@ -1057,7 +1067,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
-#		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero[0])+" - ${:,.2f}".format(zero[1]), color="orange")
 		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
 
 		y = 0
@@ -1066,13 +1075,15 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		else: 
 			y = FONT_SIZE * 6
 		drawText(draw, x=x, y=y, txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
-		#drawText(draw, x=x, y=y + FONT_SIZE, txt="${:,.2f}".format(zeroD), color="#0FF")
-		
 		drawText(draw, x=x, y=y + (FONT_SIZE * 1), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
-		#drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt="${:,.2f}".format(maxPain), color="#F00")
-
+		
 	img.save("stock-chart.png")
 	return "stock-chart.png"
+
+def drawPointer(img, x, y, clr):
+	dr = ImageDraw.Draw(img)
+	dr.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], outline=clr)
+	img.show()
 
 def drawIVText(img, x, y, txt, color):
 	text_layer = PILImg.new('L', (100, FONT_SIZE))

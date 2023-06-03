@@ -453,7 +453,7 @@ def thread_discord():
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		if datetime.datetime.now().weekday() > 4 : return
-		chnl = bot.get_channel(1055967445652865130)    # <--- hard coded channel ID
+		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
@@ -748,10 +748,13 @@ class StrikeData():
 			self.CallDollars += d[strike].Dollars
 		else:  #Puts are done second, these operations only need performed once
 			if dte > self.DTE : self.DTE = dte
+			
 			dist = abs(self.Price - strike) 
 			if dist < self.distFromPrice : 
 				self.distFromPrice = dist
 				self.ClosestStrike = strike
+			
+			#dist = self.Price // 1
 			self.PutDollars += d[strike].Dollars
 
 def getChange(new: StrikeData) :
@@ -1028,16 +1031,12 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == strikes.ClosestStrike: 
 				
 				text_width = font.getmask(str(strike)).getbbox()[2]
-				#text_height = font.getmask(text_string).getbbox()[3] + descent
-				#strikes.Price = 428.50
-				height = 12 - ((strikes.Price % 1) * 12)
+				height = 12 - ((strikes.Price - strikes.ClosestStrike) * 12)
 				drawPointer(img, 218 + text_width, x + height, "#FF7")
 			
 				#drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
 			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
-			#if strike == zero[1] : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
-			#if strike == zeroD[1] : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x = 0
 	else :

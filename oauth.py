@@ -457,10 +457,9 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
-	
-		await chnl.send( buildNews[0] )
-		
-		if datetime.datetime.now().weekday() > 4 : return
+		if datetime.datetime.now().weekday() > 4 : 
+			await chnl.send( buildNews("week")[0] )
+			return
 		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
@@ -516,7 +515,7 @@ def thread_discord():
 	
 	@bot.command()
 	async def news(ctx):
-		pass
+		await chnl.send( buildNews("week")[0] )
 	
 	bot.run(BOT_TOKEN)
 

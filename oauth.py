@@ -304,9 +304,7 @@ def thread_discord():
 		if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
 		else: await intr.response.send_message("Please phrase that as a question")
 
-	@bot.tree.command(name="news")
-	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
-		await intr.response.defer(thinking=True)
+	def buildNews(days):
 		today = datetime.datetime.now().weekday()
 
 		if today > 4 : today = 0
@@ -352,6 +350,13 @@ def thread_discord():
 				else:
 					if nextMessage == "": nextMessage = txt[i]
 					else: nextMessage = nextMessage + "\n" + txt[i]
+		return (finalMessage, nextMessage)	
+
+	@bot.tree.command(name="news")
+	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
+		await intr.response.defer(thinking=True)
+
+		finalMessage, nextMessage = buildNews(days)
 
 		chnl = bot.get_channel(intr.channel.id)
 		try: 
@@ -452,11 +457,15 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
+	
+		await chnl.send( buildNews[0] )
+		
 		if datetime.datetime.now().weekday() > 4 : return
 		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
+		await chnl.send( buildNews[0] )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		logData("SPX")
@@ -504,6 +513,10 @@ def thread_discord():
 			return
 		await guild.leave() # Guild found
 		await ctx.send(f"I left: {guild.name}!")
+	
+	@bot.command()
+	async def news(ctx):
+		pass
 	
 	bot.run(BOT_TOKEN)
 

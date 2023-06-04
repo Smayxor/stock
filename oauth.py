@@ -457,10 +457,10 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
-		if datetime.datetime.now().weekday() > 4 : 
-			await chnl.send( buildNews("week")[0] )
-			return
 		chnl = bot.get_channel(UPDATE_CHANNEL)
+		if datetime.datetime.now().weekday() > 4 : 
+			await chnl.send( buildNews("WEEK")[0] )
+			return
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
@@ -499,7 +499,7 @@ def thread_discord():
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
 		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
 
-	@bot.command()
+	@bot.command(name="leaveg")
 	@commands.is_owner()
 	async def leaveg(ctx, *, guild_name):
 		user = str(intr.user)
@@ -513,9 +513,10 @@ def thread_discord():
 		await guild.leave() # Guild found
 		await ctx.send(f"I left: {guild.name}!")
 	
-	@bot.command()
+	@bot.command(name="news")
 	async def news(ctx):
-		await chnl.send( buildNews("week")[0] )
+		#chnl = bot.get_channel(UPDATE_CHANNEL)
+		await ctx.send( buildNews("WEEK")[0] )
 	
 	bot.run(BOT_TOKEN)
 

@@ -979,6 +979,32 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	if chartType != CHART_ROTATE : IMG_W += 100
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
+	"""
+	upDown = strikes.ClosestStrike - strikes.Price
+	nex, prev, firstStrike, secondStrike, ratio = 0, 0, 0, 0, 0  # Ugly code to get strikes before and after current price
+	for i in sorted(strikes.Strikes):
+		if i == strikes.ClosestStrike :
+			nex = -2
+		if nex < 0:
+			nex += 1
+			if nex == 0:
+				nex = i
+				break
+		if nex == 0: prev = i
+	if upDown <= 0: 
+		firstStrike = strikes.ClosestStrike
+		secondStrike = nex
+	else: 
+		firstStrike = prev
+		secondStrike = strikes.ClosestStrike
+	#ratio = ((strikes.Price - firstStrike) * (secondStrike / firstStrike)) * 16
+	ratio = (abs(strikes.Price - firstStrike) * abs(strikes.ClosestStrike - firstStrike)) * 16
+	
+	#print(strikes.Price - firstStrike)
+	#print(strikes.ClosestStrike - firstStrike)
+	
+	#print(firstStrike, secondStrike, ratio)
+	"""
 	x = 0
 	if chartType == CHART_IV :
 	
@@ -1027,26 +1053,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
-			if strike == strikes.ClosestStrike: 
-
-				"""  Should be gauged by 2 closest strikes
-				firstDist = strikes.ClosestStrike - strikes.Price
-				second = 0
-				for i in range(len(strikes.Strikes) - 1):
-					#print(1)
-					tmp = strikes.Strikes[i] - strikes.Price
-					#print(2)
-					if tmp < strikes.Strikes[second]:
-						#print(3)
-						if tmp != firstDist: second = i
-				#print(4)
-				print( strikes.ClosestStrike, strikes.Strikes[second] )
-				"""
-				text_width = font.getmask(str(strike)).getbbox()[2]
-				height = 12 - ((strikes.Price - strikes.ClosestStrike) * 12)
-				drawPointer(img, 218 + text_width, x + height, "#FF7")
-			
-				#drawRotatedPriceLine(draw,x - 5 if strikes.Price > strikes.ClosestStrike else x + FONT_SIZE, "#FF0")
+			if strike == strikes.ClosestStrike: drawPointer(img, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
 			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")

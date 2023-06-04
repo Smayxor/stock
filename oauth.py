@@ -444,15 +444,13 @@ def thread_discord():
 					if chnl == None : chnl = tck[5]
 					try: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 					except: await chnl.send("No image permissions")
-#const message = await interaction.reply({ content: 'Pinging...', fetchReply: true }).catch((e) => console.log(e))
 #		logTimer += 1
 #		if logTimer > 60:
 #			logTimer = 0
 #			log = " ./logs/" + str(logCounter) + "log.json"
 #			fn = "./" + getOOPS("SPX", 0, 40, CHART_JSON)
 #			os.popen('cp ' + fn + log) 
-#			logCounter += 1
-			
+#			logCounter += 1	
 
 	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
@@ -464,7 +462,7 @@ def thread_discord():
 		print("Daily Task Execution")
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
-		await chnl.send( buildNews[0] )
+		await chnl.send( buildNews["TODAY"] )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		logData("SPX")

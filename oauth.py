@@ -1065,7 +1065,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
-			if strike == strikes.ClosestStrike: drawPointer(img, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
+			if strike == strikes.ClosestStrike: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
 			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
 			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
@@ -1110,10 +1110,13 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPointer(img, x, y, clr):
-	dr = ImageDraw.Draw(img)
-	dr.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], outline=clr)
+def drawPointer(draw, x, y, clr):
+#	dr = ImageDraw.Draw(img)
+#	dr.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], outline=clr)
 	#img.show()
+	draw.line([x, y, x + 15, y - 7], fill=clr, width=1)
+	draw.line([x + 15, y - 7, x+15, y+7], fill=clr, width=1)
+	draw.line([x, y, x+15, y+7], fill=clr, width=1)
 
 def drawIVText(img, x, y, txt, color):
 	text_layer = PILImg.new('L', (100, FONT_SIZE))

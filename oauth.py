@@ -460,10 +460,10 @@ def thread_discord():
 			await chnl.send( buildNews("WEEK")[0] )
 			return
 		print("Daily Task Execution")
+		tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		await chnl.send("Fethcing Morning Charts")
 		clearStoredStrikes()
 		await chnl.send( buildNews("TODAY")[0] )
-		tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		logData("SPX")

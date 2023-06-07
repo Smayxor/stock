@@ -1106,9 +1106,9 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		if chartType == CHART_ROTATE :
 			x = x + 280
 		else: 
-			y = FONT_SIZE * 6
+			y = FONT_SIZE * 5
 		drawText(draw, x=x, y=y, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
-		drawText(draw, x=x, y=y + (FONT_SIZE * 1), txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
+		drawText(draw, x=x, y=y + FONT_SIZE, txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
 		drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
 		
 	img.save("stock-chart.png")

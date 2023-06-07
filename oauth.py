@@ -1058,6 +1058,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		for strike in sorted(strikes.Strikes) :
 		
 			x -= FONT_SIZE - 3
+			strikeColor = "#CCC"
+			if strike == maxPain : strikeColor = "#F00"
+			if strike == zero : strikeColor = "orange"
+			if strike == zeroD : strikeColor = "#0FF"
 			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#F00" if strike == maxPain else "#CCC")   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
@@ -1066,8 +1070,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
-			if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
-			if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
+			#if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
+			#if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x = 0
 	else :
@@ -1083,7 +1087,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
 			if strike == zero : drawPriceLine(draw, x + 5, "#FFF")
 			#if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
-			if strike == zeroD : drawPriceLine(draw, x + 7, "#0FF")
+			#if strike == zeroD : drawPriceLine(draw, x + 7, "#0FF")
 			#if strike == zeroD[1] : drawPriceLine(draw, x + 7, "#0FF")
 			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x += 15

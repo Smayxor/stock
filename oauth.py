@@ -1101,15 +1101,15 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		drawText(draw, x=x, y=FONT_SIZE * 2, txt="Calls "+"${:,.2f}".format(strikes.CallDollars), color="#0f0")
 		drawText(draw, x=x, y=FONT_SIZE * 3, txt="Puts "+"${:,.2f}".format(strikes.PutDollars), color="#f00")
 		drawText(draw, x=x, y=FONT_SIZE * 4, txt="Total "+"${:,.2f}".format(strikes.CallDollars-strikes.PutDollars), color="yellow")
-		drawText(draw, x=x, y=FONT_SIZE * 5, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
 
 		y = 0
 		if chartType == CHART_ROTATE :
 			x = x + 280
 		else: 
 			y = FONT_SIZE * 6
-		drawText(draw, x=x, y=y, txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
-		drawText(draw, x=x, y=y + (FONT_SIZE * 1), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
+		drawText(draw, x=x, y=y, txt="Zero Gamma "+"${:,.2f}".format(zero), color="orange")
+		drawText(draw, x=x, y=y + (FONT_SIZE * 1), txt="Zero Delta " + "${:,.2f}".format(zeroD), color="#0FF")
+		drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
 		
 	img.save("stock-chart.png")
 	return "stock-chart.png"

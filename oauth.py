@@ -1062,7 +1062,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == maxPain : strikeColor = "#F00"
 			if strike == zero : strikeColor = "orange"
 			if strike == zeroD : strikeColor = "#0FF"
-			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color="#F00" if strike == maxPain else "#CCC")   # .replace('.0', '')
+			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color=strikeColor)   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')

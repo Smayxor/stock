@@ -558,7 +558,7 @@ def fetchEvents():
 		text = ""
 		tables = data.text.split( "<tbody>" )
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('\t', ' ').replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').replace("$quot;", ":").split('<tr>')
+		txt = txt.replace('\t', ' ').replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').replace("&quot;", ":").split('<tr>')
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace('\n', '').replace('</a>', '').replace('</b>', '**END*').split('</td>')
 			counter = 0

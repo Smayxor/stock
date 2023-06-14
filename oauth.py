@@ -890,6 +890,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	biggy = 0
 	biggySize = 0
 	maxPain = 0
+	keyLevels = []
 	
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
 	if chartType == CHART_CHANGE : chartType = CHART_GEX
@@ -908,22 +909,11 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if above2[i] > maxAbove2 : maxAbove2 = above2[i]
 			if upper[i] > maxUpper :   maxUpper = upper[i]
 			if lower[i] > maxLower :   maxLower = lower[i]
-	
+
 	if chartType == CHART_SKEW :
 		chartType = CHART_ROTATE
-		callBids = 0.0
-		putBids = 0.0
-		for i in sorted(strikes.Strikes) :
-			if i <= strikes.Price : 
-				callBids += strikes.Calls[i].Bid
-			else:
-				putBids += strikes.Puts[i].Bid
-		l = len(strikes.Strikes)
-		#callBids = callBids / l
-		#putBids = putBids / l
-		print( "Calls $", callBids, " Puts $", putBids)
-	
-	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX) :  #Fill local arrays with desired charting data
+		
+	if (chartType == CHART_ROTATE) or (chartType == CHART_GEX):  #Fill local arrays with desired charting data
 		maxP = {}
 		maxPain = next(iter(strikes.Strikes))
 		maxP[maxPain] = 0
@@ -951,13 +941,16 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 				if j > i : puts += abs(j - i) * strikes.Puts[j].OI
 			maxP[i] = calls + puts
 			if maxP[i] < maxP[maxPain] : maxPain = i
-			#above[i] = maxP[i]
-			#if abs(above[i]) > maxAbove : maxAbove = abs(above[i])
-		#print(maxPain)	
-		
 		maxLower = maxUpper
 		zero = zero_gex( above, strikes.ClosestStrike )
 		zeroD = zero_gex( above2, strikes.ClosestStrike )
+
+		largeOI = maxTop * 0.77
+		largeGEX = maxAbove * 0.77
+		
+		for i in sorted(strikes.Strikes) :
+			if top[i] > largeOI : keyLevels.append(i)
+			if above[i] > largeGEX : keyLevels.append(i)
 		
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
@@ -991,32 +984,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	if chartType != CHART_ROTATE : IMG_W += 100
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
-	"""
-	upDown = strikes.ClosestStrike - strikes.Price
-	nex, prev, firstStrike, secondStrike, ratio = 0, 0, 0, 0, 0  # Ugly code to get strikes before and after current price
-	for i in sorted(strikes.Strikes):
-		if i == strikes.ClosestStrike :
-			nex = -2
-		if nex < 0:
-			nex += 1
-			if nex == 0:
-				nex = i
-				break
-		if nex == 0: prev = i
-	if upDown <= 0: 
-		firstStrike = strikes.ClosestStrike
-		secondStrike = nex
-	else: 
-		firstStrike = prev
-		secondStrike = strikes.ClosestStrike
-	#ratio = ((strikes.Price - firstStrike) * (secondStrike / firstStrike)) * 16
-	ratio = (abs(strikes.Price - firstStrike) * abs(strikes.ClosestStrike - firstStrike)) * 16
-	
-	#print(strikes.Price - firstStrike)
-	#print(strikes.ClosestStrike - firstStrike)
-	
-	#print(firstStrike, secondStrike, ratio)
-	"""
+
 	x = 0
 	if chartType == CHART_IV :
 	
@@ -1069,10 +1037,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (upper[strike] != 0) : drawRect(draw, 399 - ((upper[strike] / maxUpper) * 100), x, 399, x + 12, color="#0f0", border='')
 			#if (lower[strike] != 0) : drawRect(draw, 401 + ((lower[strike] / maxLower) * 100), x, 401, x + 12, color="#f00", border='')
 			if (lower[strike] != 0) : drawRect(draw, 401, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, color="#f00", border='')
+			for kl in keyLevels:
+				if strike == kl: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#77F")
 			if strike == strikes.ClosestStrike: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
-			#if strike == zero : drawRotatedPriceLine(draw, x + 8, "#FFF")
-			#if strike == zeroD : drawRotatedPriceLine(draw, x + 3, "#0FF")
-			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
+			
 		x = 0
 	else :
 		x = -15
@@ -1086,10 +1054,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if (lower[strike] != 0) : drawRect(draw, x, 401 + ((lower[strike] / maxLower) * 100), x + 12, 401, color="#f00", border='')
 			if strike == strikes.ClosestStrike: drawPriceLine(draw, x + 10 if strikes.Price > strikes.ClosestStrike else x, "#FF0")
 			if strike == zero : drawPriceLine(draw, x + 5, "#FFF")
-			#if strike == zero[1] : drawPriceLine(draw, x + 5, "#FFF")
-			#if strike == zeroD : drawPriceLine(draw, x + 7, "#0FF")
-			#if strike == zeroD[1] : drawPriceLine(draw, x + 7, "#0FF")
-			if strike == biggy : drawRotatedPriceLine(draw, x + 8, "#330")
 		x += 15
 	drawText(draw, x=x, y=0, txt=strikes.Ticker + " " + "${:,.2f}".format(strikes.Price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE, txt=strChart + str(int(strikes.DTE)) + "-DTE", color="#3FF")
@@ -1115,12 +1079,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	return "stock-chart.png"
 
 def drawPointer(draw, x, y, clr):
-#	dr = ImageDraw.Draw(img)
-#	dr.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], outline=clr)
-	#img.show()
-	draw.line([x, y, x + 15, y - 7], fill=clr, width=1)
-	draw.line([x + 15, y - 7, x+15, y+7], fill=clr, width=1)
-	draw.line([x, y, x+15, y+7], fill=clr, width=1)
+	draw.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], fill=clr, outline=clr)
+#	draw.line([x, y, x + 15, y - 7], fill=clr, width=1)
+#	draw.line([x + 15, y - 7, x+15, y+7], fill=clr, width=1)
+#	draw.line([x, y, x+15, y+7], fill=clr, width=1)
 
 def drawIVText(img, x, y, txt, color):
 	text_layer = PILImg.new('L', (100, FONT_SIZE))
@@ -1198,7 +1160,7 @@ def zero_gex(data, price):
 #	print( result, test )
 
 def algoLevels(ticker):
-	atrs = getATRLevels(ticker)
+	#atrs = getATRLevels(ticker)
 	nodes = getOOPS(ticker, 0, 40, CHART_LOG)
 	keyLevels = []
 	mostOI = 0
@@ -1215,10 +1177,10 @@ def algoLevels(ticker):
 	keyLevels.append( mostOIStrike )
 	gex = {}
 	for i in sorted(nodes.Strikes) : gex[i] = nodes.Calls[i].GEX - nodes.Puts[i].GEX
-	keyLevels.append( zero_gex( gex )[0] )
+	keyLevels.append( zero_gex( gex , nodes.Price ) )
 	
 	print( keyLevels )
-#algoLevels("SPY")
+#algoLevels("SPX")
 
 thread_discord()
 

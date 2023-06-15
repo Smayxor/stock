@@ -856,12 +856,28 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 					else: call = not call
 					strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
 				err = 4
-				for options in content['callExpDateMap'][days][stk]: 
+				
+				q = 0
+				for options in content['callExpDateMap'][days][stk]:   #only grabbing calls with a matching put
 					addOption( options, True )
-					if (not days in content['putExpDateMap']) or (not stk in content['putExpDateMap'][days]) : addOption( options, False )
-				for options in content['putExpDateMap'][days][stk]: 
-					if (not days in content['callExpDateMap']) or (not stk in content['callExpDateMap'][days]) : addOption( options, False )
-					addOption( options, True )
+					if stk in content['putExpDateMap'][days] :
+						pData = content['putExpDateMap'][days][stk]
+						addOption( pData[q], True)
+					else :
+						strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
+					q += 1
+					
+					#if (not days in content['putExpDateMap']) or (not stk in content['putExpDateMap'][days]) : 
+					#	print("no put ", stk)
+					#	strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
+						#addOption( options, False )
+					#else: addOption( options, True )
+				#for options in content['putExpDateMap'][days][stk]: 
+				#	if stk == '4505.0' : print(options)
+				#	if (not days in content['callExpDateMap']) or (not stk in content['callExpDateMap'][days]) : 
+				#		print("no call ", stk)
+#						addOption( options, False )
+				#	addOption( options, True )
 
 #				for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
 #					addOption(content['callExpDateMap'][days][stk][i], True)
@@ -949,9 +965,8 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		largeGEX = maxAbove * 0.77
 		
 		for i in sorted(strikes.Strikes) :
-			if top[i] > largeOI : keyLevels.append(i)
-			if above[i] > largeGEX : keyLevels.append(i)
-		
+			if (top[i] > largeOI) or (above[i] > largeGEX) : keyLevels.append(i)
+	
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
 		data.pop('IVData')
@@ -1024,7 +1039,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	elif chartType == CHART_ROTATE :
 		x = IMG_W - 15
 		for strike in sorted(strikes.Strikes) :
-		
 			x -= FONT_SIZE - 3
 			strikeColor = "#CCC"
 			if strike == maxPain : strikeColor = "#F00"

@@ -965,9 +965,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 		largeOI = maxTop * 0.77
 		largeGEX = maxAbove * 0.77
-		
+		largeCall = maxUpper * 0.5
+		largePut = maxLower * 0.5
 		for i in sorted(strikes.Strikes) :
-			if (top[i] > largeOI) or (above[i] > largeGEX) : keyLevels.append(i)
+			if (top[i] > largeOI) or (above[i] > largeGEX) or (upper[i] > largeCall) or (lower[i] > largePut): keyLevels.append(i)
 	
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)

@@ -634,20 +634,28 @@ def getATRLevels(ticker_name):
 	price2 = price + atr
 	price3 = price - atr
 	strikes = StrikeData(ticker_name, previousClose)
+
+	strikes.addStrike(price3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+	strikes.addStrike(price - atr * FIBS[3], 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+	strikes.addStrike(price - atr * FIBS[0], 10, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+	strikes.addStrike(price, 1, 0, 0, 0, 0, 0, 5, 0, 0, 1, 0)
+	strikes.addStrike(price + atr * FIBS[0], 10, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+	strikes.addStrike(price + atr * FIBS[3], 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+	strikes.addStrike(price2, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
 	
-	for i in [price, price + atr, price - atr]:
-		for j in FIBS:
-			strikes.addStrike(i, 15, 0, 0, 0, 0, 0, 10, 0, 0, 1, 0)
-			strikes.addStrike(i + atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
-			strikes.addStrike(i - atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
-			
+	
+	return strikes
+#	for i in [price, price + atr, price - atr]:
+#		for j in FIBS:
+			#strikes.addStrike(i, 15, 0, 0, 0, 0, 0, 10, 0, 0, 1, 0)
+			#strikes.addStrike(i + atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
+			#strikes.addStrike(i - atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
 #			strikes.addStrike(price2 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
-#			strikes.addStrike(price2 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
-			
+#			strikes.addStrike(price2 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)			
 #			strikes.addStrike(price3 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
 #			strikes.addStrike(price3 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
 			
-	return strikes
+#	return strikes
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :
@@ -845,6 +853,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			return ticker_name
 		err = 3
 
+		blank = {'strikePrice': '', 'gamma': '0', 'delta': '0', 'vega': '0', 'theta': '0', 'timeValue': '0', 'volatility': '0', 'openInterest': '0', 'bid': '0', 'ask': '0', 'putCall': '', 'daysToExpiration': '0'}
 		strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
 		for days in reversed(content['callExpDateMap']):
 			for stk in content['callExpDateMap'][days]:
@@ -856,36 +865,21 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 					else: call = not call
 					strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
 				err = 4
-				
-				q = 0
-				for options in content['callExpDateMap'][days][stk]:   #only grabbing calls with a matching put
-					addOption( options, True )
-					if stk in content['putExpDateMap'][days] :
-						pData = content['putExpDateMap'][days][stk]
-						addOption( pData[q], True)
-					else :
-						strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
-					q += 1
-					
-					#if (not days in content['putExpDateMap']) or (not stk in content['putExpDateMap'][days]) : 
-					#	print("no put ", stk)
-					#	strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
-						#addOption( options, False )
-					#else: addOption( options, True )
-				#for options in content['putExpDateMap'][days][stk]: 
-				#	if stk == '4505.0' : print(options)
-				#	if (not days in content['callExpDateMap']) or (not stk in content['callExpDateMap'][days]) : 
-				#		print("no call ", stk)
-#						addOption( options, False )
-				#	addOption( options, True )
 
-#				for i in range( len( content['callExpDateMap'][days][stk] ) ):  #i is always 0?
-#					addOption(content['callExpDateMap'][days][stk][i], True)
-#					if 	(stk in content['putExpDateMap'][days]) :
-#						addOption(content['putExpDateMap'][days][stk][i], True)
-#					else :   # Always add put data or else
-#						print( "BOOM ", stk )
-#						addOption(content['callExpDateMap'][days][stk][i], False)
+				for i in range( len( content['callExpDateMap'][days][stk] ) ):
+					try: call = content['callExpDateMap'][days][stk][i]
+					except: 
+						call = blank
+						blank['strikePrice'] = stk
+						blank['callPut'] = 'CALL'
+					addOption( call, True )
+					try: put = content['putExpDateMap'][days][stk][i]
+					except: 
+						put = blank
+						blank['strikePrice'] = stk
+						blank['callPut'] = 'PUT'
+					addOption( put, True )
+#						strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
 				err = 5
 
 			if chartType == CHART_LASTDTE : break
@@ -933,6 +927,14 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		maxP = {}
 		maxPain = next(iter(strikes.Strikes))
 		maxP[maxPain] = 0
+		
+		
+		atrs = getATRLevels(strikes.Ticker)
+		count += len(atrs.Strikes)
+		for s in atrs.Strikes:
+			#keyLevels.append(s)
+			strikes.addStrike(s, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+		
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
 			above[i] = strikes.Calls[i].GEX - strikes.Puts[i].GEX
@@ -1094,9 +1096,6 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 def drawPointer(draw, x, y, clr):
 	draw.polygon([(x,y), (x + 15,y - 7), (x + 15, y + 7)], fill=clr, outline=clr)
-#	draw.line([x, y, x + 15, y - 7], fill=clr, width=1)
-#	draw.line([x + 15, y - 7, x+15, y+7], fill=clr, width=1)
-#	draw.line([x, y, x+15, y+7], fill=clr, width=1)
 
 def drawIVText(img, x, y, txt, color):
 	text_layer = PILImg.new('L', (100, FONT_SIZE))
@@ -1146,15 +1145,7 @@ def loadIVLog(ticker_name):
 		print('Check file contents ', fileName)
 		return {}
 	return data
-"""
-with open('geeks.txt','w') as file_reader:
-	file_reader.write("GeeksforGeeks")
-print("File before removing the last character",open('geeks.txt').read())
-with open('geeks.txt', 'rb+') as fh:
-	fh.seek(-1, 2)
-	fh.truncate()
-print("File after removing the last character",open('geeks.txt').read())
-"""
+
 def zero_gex(data, price):
 	def add(a, b): return (b[0], a[1] + b[1])
 	strikes = [] #convert data dict to the tuples list function requires
@@ -1163,15 +1154,6 @@ def zero_gex(data, price):
 	a = min(cumsum, key=lambda i: i[1])[0]
 	b = max(cumsum, key=lambda i: i[1])[0]
 	return a if abs(a - price) < abs(b - price) else b
-	#return min(cumsum, key=lambda i: i[1])[0], max(cumsum, key=lambda i: i[1])[0]
-	
-#	if cumsum[len(strikes) // 10][1] < 0: #[en(strikes) // 10] should always have a negative gamma?
-#		op = min  #assigning a variable to a function
-#	else: 
-#		op = max
-#	result = op(cumsum, key=lambda i: i[1])[0]   # lambda returns the strike, from 2nd element in list
-#	test = max(cumsum, key=lambda i: abs(i[1]))[0]   #sort by gamma, return the strike
-#	print( result, test )
 
 def algoLevels(ticker):
 	#atrs = getATRLevels(ticker)

@@ -606,6 +606,8 @@ def fetchEarnings():
 #fetchEarnings()
 
 def getATRLevels(ticker_name):
+	ticker_name = ticker_name.upper()
+	if ticker_name == "SPX" : ticker_name = "$SPX.X"
 	content = getByHistoryType( False, ticker_name )
 	skip = True
 	previousClose = 0.0
@@ -929,11 +931,11 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		maxP[maxPain] = 0
 		
 		
-		atrs = getATRLevels(strikes.Ticker)
-		count += len(atrs.Strikes)
-		for s in atrs.Strikes:
+		#atrs = getATRLevels(strikes.Ticker)
+		#count += len(atrs.Strikes)
+		#for s in atrs.Strikes:
 			#keyLevels.append(s)
-			strikes.addStrike(s, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+		#	strikes.addStrike(s, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
 		
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI

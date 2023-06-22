@@ -195,7 +195,7 @@ headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
 	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
 	{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
-	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "ATR", "value": "ATR"  }, { "name": "CHANGE", "value": "CHANGE"  }, { "name": "SKEW", "value": "SKEW"  }]}   ] }
+	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "SKEW", "value": "SKEW"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -631,33 +631,15 @@ def getATRLevels(ticker_name):
 	atrs = atrs[len(atrs) - 14:]
 	atr = sum(atrs) / len(atrs)
 	FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
-	
-	price = previousClose
-	price2 = price + atr
-	price3 = price - atr
-	strikes = StrikeData(ticker_name, previousClose)
-
-	strikes.addStrike(price3, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	strikes.addStrike(price - atr * FIBS[3], 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	strikes.addStrike(price - atr * FIBS[0], 10, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	strikes.addStrike(price, 1, 0, 0, 0, 0, 0, 5, 0, 0, 1, 0)
-	strikes.addStrike(price + atr * FIBS[0], 10, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	strikes.addStrike(price + atr * FIBS[3], 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	strikes.addStrike(price2, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-	
-	
-	return strikes
-#	for i in [price, price + atr, price - atr]:
-#		for j in FIBS:
-			#strikes.addStrike(i, 15, 0, 0, 0, 0, 0, 10, 0, 0, 1, 0)
-			#strikes.addStrike(i + atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
-			#strikes.addStrike(i - atr * j, 10, 0, 0, 0, 0, 0, j * 10, 0, 0, 1, 0)
-#			strikes.addStrike(price2 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
-#			strikes.addStrike(price2 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)			
-#			strikes.addStrike(price3 + atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
-#			strikes.addStrike(price3 - atr * j, 50 - (50 * j), 0, 0, 0, 0, 0, j * 5, 0, 0, 1, 0)
-			
-#	return strikes
+	result = []
+	result.append((0, previousClose - atr))
+	result.append((0, previousClose - atr * FIBS[3]))
+	result.append((0, previousClose - atr * FIBS[0]))
+	result.append((0, previousClose))
+	result.append((0, previousClose + atr * FIBS[0]))
+	result.append((0, previousClose + atr * FIBS[3]))
+	result.append((0, previousClose + atr))
+	return result
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :
@@ -670,69 +652,6 @@ def getByHistoryType( totalCandles, ticker ):
 		url_endpoint = atr_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker)
 	return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
 
-"""   ************Unfinished pandas code***********
-def getPandas(ticker_name, dte, chartType = 0):
-	import pandas as pd
-	import numpy as np
-
-	content = pullData( ticker_name, dte )
-	df = pd.DataFrame()
-	for days in content['callExpDateMap']:
-		for strikes in content['callExpDateMap'][days]:
-			df = pd.concat([df, pd.DataFrame(content['callExpDateMap'][days][strikes]), pd.DataFrame(content['putExpDateMap'][days][strikes])])
-
-	df.fillna(0, inplace = True)
-#	df['Date'] = pd.to_datetime(df['Date'])
-	df['putCall'] = df['putCall'].replace(['CALL'], '1')
-	df['putCall'] = df['putCall'].replace(['PUT'], '-1')
-
-	df = df.drop(columns=['symbol', 'description', 'exchangeName', 'bid', 'last', 'mark', 'bidSize', 'askSize', 'bidAskSize', 'lastSize', 'highPrice', 'lowPrice', 'openPrice', 'closePrice', 'tradeDate', 'tradeTimeInLong', 'quoteTimeInLong', 'netChange', 'theoreticalOptionValue', 'theoreticalVolatility', 'optionDeliverablesList', 'expirationDate', 'expirationType', 'lastTradingDay', 'multiplier', 'settlementType', 'deliverableNote', 'isIndexOption', 'percentChange', 'markChange', 'markPercentChange', 'intrinsicValue', 'nonStandard', 'mini', 'pennyPilot', 'daysToExpiration', 'inTheMoney' ])
-
-	df['strikePrice'] = df['strikePrice'].astype(float)
-	df['volatility'] = df['volatility'].astype(float)
-	df['gamma'] = df['gamma'].astype(float)
-	df['openInterest'] = df['openInterest'].astype(float)
-	df['putCall'] = df['putCall'].astype(float)
-	df['volatility'] = df['volatility'].astype(float)
-
-	df = df.fillna(0).replace(['NaN'], 0)
-
-	df['GEX'] = df['gamma'] * df['openInterest'] * df['putCall']
-	df['DEX'] = df['delta'] * df['openInterest'] * df['putCall']
-	df['VIX'] = df['vega'] * df['volatility']
-
-	df = df.drop(columns=['gamma', 'delta', 'vega', 'theta', 'rho'])
-	df_agg = df.groupby(['StrikePrice']).sum(numeric_only=True)
-	
-	#df['TotalGamma'] = df.GEX / 10**9
-DataFrame.Series()
-def summation_func(list_of_dataframes/gex/dex/vix):
-
-total_gex/dex/vix = list_of_dataframes/gex/dex/vix[0]
-
-   for df in listof<whatever>[1:]:
-		total_gex/dex/vix += df
-
-return total_gex/dex/vix
-
-
-	print( df.to_string() )
-
-#	print( df[df.duplicated(['strikePrice'])] )
-#	print( np.where(df['strikePrice'] == 409.0) )
-	strikes = {}
-	strikes['Strikes'] = '0'
-	for x in df.strikePrice.unique() :
-		dfSum = df[ df['strikePrice'] == x].sum()
-		strikes['Strikes'] = str(x) + "," + strikes['Strikes']
-		strikes['GEX', x] = dfSum['GEX']
-		strikes['DEX', x] = dfSum['DEX']
-		strikes['OI', x] = dfSum['openInterest']
-
-	print( strikes )
-
-getPandas("SPY", 0, 0)
-"""
 class OptionData():
 	def __init__(self):
 		self.Gamma, self.Delta, self.Vega, self.Theta, self.TimeValue, self.IV, self.OI, self.Bid, self.Ask, self.GEX, self.DEX, self.Dollars = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -905,10 +824,10 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 	keyLevels = []
 	
 	strChart = CHARTS_TEXT[chartType]  #Many charts are able to display using CHART_GEX code.  store the name for later
-	if chartType == CHART_CHANGE : chartType = CHART_GEX
-	if chartType == CHART_LASTDTE : chartType = CHART_GEX
-	if chartType == CHART_ATR : chartType = CHART_GEX  #ATR Code makes data look like GEX chart
-	if chartType == CHART_VOLUME : chartType = CHART_GEX  #Already converted Volume to OI in pullData()
+	if chartType == CHART_CHANGE : chartType = CHART_ROTATE
+	if chartType == CHART_LASTDTE : chartType = CHART_ROTATE
+	if chartType == CHART_ATR : chartType = CHART_ROTATE  #ATR Code makes data look like GEX chart
+	if chartType == CHART_VOLUME : chartType = CHART_ROTATE  #Already converted Volume to OI in pullData()
 	if chartType == CHART_DAILYIV :
 		for i in sorted(strikes.Strikes) :
 			top[i] = abs(strikes.Calls[i].TimeValue) * 1000
@@ -929,14 +848,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		maxP = {}
 		maxPain = next(iter(strikes.Strikes))
 		maxP[maxPain] = 0
-		
-		
-		#atrs = getATRLevels(strikes.Ticker)
-		#count += len(atrs.Strikes)
-		#for s in atrs.Strikes:
-			#keyLevels.append(s)
-		#	strikes.addStrike(s, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
-		
+
 		for i in sorted(strikes.Strikes) :
 			top[i] = strikes.Calls[i].OI + strikes.Puts[i].OI
 			above[i] = strikes.Calls[i].GEX - strikes.Puts[i].GEX
@@ -966,11 +878,25 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 		zeroD = zero_gex( above2, strikes.ClosestStrike )
 
 		largeOI = maxTop * 0.77
-		largeGEX = maxAbove * 0.77
-		largeCall = maxUpper * 0.5
-		largePut = maxLower * 0.5
+		largeGEX = maxAbove * 0.87
+		largeCall = maxUpper * 0.8
+		largePut = maxLower * 0.8
 		for i in sorted(strikes.Strikes) :
 			if (top[i] > largeOI) or (above[i] > largeGEX) or (upper[i] > largeCall) or (lower[i] > largePut): keyLevels.append(i)
+		keyLevels.append(zero)
+		keyLevels.append(maxPain)
+		
+		atrs = getATRLevels(strikes.Ticker)
+		for i in range(len(atrs)):
+			closestStrike = 0
+			distToClosest = 99999
+			for s in strikes.Strikes:
+				tmpDist = abs(atrs[i][1] - s)
+				if distToClosest > tmpDist:
+					distToClosest = tmpDist
+					closestStrike = s
+			atrs[i] = (closestStrike, atrs[i][1])
+			keyLevels.append(atrs[i][0])
 	
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
@@ -1049,7 +975,11 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 			if strike == maxPain : strikeColor = "#F00"
 			if strike == zero : strikeColor = "orange"
 			if strike == zeroD : strikeColor = "#0FF"
-			drawText(draw, y=x - 5, x=218, txt=str(round(strike, 2)), color=strikeColor)   # .replace('.0', '')
+			strikeText = str(round(strike, 2))
+			for i in range(len(atrs)):
+				if atrs[i][0] == strike: 
+					strikeText = str(round(atrs[i][1], 1))
+			drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)   # .replace('.0', '')
 			if (top[strike] != 0) : drawRect(draw, 0, x, ((top[strike] / maxTop) * 65), x + 12, color="#00F", border='')
 			if (above[strike] != 0) : drawRect(draw, 215 - ((abs(above[strike]) / maxAbove) * 150), x, 215, x + 12, color=("#0f0" if (above[strike] > -1) else "#f00"), border='')
 			if (above2[strike] != 0) : drawRect(draw, 215 - ((abs(above2[strike]) / maxAbove2) * 150), x, 215, x + 2, color=("#077" if (above2[strike] > -1) else "#f77"), border='')

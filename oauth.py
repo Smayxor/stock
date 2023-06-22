@@ -608,6 +608,7 @@ def fetchEarnings():
 def getATRLevels(ticker_name):
 	ticker_name = ticker_name.upper()
 	if ticker_name == "SPX" : ticker_name = "$SPX.X"
+	if ticker_name == "XSP" : ticker_name = "$XSP.X"
 	content = getByHistoryType( False, ticker_name )
 	skip = True
 	previousClose = 0.0
@@ -727,6 +728,7 @@ def pullData(ticker_name, dte, count):
 	today = datetime.date.today()
 	if "SPX" in ticker_name: ticker_name = "$SPX.X"
 	if "VIX" in ticker_name: ticker_name = "$VIX.X"
+	if "XSP" in ticker_name: ticker_name = "$XSP.X"
 	if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
 	loopAgain = True
 	errorCounter = 0

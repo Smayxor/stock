@@ -313,8 +313,29 @@ def thread_discord():
 		elif days == "TODAY" : day = today
 		elif days == "WEEK" : day = -1
 		elif days == "ALL" : day = -2
-		events = fetchEvents()
 		
+		
+		
+		events = fetchNews()
+		txt1 = ''
+		txt2 = ''
+		blnFirst = True
+		for j in range(len(events) - 1):
+			if day != -2:
+				if day == -1:
+					if j > 4: continue
+				elif j < today or (j > day): continue
+			tmp = events[j].toString()
+			if (blnFirst == True) and (len(tmp) + len(txt1) > 1999) : blnFirst = False
+			if blnFirst : txt1 += tmp
+			else: txt2 += tmp
+		return (txt1, txt2)
+		
+		
+		
+		"""
+		
+		events = fetchEvents()
 		finalMessage = ""
 		for j in range(len(events) - 1):
 			if day != -2:
@@ -351,7 +372,7 @@ def thread_discord():
 					if nextMessage == "": nextMessage = txt[i]
 					else: nextMessage = nextMessage + "\n" + txt[i]
 		return (finalMessage, nextMessage)	
-
+		"""
 	@bot.tree.command(name="news")
 	async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
 		await intr.response.defer(thinking=True)
@@ -548,7 +569,7 @@ def drawRotatedText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
-
+"""
 def fetchEvents():
 	COLUMN = ['time', 'event', '\t ', 'Actual: ', 'Forecast: ', 'Prev: ', '', '', '', '', '', '']
 	url = "https://www.marketwatch.com/economy-politics/calendar"
@@ -600,6 +621,68 @@ def fetchEvents():
 	except Exception as e:
 		print( e )
 		return (url, '')
+"""
+
+
+lastNewsDay = -1
+todaysNews = None
+class NewsData():
+	def __init__(self, day):
+		self.Day = day
+		self.Events = []
+	def addEvent(self, txt):
+		self.Events.append( txt )
+	def toString(self):
+		text = '**' + self.Day + '**```fix'
+		for e in self.Events:
+			if len( e ) > 0 : text += '\n' + e
+		return text + '```'
+def fetchNews():
+	global lastNewsDay, todaysNews
+	today = datetime.date.today()
+	if lastNewsDay == today : return todaysNews
+	lastNewsDay = today
+	
+	COLUMN = ['', ' ', '\t ', ' Actual: ', ' Forecast: ', ' Prev: ', '', '', '', '', '', '']
+	url = "https://www.marketwatch.com/economy-politics/calendar"
+	news = []
+	try :
+		data = requests.get(url=url)
+		text = ""
+		tables = data.text.split( "<tbody>" )
+		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
+		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
+		for t in txt:
+			t = t.split('</tr>', 1)
+			day = t[0].replace('</td>', '').replace('</b>', '').replace('.', ' ')
+			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
+			newsD = NewsData( day )
+			for r in t[1].split('</tr>'):
+				event = ""
+				counter = 0
+				for td in r.split('</td>'):
+					if counter == 0:
+						if len(td) == 7 : td += " "
+						event = td
+					else:
+						while (counter == 1) and (len(td) < 40): td = td + ' '	
+						if len(td) > 0: event += COLUMN[counter] + td
+					counter += 1
+				newsD.addEvent( event )
+			news.append( newsD )
+	except:
+		news.append( NewsData() )
+	todaysNews = news
+	return news
+
+"""
+events = fetchNews()
+newsCount = 0
+for e in events:
+	print( e.toString() )	
+	newsCount += 1
+"""
+
 
 def fetchEarnings():
 	url = "https://www.earningswhispers.com/calendar?sb=p&d=0&t=all&v=t"

@@ -357,7 +357,6 @@ def thread_discord():
 		await intr.response.defer(thinking=True)
 
 		finalMessage, nextMessage = buildNews(days)
-
 		chnl = bot.get_channel(intr.channel.id)
 		try: 
 			#await intr.response.send_message( finalMessage )
@@ -559,33 +558,43 @@ def fetchEvents():
 		tables = data.text.split( "<tbody>" )
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('\t', ' ').replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').split('<tr>')
+		
 		for s in txt:
 			s = s.replace('<td style="text-align: left;">', '').replace("&quot;", ":").replace('\n', '').replace('</a>', '').replace('</b>', '**END*').split('</td>')
 			counter = 0
 			largestSize = 0
 			for t in s:
-				if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
+				#print("A")
+				try: 
+					if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
+				except: pass
+				#print("B")
 				if '<a href=' in t:
 					t = t.split('<a href=')[0] + t.split('">')[1]  #****  Use masked link  [text](url)
+				#print("C")
 				if counter > 1 and counter < 6 and len(t) > 1:	
 					t = " " + COLUMN[counter] + t + " "
+				#print("D")
 				counter += 1
 				if counter == 1 :
 					ind = t.find('m#')
 					t = t.replace('m#', 'm  ')
 					if ind == 6: t = t[0:5] + ' ' + t[5:]
+				#print("E")
 				while (counter == 2) and (len(t) < 40): t = t + ' '
 				#while (counter == 4) and (len(text) < 56): text = text + ' '
+				
+				#print("F")
 				if counter == 2 and t[0] == ' ' : t = t + ' '
 				text = text + t.lstrip()
+				#print("G")
 				
 			text = text + "\n"
+			
 		text = text.split('@')
 		del text[0]
-		
 		for i in range(len(text) - 1) :
 			text[i] = text[i].replace('END*\n', '\n```fix\n') + '\n```'
-
 		text.append('')
 		return text
 	except Exception as e:
@@ -1113,7 +1122,6 @@ def algoLevels(ticker):
 	print( keyLevels )
 #algoLevels("SPX")
 
-thread_discord()
 
 """
   calcVannaEx(
@@ -1162,3 +1170,34 @@ def calcCharmEx(S, K, vol, T, r, q, optType, OI):
         ) * (2 * (r - q) * T - dm * vol * np.sqrt(T)) / (2 * T * vol * np.sqrt(T))
         return OI * 100 * T * charm
 """
+"""
+def hmmmm():
+	pass
+	
+from tkinter import *
+win = Tk()
+win.geometry(str(IMG_W + 5) + "x" + str(IMG_H + 45))
+
+Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
+
+e1 = Entry(win, width=8)
+e1.grid(row=0, column=0, sticky='E')
+e1.insert(0, "SPY")
+
+e2 = Entry(win, width=4)
+e2.grid(row=0, column=1, sticky='E')
+e2.insert(0, '0')
+
+Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
+Button(win, text="Fetch", command=hmmmm, width=5).grid(row=0, column=2, sticky='E')
+#Button(win, text="Loop", command=gui_click_loop, width=5).grid(row=0, column=3, sticky='N')
+
+canvas = Canvas(win, width=IMG_W, height=IMG_H)
+canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
+canvas.configure(bg="#000000")
+
+mainloop()
+"""
+
+thread_discord()
+

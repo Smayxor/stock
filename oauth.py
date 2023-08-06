@@ -306,7 +306,6 @@ def thread_discord():
 
 	def buildNews(days):
 		today = datetime.datetime.now().weekday()
-
 		if today > 4 : today = 0
 		day = 0
 		if days.isnumeric() : day = today + int(days) - 1
@@ -314,13 +313,11 @@ def thread_discord():
 		elif days == "WEEK" : day = -1
 		elif days == "ALL" : day = -2
 		
-		
-		
 		events = fetchNews()
 		txt1 = ''
 		txt2 = ''
 		blnFirst = True
-		for j in range(len(events) - 1):
+		for j in range(len(events) - 0):
 			if day != -2:
 				if day == -1:
 					if j > 4: continue
@@ -330,11 +327,7 @@ def thread_discord():
 			if blnFirst : txt1 += tmp
 			else: txt2 += tmp
 		return (txt1, txt2)
-		
-		
-		
 		"""
-		
 		events = fetchEvents()
 		finalMessage = ""
 		for j in range(len(events) - 1):

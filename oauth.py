@@ -624,6 +624,8 @@ class NewsData():
 		self.Day = day
 		self.Events = []
 	def addEvent(self, txt):
+		if '<a href=' in txt:
+			txt = (txt.split('<a href=')[0] + txt.split('">')[1]).replace('</a>', '')
 		self.Events.append( txt )
 	def toString(self):
 		text = '**' + self.Day + '**```fix'

@@ -1,7 +1,6 @@
 #Open this url in a browser, it directs you to TDA login page, HTTP server running fetches the Auth Code, and retrieves Auth/Refresh tokens.  You can disable the HTTPServer for 90 days if wanted
 #https://auth.tdameritrade.com/oauth?client_id=(YOUR_API_KEY_HERE)%40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
 
-
 #	This software is completely free to use, modify, or anything else you want
 #	Copyright (C) 2022 Seth Mayberry
 
@@ -159,10 +158,12 @@ serverSockThread = threading.Thread(target=serverOAUTH)
 serverSockThread.start()
 """
 
+
 ACCESS_TOKEN = ""
 REFRESH_TOKEN = ""
 
 def loadAccessTokens():
+	global ACCESS_TOKEN, REFRESH_TOKEN
 	if exists('access-token.json'):
 		init = json.load(open('access-token.json', 'rb'))
 		if 'access_token' in init:
@@ -172,6 +173,7 @@ def loadAccessTokens():
 #loadAccessTokens()
 
 def refreshTokens():
+	global ACCESS_TOKEN, REFRESH_TOKEN, SERVER_HEADER
 	if exists('access-token.json'): 
 		init = json.load(open('access-token.json', 'rb'))
 		if 'refresh_token' in init:
@@ -187,6 +189,7 @@ def refreshTokens():
 	with open("access-token.json", "w") as outfile:
 		outfile.write(merge)
 	loadAccessTokens()
+
 refreshTokens()
 
 #Declarations for slash commands
@@ -625,7 +628,8 @@ class NewsData():
 		self.Events = []
 	def addEvent(self, txt):
 		if '<a href=' in txt:
-			txt = (txt.split('<a href=')[0] + txt.split('">')[1]).replace('</a>', '')
+			txt = txt.replace('</a>', '')
+			txt = txt.split('<a href=')[0] + txt.split('">')[1]
 		self.Events.append( txt )
 	def toString(self):
 		text = '**' + self.Day + '**```fix'
@@ -649,7 +653,7 @@ def fetchNews():
 		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
 		for t in txt:
 			t = t.split('</tr>', 1)
-			day = t[0].replace('</td>', '').replace('</b>', '').replace('.', ' ')
+			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
 			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
 			newsD = NewsData( day )
 			for r in t[1].split('</tr>'):
@@ -669,15 +673,6 @@ def fetchNews():
 		news.append( NewsData() )
 	todaysNews = news
 	return news
-
-"""
-events = fetchNews()
-newsCount = 0
-for e in events:
-	print( e.toString() )	
-	newsCount += 1
-"""
-
 
 def fetchEarnings():
 	url = "https://www.earningswhispers.com/calendar?sb=p&d=0&t=all&v=t"

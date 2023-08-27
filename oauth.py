@@ -471,28 +471,30 @@ def thread_discord():
 	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
+		global tickers
 		chnl = bot.get_channel(UPDATE_CHANNEL)
 		if datetime.datetime.now().weekday() > 4 : 
 			await chnl.send( buildNews("WEEK")[0] )
 			return
 		print("Daily Task Execution")
-		tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		await chnl.send("Fethcing Morning Charts")
-		clearStoredStrikes()
 		await chnl.send( buildNews("TODAY")[0] )
+		clearStoredStrikes()
+		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		logData("SPX")
-		logData("SPY")
+		#logData("SPX")
+		#logData("SPY")
 
 	dailyTaskTime2 = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime2)
 	async def dailyTask2():
+		global tickers
 		if datetime.datetime.now().weekday() > 4 : return
 		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution 2")
 		await chnl.send("Fethcing Morning Charts")
-		tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 
@@ -508,12 +510,18 @@ def thread_discord():
 	@bot.command(name="s")
 	async def get_gex(ctx, *args):
 		global tickers, updateRunning
-		if ctx.message.author == bot.user: return
+		"""if ctx.message.author == bot.user: return
 		if len(args) == 0: return
 		dte = (args[1] if (len(args) > 1) and args[1].isnumeric() else '0')
 		count = (args[2] if (len(args) > 2) and args[2].isnumeric() else '40')
 		tickers.append( (args[0].upper(), dte, count, getChartType(args[2]) if (len(args) == 3) else 0, ctx.message.channel.id, ctx.message.channel) )
-
+		"""
+		clearStoredStrikes()
+		chnl = bot.get_channel(UPDATE_CHANNEL)
+		await chnl.send("Fethcing Morning Charts")
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		
 	@bot.command(name="leaveg")
 	@commands.is_owner()
 	async def leaveg(ctx, *, guild_name):

@@ -468,7 +468,8 @@ def thread_discord():
 #			os.popen('cp ' + fn + log) 
 #			logCounter += 1	
 
-	dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=13, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+#	dailyTaskTime = datetime.time(hour=9, minute=53, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		global tickers
@@ -486,7 +487,7 @@ def thread_discord():
 		#logData("SPX")
 		#logData("SPY")
 
-	dailyTaskTime2 = datetime.time(hour=14, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime2 = datetime.time(hour=13, minute=45, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime2)
 	async def dailyTask2():
 		global tickers

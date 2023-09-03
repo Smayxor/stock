@@ -295,11 +295,11 @@ def thread_discord():
 	@bot.command(name="dump")
 	async def command_dump(ctx, *args): await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
 	@bot.command(name="tits")
-	async def command_tits(ctx, *args): await ctx.send( getTenorGIF( random.choice(titties) + enc(" " + ' '.join(args)) ) )
+	async def command_tits(ctx, *args): await ctx.send( getTenorGIF( random.choice(titties) if len( args) == 0 else enc(' '.join(args)) ) )
 	@bot.command(name="ass")
-	async def command_ass(ctx, *args): await ctx.send( getTenorGIF( random.choice(asses) + enc(" " + ' '.join(args)) ) )
+	async def command_ass(ctx, *args): await ctx.send( getTenorGIF( random.choice(asses) if len( args) == 0 else enc(' '.join(args)) ) )
 	@bot.command(name="gm")
-	async def command_gm(ctx, *args): await ctx.send( getTenorGIF( random.choice(gms) + enc(" " + ' '.join(args)) ) )
+	async def command_gm(ctx, *args): await ctx.send( getTenorGIF( random.choice(gms) if len( args) == 0 else enc(' '.join(args)) ) )
 	
 	@bot.tree.command(name="8ball", description="Answers your question?")
 	async def slash_command_8ball(intr: discord.Interaction, question: str):
@@ -1254,7 +1254,8 @@ def calcCharmEx(S, K, vol, T, r, q, optType, OI):
 """
 """
 def hmmmm():
-	pass
+	global canvas
+	canvas.create_line(100,200,200,35, fill="green", width=5)
 	
 from tkinter import *
 win = Tk()

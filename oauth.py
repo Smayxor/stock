@@ -70,6 +70,7 @@ auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
 atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=true"
+
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
@@ -81,8 +82,9 @@ CHART_LASTDTE = 7
 CHART_LOG = 8
 CHART_CHANGE = 9
 CHART_SKEW = 10
+CHART_HEATMAP = 11
 
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
 storedStrikes = []
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
 FONT_SIZE = 22
@@ -198,7 +200,7 @@ headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
 	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
 	{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
-	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "SKEW", "value": "SKEW"  }]}   ] }
+	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "SKEW", "value": "SKEW"  }, { "name": "HEATMAP", "value": "HEATMAP"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -269,6 +271,7 @@ def thread_discord():
 		elif arg == 'LD': return CHART_LASTDTE
 		elif arg == 'CHANGE': return CHART_CHANGE
 		elif arg == 'SKEW': return CHART_SKEW
+		elif arg == 'HEATMAP': return CHART_HEATMAP
 		else: return CHART_GEX
 
 	@bot.tree.command(name="gex", description="Draws a GEX chart")
@@ -468,7 +471,7 @@ def thread_discord():
 #			os.popen('cp ' + fn + log) 
 #			logCounter += 1	
 
-	dailyTaskTime = datetime.time(hour=13, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 #	dailyTaskTime = datetime.time(hour=9, minute=53, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
@@ -483,11 +486,11 @@ def thread_discord():
 		clearStoredStrikes()
 		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		#logData("SPX")
+		#tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		#
 		#logData("SPY")
 
-	dailyTaskTime2 = datetime.time(hour=13, minute=45, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+	dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime2)
 	async def dailyTask2():
 		global tickers
@@ -497,7 +500,8 @@ def thread_discord():
 		await chnl.send("Fethcing Morning Charts")
 		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
+		#logData("SPX")
 
 	@bot.event
 	async def on_ready():
@@ -1131,6 +1135,7 @@ def drawIVText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 def logData(ticker_name):
+	""" CHANGE to store -1dte
 	fileName = ticker_name + "-IV.json"
 	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
 	today = str(datetime.date.today())
@@ -1159,6 +1164,7 @@ def logData(ticker_name):
 	#json.dump(data, open(fileName,'r+'), indent = 4)
 	#with open('data{}.txt'.format(self.timestamp), 'a') as f:
 	#	f.write(data + '\n')
+	"""
 
 def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"
@@ -1252,14 +1258,96 @@ def calcCharmEx(S, K, vol, T, r, q, optType, OI):
         ) * (2 * (r - q) * T - dm * vol * np.sqrt(T)) / (2 * T * vol * np.sqrt(T))
         return OI * 100 * T * charm
 """
+
+
 """
-def hmmmm():
+previous_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period={days}&frequencyType=minute&frequency=1"
+today_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&frequencyType=minute&frequency=1&endDate=1915362000000&startDate={start_date}&needExtendedHoursData=true"
+
+def getTimeMilliseconds( days ):
+	today = datetime.date.today()
+	if today.weekday() > 4 : today = today - datetime.timedelta(days=(today.weekday() % 4))
+	today = today - datetime.timedelta(days= days)
+	return int(round(time.mktime(today.timetuple()) * 1000))
+
+def getCandles( ticker, days ):
+	url_endpoint = today_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker.upper(), start_date=getTimeMilliseconds(int(days)))
+	return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
+
+def clickButton():
 	global canvas
-	canvas.create_line(100,200,200,35, fill="green", width=5)
+	canvas.create_rectangle(0, 0, 2000, IMG_H, fill='black')
+
+	drawTickerOnCanvas( e1.get().upper(), e2.get(), "orange" )
+
+	#drawTickerOnCanvas( "$SPX.X", e2.get(), "yellow" )
+	#drawTickerOnCanvas( "$VIX.X", e2.get(), "white" )
+	#drawTickerOnCanvas( "TLT", e2.get(), "orange" )
+#	drawTickerOnCanvas( "DXY", e2.get(), "purple" )
+
+def drawTickerOnCanvas( ticker, days, color ):
+	global canvas
+	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
+	highPrice = 0
+	lowPrice = 9999999
+	candles = getCandles(ticker, days)['candles']
+	avgs = []
+	for i in range( len( candles ) ) :
+		avgs.append( (candles[i]['high'] + candles[i]['low']) / 2 )
+		if avgs[i] > highPrice : highPrice = avgs[i]
+		if avgs[i] < lowPrice : lowPrice = avgs[i]
+	priceRange = highPrice - lowPrice
+	scale = IMG_H / priceRange
+	
+	lenavgs = len(avgs)
+	
+	highs = []
+	lows = []
+	last = avgs[0]
+	high = 0
+	low = 0
+	def checkNextHigh(index):
+		last = index + 10 if index + 10 < lenavgs else lenavgs
+		for i in range(index, last):
+			if avgs[i] > avgs[index] : return False
+		return True
+	def checkNextLow(index):
+		last = index + 10 if index + 10 < lenavgs else lenavgs
+		for i in range(index, last):
+			if avgs[i] < avgs[index] : return False
+		return True
+
+	for i in range( 1, lenavgs ) :
+		if avgs[i] > avgs[high] and checkNextHigh(i):
+			highs.append(i)
+			high = i
+			low = i
+		elif avgs[i] < avgs[low] and checkNextLow(i):
+			lows.append(i)
+			low = i
+			high = i
+		else:
+			pass
+
+	def convertY( val ):	return IMG_H - ((val - lowPrice) * scale)
+	if lenavgs > 2000 : lenavgs = 2000
+	for x in range( 1, lenavgs ):
+		y1 = convertY(avgs[x-1])
+		y2 = convertY(avgs[x])
+		canvas.create_line(x-1,y1,x,y2, fill=color, width=1)
+		
+#		if x in highs : canvas.create_line(x-5,convertY(avgs[x]),x+5,convertY(avgs[x]), fill="green", width=5)
+#		if x in lows : canvas.create_line(x-5,convertY(avgs[x]),x+5,convertY(avgs[x]), fill="red", width=5)
+
+	for x in range(1, len(highs)):
+		canvas.create_line(highs[x-1],convertY(avgs[highs[x-1]]),highs[x],convertY(avgs[highs[x]]), fill="green", width=1)
+	for x in range(1, len(lows)):
+		canvas.create_line(lows[x-1],convertY(avgs[lows[x-1]]),lows[x],convertY(avgs[lows[x]]), fill="red", width=1)
+
 	
 from tkinter import *
 win = Tk()
-win.geometry(str(IMG_W + 5) + "x" + str(IMG_H + 45))
+win.geometry(str(2000 + 5) + "x" + str(IMG_H + 45))
 
 Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
 
@@ -1269,16 +1357,17 @@ e1.insert(0, "SPY")
 
 e2 = Entry(win, width=4)
 e2.grid(row=0, column=1, sticky='E')
-e2.insert(0, '0')
+e2.insert(0, '2')
 
 Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
-Button(win, text="Fetch", command=hmmmm, width=5).grid(row=0, column=2, sticky='E')
+Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=2, sticky='E')
 #Button(win, text="Loop", command=gui_click_loop, width=5).grid(row=0, column=3, sticky='N')
 
-canvas = Canvas(win, width=IMG_W, height=IMG_H)
+canvas = Canvas(win, width=2000, height=IMG_H)
 canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
 canvas.configure(bg="#000000")
 
+clickButton()
 mainloop()
 """
 

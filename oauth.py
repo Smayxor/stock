@@ -766,12 +766,13 @@ class OptionData():
 		self.Dollars += bid * oi * 100
 
 class StrikeData():
-	def __init__(self, ticker, price):
+	def __init__(self, ticker, price, date):
 		self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
 		self.distFromPrice = 9999
 		self.CallDollars, self.PutDollars = 0.0, 0.0
 		self.Ticker = ticker
 		self.Price = round(price, 2)
+		self.Date = date
 	def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
 		def chk( val ) : return 0.0 if math.isnan( float( val ) ) or (val == -999.0) else float( val )
 		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), abs(chk(gamma)), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
@@ -854,10 +855,10 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			if atrs == 0: return "error.png"
 			return drawOOPSChart( atrs, chartType )
 		if chartType == CHART_IV : 
-			strikes = StrikeData(ticker_name, 0.0)
+			strikes = StrikeData(ticker_name, 0.0, '')
 			return drawOOPSChart(strikes, chartType)
 		err = 1
-
+		if chartType == CHART_HEATMAP : dte = 7
 		content = pullData( ticker_name, dte, count )
 		if (content['status'] in 'FAILED'): 
 			#print( content )
@@ -872,8 +873,14 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		err = 3
 
 		blank = {'strikePrice': '', 'gamma': '0', 'delta': '0', 'vega': '0', 'theta': '0', 'timeValue': '0', 'volatility': '0', 'openInterest': '0', 'bid': '0', 'ask': '0', 'putCall': '', 'daysToExpiration': '0'}
-		strikesData = StrikeData(content['symbol'], content['underlyingPrice'])
+		
+		sdIndex = 0
+		strikesData = []
+		#Days is reversed in for loop for the LAST_DTE chartType
 		for days in reversed(content['callExpDateMap']):
+			if chartType == CHART_HEATMAP:	strikesData.append( StrikeData(content['symbol'], content['underlyingPrice'], days) )
+			elif len(strikesData) == 0 : strikesData.append( StrikeData(content['symbol'], content['underlyingPrice'], days) )
+			
 			for stk in content['callExpDateMap'][days]:
 				def addOption(opt, hasData) :
 					oi = 0
@@ -881,7 +888,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 					if hasData :
 						oi = opt['totalVolume'] if (chartType == CHART_VOLUME) or (chartType == CHART_CHANGE) else opt['openInterest'] 
 					else: call = not call
-					strikesData.addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
+					strikesData[sdIndex].addStrike( strike=opt['strikePrice'], gamma=opt['gamma'], delta=opt['delta'], vega=opt['vega'], theta=opt['theta'], timeValue=opt['timeValue'], iv=opt['volatility'], oi=oi, bid=opt['bid'], ask=opt['ask'], call=call, dte=opt['daysToExpiration'] )
 				err = 4
 
 				for i in range( len( content['callExpDateMap'][days][stk] ) ):
@@ -899,16 +906,35 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 					addOption( put, True )
 #						strikesData.addStrike( strike=stk, gamma=0, delta=0, vega=0, theta=0, timeValue=0, iv=0, oi=0, bid=0, ask=0, call=-1, dte=options['daysToExpiration'] )
 				err = 5
-
+			if chartType == CHART_HEATMAP : sdIndex += 1
 			if chartType == CHART_LASTDTE : break
-		if chartType == CHART_LOG : return strikesData
-		if chartType == CHART_CHANGE : strikesData = getChange(strikesData)
+		if chartType == CHART_LOG : return strikesData[sdIndex]
+		if chartType == CHART_CHANGE : strikesData[sdIndex] = getChange(strikesData[sdIndex])
 		err = 6
-		return drawOOPSChart( strikesData, chartType )
+		if chartType == CHART_HEATMAP : return drawHeatMap( strikesData )
+		return drawOOPSChart( strikesData[sdIndex], chartType )
 	except Exception as e:
-		print( err, " ", e)  #4 list index out of range
+		print( err, " ", str(e))
 		return "error.png"
 
+def drawHeatMap(strikes: []):
+	#strikes.pop()
+
+	count = len(strikes)	
+	IMG_W = ((FONT_SIZE - 3) * count) + 300
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)
+	
+	
+	drawText(draw, x=0, y=0, txt="Feature coming soon to a bot near you!", color="#CCC")
+	y = 1
+	for i in strikes:
+		drawText(draw, x=0, y=y * FONT_SIZE, txt=i.Date, color="#CCC")
+		y += 1
+	
+	img.save("stock-chart.png")
+	return "stock-chart.png"
+	
 def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}
 	maxTop, maxAbove, maxAbove2, maxUpper, maxLower = 1.0, 1.0, 1.0, 1.0, 1.0

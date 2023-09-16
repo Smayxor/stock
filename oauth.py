@@ -858,7 +858,9 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			strikes = StrikeData(ticker_name, 0.0, '')
 			return drawOOPSChart(strikes, chartType)
 		err = 1
-		if chartType == CHART_HEATMAP : dte = 7
+		if chartType == CHART_HEATMAP : 
+			dte = 7
+			count = 20
 		content = pullData( ticker_name, dte, count )
 		if (content['status'] in 'FAILED'): 
 			#print( content )
@@ -917,20 +919,43 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		print( err, " ", str(e))
 		return "error.png"
 
+def alignValue(val):
+	val = format(int(val), ',d')
+	while len(val) < 10 : val = ' ' + val
+	return val
+
 def drawHeatMap(strikes: []):
 	#strikes.pop()
 
 	count = len(strikes)	
 	IMG_W = ((FONT_SIZE - 3) * count) + 300
-	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	img = PILImg.new("RGB", (len(strikes) * 150, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	
 	
-	drawText(draw, x=0, y=0, txt="Feature coming soon to a bot near you!", color="#CCC")
+	drawText(draw, x=100, y=0, txt="Feature coming soon to a bot near you!", color="#0ff")
+	"""
 	y = 1
 	for i in strikes:
 		drawText(draw, x=0, y=y * FONT_SIZE, txt=i.Date, color="#CCC")
 		y += 1
+		
+		
+		today = datetime.strptime(date_str, '%m-%d-%Y').date()
+		today.strftime("%B %d")
+	"""
+	x = 0
+	for day in reversed(strikes) :
+		y = IMG_H - FONT_SIZE - 10
+		x += 100
+		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
+		drawText(draw, x=x, y=y, txt=strDay, color="#CCC")
+		for i in sorted(day.Strikes) :
+			y -= FONT_SIZE - 5
+			drawText(draw, x=0, y=y, txt=str(int(i)), color="#77f")
+			strikeOI = day.Calls[i].OI + day.Puts[i].OI
+			strikeGEX = day.Calls[i].GEX - day.Puts[i].GEX
+			drawText(draw, x=x, y=y, txt=alignValue(strikeOI), color="#FF7")
 	
 	img.save("stock-chart.png")
 	return "stock-chart.png"

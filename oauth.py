@@ -921,42 +921,68 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 
 def alignValue(val):
 	val = format(int(val), ',d')
-	while len(val) < 10 : val = ' ' + val
+	while len(val) < 6 : val = ' ' + val
 	return val
+
+LETTER = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+def getColorGradient(maxVal, val):
+	result = int((abs(val) / maxVal) * 15)
+	return "#0" + LETTER[result] + "0" if val > 0 else "#" + LETTER[result] + "00"
 
 def drawHeatMap(strikes: []):
 	#strikes.pop()
 
 	count = len(strikes)	
-	IMG_W = ((FONT_SIZE - 3) * count) + 300
-	img = PILImg.new("RGB", (len(strikes) * 150, IMG_H), "#000")
-	draw = ImageDraw.Draw(img)
 	
 	
-	drawText(draw, x=100, y=0, txt="Feature coming soon to a bot near you!", color="#0ff")
-	"""
-	y = 1
-	for i in strikes:
-		drawText(draw, x=0, y=y * FONT_SIZE, txt=i.Date, color="#CCC")
-		y += 1
-		
-		
-		today = datetime.strptime(date_str, '%m-%d-%Y').date()
-		today.strftime("%B %d")
-	"""
-	x = 0
-	for day in reversed(strikes) :
-		y = IMG_H - FONT_SIZE - 10
-		x += 100
-		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
-		drawText(draw, x=x, y=y, txt=strDay, color="#CCC")
+	lStrike = []
+	maxGEX = 0
+	for day in reversed(strikes) : #Build a unique list of all strikes
 		for i in sorted(day.Strikes) :
-			y -= FONT_SIZE - 5
-			drawText(draw, x=0, y=y, txt=str(int(i)), color="#77f")
-			strikeOI = day.Calls[i].OI + day.Puts[i].OI
-			strikeGEX = day.Calls[i].GEX - day.Puts[i].GEX
-			drawText(draw, x=x, y=y, txt=alignValue(strikeOI), color="#FF7")
+			if not i in lStrike : 
+				lStrike.append(i)
+			day.Calls[i].GEX = day.Calls[i].GEX - day.Puts[i].GEX   #********************** MAKING Call.GEX a Total for later.  Lets me find Max(GEX) before drawing
+			if abs(day.Calls[i].GEX) > maxGEX : maxGEX = abs(day.Calls[i].GEX)
+	lStrike.sort()
 	
+	IMG_W = (len(strikes) + 1) * 80
+	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 5)) + 10
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)
+	drawText(draw, x=100, y=0, txt="Feature coming soon to a bot near you!", color="#0ff")
+	
+	
+	y = IMG_H - FONT_SIZE - 10
+	for j in lStrike :
+		draw.line([0, y, IMG_W, y], fill="white", width=1)
+		y -= FONT_SIZE
+		drawText(draw, x=0, y=y, txt=str(j), color="#77f")
+		y -= 2
+
+		
+	x = 0
+	y = IMG_H - FONT_SIZE - 10
+	for day in reversed(strikes) :
+		
+		x += 80
+		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
+		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
+		draw.line([x, 0, x, IMG_H], fill="white", width=1)
+		
+	y = IMG_H - FONT_SIZE - 10
+	for i in lStrike :
+		x = 0
+		y -= FONT_SIZE + 2
+		for day in reversed(strikes) :
+			x += 80
+			if i in day.Strikes:
+				color = getColorGradient(maxGEX, day.Calls[i].GEX)
+				drawRect(draw, x, y, x + 70, y + FONT_SIZE, color=color, border='')
+				
+				drawText(draw, x=x, y=y, txt=alignValue(day.Calls[i].GEX), color="#FF7")
+	
+	
+				
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 	
@@ -1075,6 +1101,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 
 #Draw the data
 	IMG_W = ((FONT_SIZE - 3) * count) + 150
+	IMG_H = 500
 	if chartType != CHART_ROTATE : IMG_W += 100
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000") if chartType == CHART_ROTATE else PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)

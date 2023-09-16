@@ -951,23 +951,6 @@ def drawHeatMap(strikes: []):
 	draw = ImageDraw.Draw(img)
 	drawText(draw, x=100, y=0, txt="Feature coming soon to a bot near you!", color="#0ff")
 	
-	
-	y = IMG_H - FONT_SIZE - 10
-	for j in lStrike :
-		draw.line([0, y, IMG_W, y], fill="white", width=1)
-		y -= FONT_SIZE
-		drawText(draw, x=0, y=y, txt=str(j), color="#77f")
-		y -= 2
-
-		
-	x = 0
-	y = IMG_H - FONT_SIZE - 10
-	for day in reversed(strikes) :
-		
-		x += 80
-		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
-		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
-		draw.line([x, 0, x, IMG_H], fill="white", width=1)
 		
 	y = IMG_H - FONT_SIZE - 10
 	for i in lStrike :
@@ -982,6 +965,20 @@ def drawHeatMap(strikes: []):
 				drawText(draw, x=x, y=y, txt=alignValue(day.Calls[i].GEX), color="#FF7")
 	
 	
+	
+	y = IMG_H - FONT_SIZE - 10
+	for j in lStrike :
+		draw.line([0, y, IMG_W, y], fill="white", width=1)
+		y -= FONT_SIZE
+		drawText(draw, x=0, y=y, txt=str(j), color="#77f")
+		y -= 2
+	x = 0
+	y = IMG_H - FONT_SIZE - 10
+	for day in reversed(strikes) :
+		x += 80
+		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
+		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
+		draw.line([x, 0, x, IMG_H], fill="white", width=1)
 				
 	img.save("stock-chart.png")
 	return "stock-chart.png"

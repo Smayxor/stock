@@ -767,7 +767,7 @@ class OptionData():
 
 class StrikeData():
 	def __init__(self, ticker, price, date):
-		self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, [], "", 0.0, 0, 0.0
+		self.Total, self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, {}, [], "", 0.0, 0, 0.0
 		self.distFromPrice = 9999
 		self.CallDollars, self.PutDollars = 0.0, 0.0
 		self.Ticker = ticker
@@ -858,9 +858,9 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 			strikes = StrikeData(ticker_name, 0.0, '')
 			return drawOOPSChart(strikes, chartType)
 		err = 1
-		if chartType == CHART_HEATMAP : 
-			dte = 7
-			count = 20
+#		if chartType == CHART_HEATMAP : 
+#			dte = 7
+#			count = 20
 		content = pullData( ticker_name, dte, count )
 		if (content['status'] in 'FAILED'): 
 			#print( content )
@@ -924,9 +924,10 @@ def alignValue(val):
 	while len(val) < 6 : val = ' ' + val
 	return val
 
-LETTER = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+LETTER = ['0', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
+#print(len(LETTER)) '0', '1', '2', '3', '4', 
 def getColorGradient(maxVal, val):
-	result = int((abs(val) / maxVal) * 15)
+	result = int((abs(val) / maxVal) * 41)
 	return "#0" + LETTER[result] + "0" if val > 0 else "#" + LETTER[result] + "00"
 
 def drawHeatMap(strikes: []):
@@ -936,22 +937,20 @@ def drawHeatMap(strikes: []):
 	
 	
 	lStrike = []
-	maxGEX = 0
+	maxTotal = 0
 	for day in reversed(strikes) : #Build a unique list of all strikes
 		for i in sorted(day.Strikes) :
 			if not i in lStrike : 
 				lStrike.append(i)
-			day.Calls[i].GEX = day.Calls[i].GEX - day.Puts[i].GEX   #********************** MAKING Call.GEX a Total for later.  Lets me find Max(GEX) before drawing
-			if abs(day.Calls[i].GEX) > maxGEX : maxGEX = abs(day.Calls[i].GEX)
+			day.Total[i] = day.Calls[i].OI - day.Puts[i].OI
+			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])
 	lStrike.sort()
 	
 	IMG_W = (len(strikes) + 1) * 80
-	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 5)) + 10
+	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 2)) + 10
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
-	drawText(draw, x=100, y=0, txt="Feature coming soon to a bot near you!", color="#0ff")
-	
-		
+			
 	y = IMG_H - FONT_SIZE - 10
 	for i in lStrike :
 		x = 0
@@ -959,10 +958,11 @@ def drawHeatMap(strikes: []):
 		for day in reversed(strikes) :
 			x += 80
 			if i in day.Strikes:
-				color = getColorGradient(maxGEX, day.Calls[i].GEX)
+				color = getColorGradient(maxTotal, day.Total[i])
 				drawRect(draw, x, y, x + 70, y + FONT_SIZE, color=color, border='')
 				
-				drawText(draw, x=x, y=y, txt=alignValue(day.Calls[i].GEX), color="#FF7")
+				drawText(draw, x=x, y=y, txt=alignValue(day.Total[i]), color="#FF7")
+	y2 = y - (FONT_SIZE + 2)
 	
 	
 	
@@ -978,10 +978,28 @@ def drawHeatMap(strikes: []):
 		x += 80
 		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
 		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
-		draw.line([x, 0, x, IMG_H], fill="white", width=1)
-				
+		draw.line([x, y2, x, IMG_H], fill="white", width=1)
+	
+	drawRect(draw, 0, 0, IMG_W-2, FONT_SIZE+1, color="#000", border="#CCF")
+	drawText(draw, x=0, y=0, txt=strikes[0].Ticker + " Options Heatmap", color="#0ff")
+
 	img.save("stock-chart.png")
 	return "stock-chart.png"
+	
+	
+"""
+	So say we have the 5dte gex and we wanna compare it to 3 days ago. That would mean it was 8dte at the time. You basically go back and check what the 8dte gex was. Then you'd wanna take the difference in terms of percentages. So you'd wanna do the 5dte gex, divided by the 8dte gex from the stored data.
+That should give you a series/dataframe of the difference (in percentage). Then you'd wanna do 1 - that entire series/dataframe.
+That should give you a negative number if it went down. If it went up, that should give you a positive number smaller than 1 (unless the GEX spiked up more than 100%)
+That's the percentage change basically:
+
+1 - <entire_series/dataframe>
+And the entire_series/dataframe is this:
+
+df_5dte / df_8dte_3daysago
+"""
+	
+	
 	
 def drawOOPSChart(strikes: StrikeData, chartType) :
 	top, above, above2, upper, lower = {}, {}, {}, {}, {}

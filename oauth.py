@@ -502,6 +502,8 @@ def thread_discord():
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		#logData("SPX")
+		logData("SPX", 40)
+
 
 	@bot.event
 	async def on_ready():
@@ -1227,37 +1229,24 @@ def drawIVText(img, x, y, txt, color):
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
-def logData(ticker_name):
-	""" CHANGE to store -1dte
-	fileName = ticker_name + "-IV.json"
+def logData(ticker_name, count):
+	""" CHANGE to store -1dte """
 	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
-	today = str(datetime.date.today())
-	atmIV = strikes.Calls[strikes.ClosestStrike].IV
-	data = loadIVLog(ticker_name)
-	callIV = 0.0
-	putsIV = 0.0
-	for x in range(len(strikes.Strikes)) :
-		if strikes.Strikes[x] == strikes.ClosestStrike : 
-			callIV = strikes.Calls[strikes.Strikes[x + 5]].IV
-			if callIV == 0.0 : callIV = strikes.Puts[strikes.Strikes[x + 5]].IV
-			putsIV = strikes.Calls[strikes.Strikes[x - 5]].IV
-			if putsIV == 0.0 : putsIV = strikes.Puts[strikes.Strikes[x - 5]].IV
-			break
-	if callIV == 0.0 or putsIV == 0.0 or atmIV == 0.0 : 
-		print("Bad IV data")
-		return
-	newData = {"atm": atmIV, "calls": callIV, "puts": putsIV}
-	print( fileName, " - ", strikes.ClosestStrike, " - ", atmIV, " - ", today )
-	print( newData )
-	data[str(today)] = newData
+	today = str(datetime.date.today()).split(":")[0]
+	fileName = ticker_name + ".json"  #   today + "_" + 
 
+	data = {}
+	for x in strikes.Strikes :
+		data[x] = { "CallOI": strikes.Calls[x].OI, "PutOI": strikes.Puts[x].OI, "CallGEX": strikes.Calls[x].GEX, "PutGEX": strikes.Puts[x].GEX }
+	
+	datedData = {}
+	datedData[today] = data
 
 	with open(fileName,'w') as f: 
-		json.dump(data, f, indent=4)  
+		json.dump(datedData, f)
 	#json.dump(data, open(fileName,'r+'), indent = 4)
 	#with open('data{}.txt'.format(self.timestamp), 'a') as f:
 	#	f.write(data + '\n')
-	"""
 
 def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"

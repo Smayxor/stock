@@ -702,6 +702,7 @@ def fetchEarnings():
 	return tmp
 #fetchEarnings()
 
+FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
 def getATRLevels(ticker_name):
 	ticker_name = ticker_name.upper()
 	if ticker_name == "SPX" : ticker_name = "$SPX.X"
@@ -728,15 +729,21 @@ def getATRLevels(ticker_name):
 		return 0
 	atrs = atrs[len(atrs) - 14:]
 	atr = sum(atrs) / len(atrs)
-	FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
 	result = []
 	result.append((0, previousClose - atr))
+	result.append((0, previousClose - atr * FIBS[4]))
 	result.append((0, previousClose - atr * FIBS[3]))
+	result.append((0, previousClose - atr * FIBS[2]))
+	result.append((0, previousClose - atr * FIBS[1]))
 	result.append((0, previousClose - atr * FIBS[0]))
 	result.append((0, previousClose))
 	result.append((0, previousClose + atr * FIBS[0]))
+	result.append((0, previousClose + atr * FIBS[1]))
+	result.append((0, previousClose + atr * FIBS[2]))
 	result.append((0, previousClose + atr * FIBS[3]))
+	result.append((0, previousClose + atr * FIBS[4]))
 	result.append((0, previousClose + atr))
+#	print( atr, previousClose )
 	return result
 
 def getByHistoryType( totalCandles, ticker ):
@@ -802,7 +809,7 @@ def getChange(new: StrikeData) :
 		storedStrikes.append(new)
 		return new
 	#Generate differential values to draw
-	changeStrikes = StrikeData(new.Ticker, new.Price)
+	changeStrikes = StrikeData(new.Ticker, new.Price, '')
 	changeStrikes.DTE = new.DTE
 	changeStrikes.ClosestStrike = new.ClosestStrike
 	changeStrikes.distFromPrice = new.distFromPrice
@@ -926,18 +933,40 @@ def alignValue(val):
 	while len(val) < 6 : val = ' ' + val
 	return val
 
-LETTER = ['0', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
-#print(len(LETTER)) '0', '1', '2', '3', '4', 
-def getColorGradient(maxVal, val):
-	result = int((abs(val) / maxVal) * 41)
-	return "#0" + LETTER[result] + "0" if val > 0 else "#" + LETTER[result] + "00"
+tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
+LETTER = [ f'#{l}00' for l in reversed(tmp)] + ['0'] + [ f'#0{l}0' for l in tmp]
+MIDDLE_LETTER = len(tmp)
+del tmp
+def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
+def loadOldDTE(ticker):
+	fileName = "SPX.json" #ticker + ".json" 
+#	if not exists(fileName):  
+#		with open(fileName, "w") as outfile:  
+#			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
+	result = StrikeData(ticker, 0.0, '')
+	try:
+		data = json.load(open(fileName,'r'))
+		for day in data:
+			result.Date = day
+			for strikes in data[day]:
+				#print( strikes, ' ', data[day][strikes] )
+				fltStrikes = float(strikes)
+				result.Strikes.append(fltStrikes)
+				result.Calls[fltStrikes] = OptionData()
+				result.Puts[fltStrikes] = OptionData()
+				result.Calls[fltStrikes].OI = data[day][strikes]['CallOI']
+				result.Puts[fltStrikes].OI = data[day][strikes]['PutOI']
+				result.Calls[fltStrikes].GEX = data[day][strikes]['CallGEX']
+				result.Puts[fltStrikes].GEX = data[day][strikes]['PutGEX']
+	except Exception as er: 
+		print("Load Data BOOM", er)
+		print('Check file contents ', fileName)
+	return result
 
 def drawHeatMap(strikes: []):
-	#strikes.pop()
-
-	count = len(strikes)	
-	
-	
+	stemp = loadOldDTE(strikes[0].Ticker)
+	strikes = [stemp] + strikes
+	count = len(strikes)
 	lStrike = []
 	maxTotal = 0
 	for day in reversed(strikes) : #Build a unique list of all strikes
@@ -945,28 +974,29 @@ def drawHeatMap(strikes: []):
 			if not i in lStrike : 
 				lStrike.append(i)
 			day.Total[i] = day.Calls[i].OI - day.Puts[i].OI
-			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])
-	lStrike.sort()
+			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])	
 	
+	lStrike.sort()
 	IMG_W = (len(strikes) + 1) * 80
 	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 2)) + 10
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
-	draw = ImageDraw.Draw(img)
-			
+	draw = ImageDraw.Draw(img)		
 	y = IMG_H - FONT_SIZE - 10
 	for i in lStrike :
 		x = 0
 		y -= FONT_SIZE + 2
+		
 		for day in reversed(strikes) :
 			x += 80
 			if i in day.Strikes:
+				#print(4, maxTotal, day.Total[i])
 				color = getColorGradient(maxTotal, day.Total[i])
-				drawRect(draw, x, y, x + 70, y + FONT_SIZE, color=color, border='')
-				
+				#print(5, i)
+				drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
+				#print(6, i)
 				drawText(draw, x=x, y=y, txt=alignValue(day.Total[i]), color="#FF7")
+	
 	y2 = y - (FONT_SIZE + 2)
-	
-	
 	
 	y = IMG_H - FONT_SIZE - 10
 	for j in lStrike :
@@ -1242,12 +1272,18 @@ def logData(ticker_name, count):
 	datedData = {}
 	datedData[today] = data
 
+	try:
+		oldData = json.load(open(fileName,'r'))
+		datedData.update(oldData)
+	except:
+		print('logData: Check oldData file contents ', fileName)
+	
 	with open(fileName,'w') as f: 
 		json.dump(datedData, f)
 	#json.dump(data, open(fileName,'r+'), indent = 4)
 	#with open('data{}.txt'.format(self.timestamp), 'a') as f:
 	#	f.write(data + '\n')
-
+#logData("SPX", 40)
 def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"
 	if not exists(fileName):  
@@ -1455,3 +1491,7 @@ mainloop()
 
 thread_discord()
 
+"""
+beginning we were neg gamma which means illiquidity in the market overall, going to positive gamma afternoon but with flat PA means MMs still held their hedges from the neg gamma env, then going positive gamma with no downtrend means explosive rally upside due to the compounding effect of the hedge unwind)
+By illiquidity i mean the transaction around a strike goes down as in not enough buyers sellers so a skew of buyers vs sellers is created which can create a feedback loop
+"""

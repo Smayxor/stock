@@ -969,12 +969,8 @@ def loadOldDTE(ticker):
 
 def drawHeatMap(strikes: []):
 	strikes = loadOldDTE(strikes[0].Ticker) + strikes
-	
-	
-	
 	strikes = sorted(strikes, key=lambda x: x.Date.split(":")[0])
 	#print( [f'{d.Date}' for d in strikes] )
-	
 	
 	count = len(strikes)
 	lStrike = []
@@ -983,18 +979,12 @@ def drawHeatMap(strikes: []):
 		for i in day.Strikes :
 			if not i in lStrike : 
 				lStrike.append(i)
-			day.Total[i] = day.Calls[i].OI - day.Puts[i].OI
+			day.Total[i] = day.Calls[i].GEX - day.Puts[i].GEX
 			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])	
 	#print(lStrike)
 	lStrike.sort()
 
-
-
-
-	if maxTotal == 0.0 : return "error.png"
-	
-	
-	
+	if maxTotal == 0.0 : return "error.png"	
 	
 	IMG_W = (len(strikes) + 1) * 80
 	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 2)) + 10

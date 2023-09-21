@@ -930,7 +930,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 
 def alignValue(val):
 	val = format(int(val), ',d')
-	while len(val) < 6 : val = ' ' + val
+	while len(val) < 6 : val = f' {val}'
 	return val
 
 tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
@@ -939,6 +939,8 @@ MIDDLE_LETTER = len(tmp)
 del tmp
 def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
 def loadOldDTE(ticker):
+	if "SPX" not in ticker : return []
+	today = str(datetime.date.today()).split(":")[0]
 	fileName = "SPX.json" #ticker + ".json" 
 #	if not exists(fileName):  
 #		with open(fileName, "w") as outfile:  
@@ -947,6 +949,7 @@ def loadOldDTE(ticker):
 	try:
 		data = json.load(open(fileName,'r'))
 		for day in data:
+			if today == day : continue
 			result.Date = day
 			for strikes in data[day]:
 				#print( strikes, ' ', data[day][strikes] )
@@ -961,22 +964,38 @@ def loadOldDTE(ticker):
 	except Exception as er: 
 		print("Load Data BOOM", er)
 		print('Check file contents ', fileName)
-	return result
+		return []
+	return [result]
 
 def drawHeatMap(strikes: []):
-	stemp = loadOldDTE(strikes[0].Ticker)
-	strikes = [stemp] + strikes
+	strikes = loadOldDTE(strikes[0].Ticker) + strikes
+	
+	
+	
+	strikes = sorted(strikes, key=lambda x: x.Date.split(":")[0])
+	#print( [f'{d.Date}' for d in strikes] )
+	
+	
 	count = len(strikes)
 	lStrike = []
 	maxTotal = 0
-	for day in reversed(strikes) : #Build a unique list of all strikes
-		for i in sorted(day.Strikes) :
+	for day in strikes : #Build a unique list of all strikes
+		for i in day.Strikes :
 			if not i in lStrike : 
 				lStrike.append(i)
 			day.Total[i] = day.Calls[i].OI - day.Puts[i].OI
 			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])	
-	
+	#print(lStrike)
 	lStrike.sort()
+
+
+
+
+	if maxTotal == 0.0 : return "error.png"
+	
+	
+	
+	
 	IMG_W = (len(strikes) + 1) * 80
 	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 2)) + 10
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
@@ -986,7 +1005,7 @@ def drawHeatMap(strikes: []):
 		x = 0
 		y -= FONT_SIZE + 2
 		
-		for day in reversed(strikes) :
+		for day in strikes :
 			x += 80
 			if i in day.Strikes:
 				#print(4, maxTotal, day.Total[i])
@@ -1006,7 +1025,7 @@ def drawHeatMap(strikes: []):
 		y -= 2
 	x = 0
 	y = IMG_H - FONT_SIZE - 10
-	for day in reversed(strikes) :
+	for day in strikes :
 		x += 80
 		strDay = datetime.datetime.strptime(day.Date.split(':')[0], '%Y-%m-%d').date().strftime("%m-%d")
 		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
@@ -1267,8 +1286,9 @@ def logData(ticker_name, count):
 
 	data = {}
 	for x in strikes.Strikes :
-		data[x] = { "CallOI": strikes.Calls[x].OI, "PutOI": strikes.Puts[x].OI, "CallGEX": strikes.Calls[x].GEX, "PutGEX": strikes.Puts[x].GEX }
-	
+		if int(x.split(":")[1]) > -5 :
+			data[x] = { "CallOI": strikes.Calls[x].OI, "PutOI": strikes.Puts[x].OI, "CallGEX": strikes.Calls[x].GEX, "PutGEX": strikes.Puts[x].GEX }
+		else: print( "Purging old DTE ", x )
 	datedData = {}
 	datedData[today] = data
 

@@ -1,0 +1,72 @@
+from tkinter import *
+import time
+import threading
+
+angle = 0.0
+loop = False
+COLORS = ["#F00", "#0F0", "#00F"]
+colorIndex = 0
+def clickButton():
+	global loop, angle, colors, colorIndex
+	loop = not loop
+	if loop : x.start()
+
+def tick():
+	global loop, angle, colors, colorIndex, canvas, win, ball
+	while loop:
+		angle = (angle + 5.0) % 360
+		xAngle = 0.0
+		yAngle = 0.0
+		if angle < 91.0 :
+			xAngle = angle
+			yAngle = angle - 90.0
+			colorIndex = (colorIndex + 1) % 3
+		elif angle < 181.0 :
+			xAngle = 90.0 - (angle - 90.0)
+			yAngle = angle - 90.0
+		elif angle < 271.0 :
+			xAngle = 90.0 - (angle - 90.0)
+			yAngle = 270.0 - angle
+		else :
+			xAngle = angle - 360.0
+			yAngle = 270.0 - angle
+			
+		#print( xAngle, yAngle )	
+			
+		xAngle = xAngle / 90.0   #make angles a % of movement along each axis
+		yAngle = yAngle / 90.0
+		
+		x1 = -50.0
+		y1 = -50.0
+		
+		x2 = 0.0
+		y2 = -25.0
+		
+		def drawDot(x, y):
+			temp = (x*xAngle) - (y*yAngle)
+			y = (x*yAngle) + (y*xAngle)
+			x = temp
+
+			x += 150
+			y += 150
+			canvas.create_line(x,y,x + 1,y + 1, fill=COLORS[colorIndex], width=3)
+
+		drawDot(x1, y1)
+		drawDot(x2, y2)
+		
+		win.update()
+		
+
+win = Tk()
+win.geometry("400x400")
+Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=2, sticky='E')
+
+canvas = Canvas(win, width=400, height=400)
+canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
+canvas.configure(bg="#000000")
+
+#ball = canvas.create_oval(25,25,30,30, fill="blue", outline="white", width=4)
+
+x = threading.Thread(target=tick)
+#clickButton()
+mainloop()

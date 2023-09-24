@@ -41,7 +41,7 @@ def tick():
 		#xAngle = (abs((((angle // 90) % 2) * 90) - (angle % 90)) * flippy) / 90
 		xAngle = -(abs(180 - ((angle + 90) % 360)) - 90) / 90
 		yAngle = -(abs(180 - angle) - 90) / 90
-
+		
 		def drawDot(x, y):
 			newX = 150 + (x*xAngle) - (y*yAngle)
 			newy = 150 + (x*yAngle) + (y*xAngle)
@@ -50,6 +50,7 @@ def tick():
 		drawDot(x1, y1)
 		drawDot(x2, y2)
 		win.update()
+		#time.sleep(0.5)
 
 win = Tk()
 win.geometry("400x400")

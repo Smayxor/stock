@@ -68,7 +68,9 @@ fundamental_endpoint = "https://api.tdameritrade.com/v1/instruments?apikey={api_
 price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quotes?apikey={api_key}"   # %24 is a $  aka $VIX.X
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
+
 atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
+
 atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=true"
 
 CHART_GEX = 0
@@ -708,27 +710,25 @@ def getATRLevels(ticker_name):
 	if ticker_name == "SPX" : ticker_name = "$SPX.X"
 	if ticker_name == "XSP" : ticker_name = "$XSP.X"
 	content = getByHistoryType( False, ticker_name )
-	skip = True
 	previousClose = 0.0
-	lastDayClose = 0.0
-	atrs = []
-	for candles in content['candles']:
-		if skip :
-			skip = False
-			previousClose = candles['close']
-		else:
-			high = candles['high']
-			low = candles['low']
-			upper = abs( high - previousClose )
-			lower = abs( low - previousClose )
-			both = abs( high - low )
-			atrs.append( max( [upper, lower, both] ) )
-			previousClose = candles['close']
-	if len(atrs) < 14 : 
-		print("No ATR Data")
-		return 0
-	atrs = atrs[len(atrs) - 14:]
-	atr = sum(atrs) / len(atrs)
+	lastCandle = len(content['candles']) - 1
+	x = lastCandle
+	atr = 0
+	while x > lastCandle - 14:
+		candles = content['candles'][x]
+		#print( candles )
+		x -= 1
+		previousClose = content['candles'][x]['close']
+		high = candles['high']
+		low = candles['low']
+		upper = abs( high - previousClose )
+		lower = abs( low - previousClose )
+		both = abs( high - low )
+		atr += max( [upper, lower, both] )
+	previousClose = content['candles'][lastCandle]['close']
+	atr = atr / 14
+	print(previousClose, atr)
+	
 	result = []
 	result.append((0, previousClose - atr))
 	result.append((0, previousClose - atr * FIBS[4]))
@@ -928,11 +928,6 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		print( err, " ", str(e))
 		return "error.png"
 
-def alignValue(val):
-	val = format(int(val), ',d')
-	while len(val) < 6 : val = f' {val}'
-	return val
-
 tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
 LETTER = [ f'#{l}00' for l in reversed(tmp)] + ['0'] + [ f'#0{l}0' for l in tmp]
 MIDDLE_LETTER = len(tmp)
@@ -945,29 +940,56 @@ def loadOldDTE(ticker):
 #	if not exists(fileName):  
 #		with open(fileName, "w") as outfile:  
 #			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
-	result = StrikeData(ticker, 0.0, '')
+	result = []
 	try:
 		data = json.load(open(fileName,'r'))
 		for day in data:
+			tmp = StrikeData(ticker, 0.0, '')
 			if today == day : continue
-			result.Date = day
+			tmp.Date = day
 			for strikes in data[day]:
 				#print( strikes, ' ', data[day][strikes] )
 				fltStrikes = float(strikes)
-				result.Strikes.append(fltStrikes)
-				result.Calls[fltStrikes] = OptionData()
-				result.Puts[fltStrikes] = OptionData()
-				result.Calls[fltStrikes].OI = data[day][strikes]['CallOI']
-				result.Puts[fltStrikes].OI = data[day][strikes]['PutOI']
-				result.Calls[fltStrikes].GEX = data[day][strikes]['CallGEX']
-				result.Puts[fltStrikes].GEX = data[day][strikes]['PutGEX']
+				tmp.Strikes.append(fltStrikes)
+				tmp.Calls[fltStrikes] = OptionData()
+				tmp.Puts[fltStrikes] = OptionData()
+				tmp.Calls[fltStrikes].OI = data[day][strikes]['CallOI']
+				tmp.Puts[fltStrikes].OI = data[day][strikes]['PutOI']
+				tmp.Calls[fltStrikes].GEX = data[day][strikes]['CallGEX']
+				tmp.Puts[fltStrikes].GEX = data[day][strikes]['PutGEX']
+			result.append( tmp )
 	except Exception as er: 
 		print("Load Data BOOM", er)
 		print('Check file contents ', fileName)
-		return []
-	return [result]
+	return result
+
+def logData(ticker_name, count):
+	""" CHANGE to store -1dte """
+	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
+	today = str(datetime.date.today()).split(":")[0]
+	fileName = ticker_name + ".json"  #   today + "_" + 
+
+	data = {}
+	for x in strikes.Strikes :
+		#if int(x.split(":")[1]) > -5 :
+		data[x] = { "CallOI": strikes.Calls[x].OI, "PutOI": strikes.Puts[x].OI, "CallGEX": strikes.Calls[x].GEX, "PutGEX": strikes.Puts[x].GEX }
+		#else: print( "Purging old DTE ", x )
+
+	datedData = {today: data}
+
+	try:
+		with open(fileName, 'r') as f:
+			oldData = json.load(f)
+		datedData.update(oldData)
+	except:
+		print('logData: Check oldData file contents ', fileName)
+	
+	with open(fileName,'w') as f: 
+		json.dump(datedData, f)
 
 def drawHeatMap(strikes: []):
+	def alignValue(val): return f'{int(val):,d}'.rjust(6)
+
 	strikes = loadOldDTE(strikes[0].Ticker) + strikes
 	strikes = sorted(strikes, key=lambda x: x.Date.split(":")[0])
 	#print( [f'{d.Date}' for d in strikes] )
@@ -1026,7 +1048,6 @@ def drawHeatMap(strikes: []):
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
-	
 	
 """
 	So say we have the 5dte gex and we wanna compare it to 3 days ago. That would mean it was 8dte at the time. You basically go back and check what the 8dte gex was. Then you'd wanna take the difference in terms of percentages. So you'd wanna do the 5dte gex, divided by the 8dte gex from the stored data.
@@ -1268,32 +1289,6 @@ def drawIVText(img, x, y, txt, color):
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
-def logData(ticker_name, count):
-	""" CHANGE to store -1dte """
-	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
-	today = str(datetime.date.today()).split(":")[0]
-	fileName = ticker_name + ".json"  #   today + "_" + 
-
-	data = {}
-	for x in strikes.Strikes :
-		if int(x.split(":")[1]) > -5 :
-			data[x] = { "CallOI": strikes.Calls[x].OI, "PutOI": strikes.Puts[x].OI, "CallGEX": strikes.Calls[x].GEX, "PutGEX": strikes.Puts[x].GEX }
-		else: print( "Purging old DTE ", x )
-	datedData = {}
-	datedData[today] = data
-
-	try:
-		oldData = json.load(open(fileName,'r'))
-		datedData.update(oldData)
-	except:
-		print('logData: Check oldData file contents ', fileName)
-	
-	with open(fileName,'w') as f: 
-		json.dump(datedData, f)
-	#json.dump(data, open(fileName,'r+'), indent = 4)
-	#with open('data{}.txt'.format(self.timestamp), 'a') as f:
-	#	f.write(data + '\n')
-#logData("SPX", 40)
 def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"
 	if not exists(fileName):  

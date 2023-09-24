@@ -19,10 +19,28 @@ def tick():
 		colorIndex = (colorIndex + 1) % 7
 		x1, y1 = -50.0, -50.0
 		x2, y2 = 0.0, -75.0
-
+		"""
+		xAngle = 0.0
+		yAngle = 0.0
+		if angle < 91.0 :
+			xAngle = angle
+			yAngle = angle - 90.0
+		elif angle < 181.0 :
+			xAngle = 90.0 - (angle - 90.0)
+			yAngle = angle - 90.0
+		elif angle < 271.0 :
+			xAngle = 90.0 - (angle - 90.0)
+			yAngle = 270.0 - angle
+		else :
+			xAngle = angle - 360.0
+			yAngle = 270.0 - angle
+		xAngle = xAngle / 90.0   #make angles a % of movement along each axis
+		yAngle = yAngle / 90.0
+		"""  #The Above if statements have been shrunk to the equation below
 		flippy = ((angle // 180) * -2) + 1  #		flippy = -1 if angle // 180 else 1
 		xAngle = (abs((((angle // 90) % 2) * 90) - (angle % 90)) * flippy) / 90
 		yAngle = (((angle - 90) - ((angle // 180) * 180)) * flippy) / 90
+		
 		def drawDot(x, y):
 			newX = 150 + (x*xAngle) - (y*yAngle)
 			newy = 150 + (x*yAngle) + (y*xAngle)

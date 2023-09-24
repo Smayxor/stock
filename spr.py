@@ -37,8 +37,9 @@ def tick():
 		xAngle = xAngle / 90.0   #make angles a % of movement along each axis
 		yAngle = yAngle / 90.0
 		"""  #The Above if statements have been shrunk to the equation below
-		flippy = ((angle // 180) * -2) + 1
-		xAngle = (abs((((angle // 90) % 2) * 90) - (angle % 90)) * flippy) / 90
+		#flippy = ((angle // 180) * -2) + 1
+		#xAngle = (abs((((angle // 90) % 2) * 90) - (angle % 90)) * flippy) / 90
+		xAngle = -(abs(180 - ((angle + 90) % 360)) - 90) / 90
 		yAngle = -(abs(180 - angle) - 90) / 90
 
 		def drawDot(x, y):

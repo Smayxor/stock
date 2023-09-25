@@ -309,8 +309,13 @@ def thread_discord():
 	@bot.tree.command(name="8ball", description="Answers your question?")
 	async def slash_command_8ball(intr: discord.Interaction, question: str):
 		future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good', 'You should ask Siri, that slut.', 'I rolled a dice to answer you, and it said the answer is C.', 'Follow your heart, I wouldn\'t trust your mind though.', 'I don\'t know and I don\'t care.', 'Did you ask ChatGPT?', 'Just google it.']
-		if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
-		else: await intr.response.send_message("Please phrase that as a question")
+		#if "?" in question: await intr.response.send_message("Question: " + question + "\rAnswer: " + random.choice(future))
+		#else: await intr.response.send_message("Please phrase that as a question")
+		if "?" in question:
+			response = "Question: " + question + "\rAnswer: " + random.choice(future)
+		else:
+			response = "Please phrase that as a question"
+		await intr.response.send_message(response)
 
 	def buildNews(days):
 		today = datetime.datetime.now().weekday()
@@ -936,7 +941,7 @@ def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LET
 def loadOldDTE(ticker):
 	if "SPX" not in ticker : return []
 	today = str(datetime.date.today()).split(":")[0]
-	fileName = "SPX.json" #ticker + ".json" 
+	fileName = "SPX-oldDTE.json" #ticker + ".json" 
 #	if not exists(fileName):  
 #		with open(fileName, "w") as outfile:  
 #			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
@@ -967,7 +972,7 @@ def logData(ticker_name, count):
 	""" CHANGE to store -1dte """
 	strikes = getOOPS(ticker_name, 0, 40, CHART_LOG)
 	today = str(datetime.date.today()).split(":")[0]
-	fileName = ticker_name + ".json"  #   today + "_" + 
+	fileName = ticker_name + "-oldDTE.json"  #   today + "_" + 
 
 	data = {}
 	for x in strikes.Strikes :

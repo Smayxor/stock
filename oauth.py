@@ -69,7 +69,7 @@ price_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/quot
 auth_endpoint = "https://api.tdameritrade.com/v1/oauth2/token?apikey={api_key}"
 history_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=day&period=1&frequencyType=minute&frequency=1&needExtendedHoursData=true"
 
-atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=false"
+atr_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&periodType=month&period=1&frequencyType=daily&frequency=1&needExtendedHoursData=true"
 
 atr2_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&endDate={end_date}&startDate={start_date}&needExtendedHoursData=true"
 
@@ -200,9 +200,7 @@ refreshTokens()
 url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 headers = { "Authorization": "Bot " + BOT_TOKEN}
 slash_command_json = {
-	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
-	{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
-	{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "SKEW", "value": "SKEW"  }, { "name": "HEATMAP", "value": "HEATMAP"  }]}   ] }
+	"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ { "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, { "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, { "name": "count", "description": "Strike Count", "type": 4, "required": False }, { "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [{ "name": "Normal", "value": "Normal"  }, { "name": "Rotated", "value": "R" }, { "name": "Volume", "value": "V" }, { "name": "LastDTE", "value": "LD"  }, { "name": "IV", "value": "IV"  }, { "name": "DailyIV", "value": "DAILYIV"  }, { "name": "JSON", "value": "JSON"  }, { "name": "SKEW", "value": "SKEW"  }, { "name": "HEATMAP", "value": "HEATMAP"  }]}   ] }
 print( requests.post(url, headers=headers, json=slash_command_json) )
 
 slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
@@ -507,6 +505,7 @@ def thread_discord():
 		await chnl.send("Fethcing Morning Charts")
 		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, "1156977360881586177", chnl) )
 		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		#logData("SPX")
 		logData("SPX", 40)
@@ -732,6 +731,7 @@ def getATRLevels(ticker_name):
 		atr += max( [upper, lower, both] )
 	previousClose = content['candles'][lastCandle]['close']
 	atr = atr / 14
+	#previousClose = 4274.52
 	print(previousClose, atr)
 	
 	result = []

@@ -934,7 +934,7 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		return "error.png"
 
 tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
-LETTER = [ f'#{l}00' for l in reversed(tmp)] + ['0'] + [ f'#0{l}0' for l in tmp]
+LETTER = [ f'#{l}00' for l in reversed(tmp)] + ['#000'] + [ f'#0{l}0' for l in tmp]
 MIDDLE_LETTER = len(tmp)
 del tmp
 def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
@@ -1001,13 +1001,18 @@ def drawHeatMap(strikes: []):
 	
 	count = len(strikes)
 	lStrike = []
+	dayZeroG = {}
 	maxTotal = 0
 	for day in strikes : #Build a unique list of all strikes
+		calcZeroG = {}	
 		for i in day.Strikes :
 			if not i in lStrike : 
 				lStrike.append(i)
 			day.Total[i] = day.Calls[i].GEX - day.Puts[i].GEX
-			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])	
+			calcZeroG[i] = day.Total[i]
+			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])
+
+		dayZeroG[day.Date] = zero_gex( calcZeroG, day.ClosestStrike ) if len( calcZeroG ) > 1 else 0.0
 	#print(lStrike)
 	lStrike.sort()
 
@@ -1022,15 +1027,19 @@ def drawHeatMap(strikes: []):
 		x = 0
 		y -= FONT_SIZE + 2
 		
-		for day in strikes :
+		for day in strikes :	
 			x += 80
+			zeroGStrike = dayZeroG[day.Date]
 			if i in day.Strikes:
 				#print(4, maxTotal, day.Total[i])
 				color = getColorGradient(maxTotal, day.Total[i])
 				#print(5, i)
-				drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
+				if i == zeroGStrike :
+					drawRect(draw, x, y, x + 80, y + FONT_SIZE, color='yellow', border='')	
+				else:
+					drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
 				#print(6, i)
-				drawText(draw, x=x, y=y, txt=alignValue(day.Total[i]), color="#FF7")
+				drawText(draw, x=x, y=y, txt=alignValue(day.Total[i]), color="#FF7")	
 	
 	y2 = y - (FONT_SIZE + 2)
 	
@@ -1313,7 +1322,8 @@ def zero_gex(data, price):
 	cumsum = list(accumulate(strikes, add)) #each elements gamma is added to the one after it
 	a = min(cumsum, key=lambda i: i[1])[0]
 	b = max(cumsum, key=lambda i: i[1])[0]
-	return a if abs(a - price) < abs(b - price) else b
+	return a
+	#return a if abs(a - price) < abs(b - price) else b
 
 def algoLevels(ticker):
 	#atrs = getATRLevels(ticker)

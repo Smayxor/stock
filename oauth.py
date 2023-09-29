@@ -781,7 +781,7 @@ class OptionData():
 
 class StrikeData():
 	def __init__(self, ticker, price, date):
-		self.Total, self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, {}, [], "", 0.0, 0, 0.0
+		self.TotalGEX, self.TotalOI, self.Calls, self.Puts, self.Strikes, self.Ticker, self.Price, self.DTE, self.ClosestStrike = {}, {}, {}, {}, [], "", 0.0, 0, 0.0
 		self.distFromPrice = 9999
 		self.CallDollars, self.PutDollars = 0.0, 0.0
 		self.Ticker = ticker
@@ -1002,21 +1002,22 @@ def drawHeatMap(strikes: []):
 	count = len(strikes)
 	lStrike = []
 	dayZeroG = {}
-	maxTotal = 0
+	maxTotalGEX = 0
 	for day in strikes : #Build a unique list of all strikes
 		calcZeroG = {}	
 		for i in day.Strikes :
 			if not i in lStrike : 
 				lStrike.append(i)
-			day.Total[i] = day.Calls[i].GEX - day.Puts[i].GEX
-			calcZeroG[i] = day.Total[i]
-			if abs(day.Total[i]) > maxTotal : maxTotal = abs(day.Total[i])
+			day.TotalGEX[i] = day.Calls[i].GEX - day.Puts[i].GEX
+			day.TotalOI[i] = day.Calls[i].OI + day.Puts[i].OI
+			calcZeroG[i] = day.TotalGEX[i]
+			if abs(day.TotalGEX[i]) > maxTotalGEX : maxTotalGEX = abs(day.TotalGEX[i])
 
 		dayZeroG[day.Date] = zero_gex( calcZeroG, day.ClosestStrike ) if len( calcZeroG ) > 1 else 0.0
 	#print(lStrike)
 	lStrike.sort()
 
-	if maxTotal == 0.0 : return "error.png"	
+	if maxTotalGEX == 0.0 : return "error.png"	
 	
 	IMG_W = (len(strikes) + 1) * 80
 	IMG_H = ((len(lStrike) + 2) * (FONT_SIZE + 2)) + 10
@@ -1032,14 +1033,11 @@ def drawHeatMap(strikes: []):
 			zeroGStrike = dayZeroG[day.Date]
 			if i in day.Strikes:
 				#print(4, maxTotal, day.Total[i])
-				color = getColorGradient(maxTotal, day.Total[i])
+				color = 'yellow' if i == zeroGStrike else getColorGradient(maxTotalGEX, day.TotalGEX[i])
 				#print(5, i)
-				if i == zeroGStrike :
-					drawRect(draw, x, y, x + 80, y + FONT_SIZE, color='yellow', border='')	
-				else:
-					drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
+				drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
 				#print(6, i)
-				drawText(draw, x=x, y=y, txt=alignValue(day.Total[i]), color="#FF7")	
+				drawText(draw, x=x, y=y, txt=alignValue(day.TotalOI[i]), color="#000" if i == zeroGStrike else "#FF7")	
 	
 	y2 = y - (FONT_SIZE + 2)
 	

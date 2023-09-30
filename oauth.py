@@ -993,7 +993,7 @@ def logData(ticker_name, count):
 		json.dump(datedData, f)
 
 def drawHeatMap(strikes: []):
-	def alignValue(val): return f'{int(val):,d}'.rjust(6)
+	def alignValue(val): return f'{int(val):,d}'.rjust(8)
 
 	strikes = loadOldDTE(strikes[0].Ticker) + strikes
 	strikes = sorted(strikes, key=lambda x: x.Date.split(":")[0])
@@ -1032,12 +1032,17 @@ def drawHeatMap(strikes: []):
 			x += 80
 			zeroGStrike = dayZeroG[day.Date]
 			if i in day.Strikes:
-				#print(4, maxTotal, day.Total[i])
 				color = 'yellow' if i == zeroGStrike else getColorGradient(maxTotalGEX, day.TotalGEX[i])
-				#print(5, i)
 				drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')	
-				#print(6, i)
-				drawText(draw, x=x, y=y, txt=alignValue(day.TotalOI[i]), color="#000" if i == zeroGStrike else "#FF7")	
+				
+				val = alignValue(day.TotalOI[i])
+				"""if (day.Date != strikes[0].Date) and (i in strikes[0].Strikes) :
+					val = f'{alignValue( (day.TotalOI[i] / strikes[0].TotalOI[i]) * 100 )}%' 
+					#val = f'    { int((day.TotalOI[i] / strikes[0].TotalOI[i]) * 100) }%'
+				else : 
+					val = alignValue(day.TotalOI[i])
+				"""
+				drawText(draw, x=x, y=y, txt=val, color="#000" if i == zeroGStrike else "#FF7")	
 	
 	y2 = y - (FONT_SIZE + 2)
 	

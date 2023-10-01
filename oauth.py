@@ -720,7 +720,6 @@ def getATRLevels(ticker_name):
 	atr = 0
 	while x > lastCandle - 14:
 		candles = content['candles'][x]
-		#print( candles )
 		x -= 1
 		previousClose = content['candles'][x]['close']
 		high = candles['high']
@@ -729,10 +728,12 @@ def getATRLevels(ticker_name):
 		lower = abs( low - previousClose )
 		both = abs( high - low )
 		atr += max( [upper, lower, both] )
+		#tmpDate = str(datetime.datetime.fromtimestamp((candles['datetime'] // 1000) + 25200)).split(" ")[0]
+		#print(tmpDate, previousClose, low, high)
 	previousClose = content['candles'][lastCandle]['close']
 #	atr = atr / 14
-	atr = 0.0693369792214 * atr
-#	print(previousClose, atr)
+	atr = 0.0693369792214 * atr  #Correct value 0.0714,  cheating to try and match TV
+	#print(previousClose, atr)
 	
 	result = []
 	result.append((0, previousClose - atr))
@@ -1035,14 +1036,14 @@ def drawHeatMap(strikes: []):
 				if day.High > i > day.Low : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
 
 				txtColor = ""
-				val = 0#alignValue(day.TotalOI[i])
+				"""val = 0#alignValue(day.TotalOI[i])
 				if (day.Date != strikes[0].Date) and (i in strikes[0].Strikes) :
 					val = f'{alignValue( getChange(day.TotalOI[i], strikes[0].TotalOI[i]), 7 )}%' 
 					txtColor = "#FF7"
 					#val = f'    { int((day.TotalOI[i] / strikes[0].TotalOI[i]) * 100) }%'
-				else : 
-					val = alignValue(day.TotalOI[i], 8)
-					txtColor = "#77F"
+				else : """
+				val = alignValue(day.TotalOI[i], 8)
+				txtColor = "#77F"
 				if i == zeroGStrike : txtColor = "#000"
 				drawText(draw, x=x, y=y, txt=val, color=txtColor)	
 	

@@ -506,8 +506,8 @@ def thread_discord():
 		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		
-		chnl = bot.get_channel("1156977360881586177")
-		tickers.append( ("SPX", 0, 40, CHART_ROTATE, "1156977360881586177", chnl) )
+		chnl = bot.get_channel(1156977360881586177)
+		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1156977360881586177, chnl) )
 		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		#logData("SPX")
 		logData("SPX", 40)
@@ -756,8 +756,8 @@ def getATRLevels(ticker_name):
 #	print( atr, previousClose )
 
 
-	candles = getCandles("SPY", 0)
-	print(candles)
+	#candles = getCandles("SPY", 0)
+	#print(candles)
 
 	return result
 today_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&frequencyType=minute&frequency=10&endDate=1915362000000&startDate={start_date}&needExtendedHoursData=true"

@@ -505,6 +505,8 @@ def thread_discord():
 		await chnl.send("Fethcing Morning Charts")
 		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
+		
+		chnl = bot.get_channel("1156977360881586177")
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, "1156977360881586177", chnl) )
 		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		#logData("SPX")
@@ -730,9 +732,11 @@ def getATRLevels(ticker_name):
 		atr += max( [upper, lower, both] )
 		#tmpDate = str(datetime.datetime.fromtimestamp((candles['datetime'] // 1000) + 25200)).split(" ")[0]
 		#print(tmpDate, previousClose, low, high)
+		
+	#StandardDeviation = sqrt( sum( (each_TR - ATR)^2) ) / 14
 	previousClose = content['candles'][lastCandle]['close']
-#	atr = atr / 14
-	atr = 0.0693369792214 * atr  #Correct value 0.0714,  cheating to try and match TV
+	atr = atr / 14
+	#atr = atr * 0.0714 #Correct value 0.0714,  cheating to try and match TV
 	#print(previousClose, atr)
 	
 	result = []
@@ -750,7 +754,13 @@ def getATRLevels(ticker_name):
 	result.append((0, previousClose + atr * FIBS[4]))
 	result.append((0, previousClose + atr))
 #	print( atr, previousClose )
+
+
+	candles = getCandles("SPY", 0)
+	print(candles)
+
 	return result
+today_endpoint = "https://api.tdameritrade.com/v1/marketdata/{stock_ticker}/pricehistory?apikey={api_key}&frequencyType=minute&frequency=10&endDate=1915362000000&startDate={start_date}&needExtendedHoursData=true"
 
 def getByHistoryType( totalCandles, ticker ):
 	if totalCandles :
@@ -911,10 +921,13 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		return "error.png"
 
 tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
+tmp2 = ['f', 'e', 'e', 'e', 'c', 'c', 'c', 'b', 'b', 'a', 'a', '8', '8', '7', '7', '5', '5', '5', '4', '4', '4', '4', '3', '3', '3', '3', '2', '2', '2', '2', '1', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0']
 LETTER = [ f'#{l}00' for l in reversed(tmp)] + ['#000'] + [ f'#0{l}0' for l in tmp]
+TEXT_COLOR = [ f'#{l}{l}{l}' for l in reversed(tmp2)] + ['#FFF'] + [ f'#{l}{l}{l}' for l in tmp2]
 MIDDLE_LETTER = len(tmp)
 del tmp
 def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
+def getTextColorGradient(maxVal, val):	return TEXT_COLOR[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
 def loadOldDTE(ticker):
 	if "SPX" not in ticker : return []
 	today = str(datetime.date.today()).split(":")[0]
@@ -1043,8 +1056,12 @@ def drawHeatMap(strikes: []):
 					#val = f'    { int((day.TotalOI[i] / strikes[0].TotalOI[i]) * 100) }%'
 				else : """
 				val = alignValue(day.TotalOI[i], 8)
-				txtColor = "#77F"
+				txtColor = "#FFF"
 				if i == zeroGStrike : txtColor = "#000"
+				else : 
+					txtColor = getTextColorGradient(maxTotalGEX, day.TotalGEX[i])
+					#txtColor = getColorGradient(maxTotalGEX, day.TotalGEX[i])
+					
 				drawText(draw, x=x, y=y, txt=val, color=txtColor)	
 	
 	y2 = y - (FONT_SIZE + 2)
@@ -1153,7 +1170,7 @@ def drawOOPSChart(strikes: StrikeData, chartType) :
 					distToClosest = tmpDist
 					closestStrike = s
 			atrs[i] = (closestStrike, atrs[i][1])
-			keyLevels.append(atrs[i][0])
+			#keyLevels.append(atrs[i][0])
 	
 	if chartType == CHART_IV :
 		data = loadIVLog(strikes.Ticker)
@@ -1339,6 +1356,14 @@ def algoLevels(ticker):
 	
 	print( keyLevels )
 #algoLevels("SPX")
+def getTimeMilliseconds( days ):
+	today = datetime.date.today()
+	if today.weekday() > 4 : today = today - datetime.timedelta(days=(today.weekday() % 4))
+	today = today - datetime.timedelta(days= days)
+	return int(round(time.mktime(today.timetuple()) * 1000))
+def getCandles( ticker, days ):
+	url_endpoint = today_endpoint.format(api_key=MY_API_KEY, stock_ticker=ticker.upper(), start_date=getTimeMilliseconds(int(days)))
+	return json.loads(requests.get(url=url_endpoint, headers=HEADER).content)
 
 
 """

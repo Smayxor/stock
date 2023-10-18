@@ -27,8 +27,13 @@ def startDay():
 	threading.Timer(60, minuteTimerThread).start()
 
 def endDay():
+	global dayData, blnRun
 	blnRun = False
-	saveData()
+	today = str(datetime.date.today()).split(":")[0]
+	fileName = f'./logs/{today}-datalog.json'
+	with open(fileName,'w') as f: 
+		json.dump(dayData, f)
+	print("Saving Data ", len(dayData))
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 
@@ -42,7 +47,9 @@ def minuteTimerThread():
 	threading.Timer(60, minuteTimerThread).start()
 	
 	price = getQuote('SPX')['last']
-	dayData[f'{getStrTime()}'] = {**{'price': price}, **getOptionsChain("SPX", openPrice).to_dict()}
+	timeNow = getStrTime()
+	dayData[f'{timeNow }'] = {**{'price': price}, **getOptionsChain("SPX", openPrice).to_dict()}
+	print("Recording - ", timeNow)
 	
 def getOptionsChain(ticker, price):	
 	today = datetime.date.today()
@@ -58,15 +65,9 @@ def getOptionsChain(ticker, price):
 	options = options.reset_index(drop = True)
 	return options
 
-def saveData():
-	global dayData
-	today = str(datetime.date.today()).split(":")[0]
-	fileName = f'{today}-datalog.json'
-	with open(fileName,'w') as f: 
-		json.dump(dayData, f)
-
+print( datetime.date.today() )
 schedule.every().day.at("06:30").do(startDay)
-schedule.every().day.at("01:00").do(endDay)
+schedule.every().day.at("13:00").do(endDay)
 
 # Loop so that the scheduling task keeps on running all time.
 while blnRun: # Checks whether a scheduled task is pending to run or not

@@ -1,6 +1,3 @@
-#Open this url in a browser, it directs you to TDA login page, HTTP server running fetches the Auth Code, and retrieves Auth/Refresh tokens.  You can disable the HTTPServer for 90 days if wanted
-#https://auth.tdameritrade.com/oauth?client_id=(YOUR_API_KEY_HERE)%40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
-
 #	This software is completely free to use, modify, or anything else you want
 #	Copyright (C) 2022 Seth Mayberry
 
@@ -17,6 +14,11 @@
 #	You should have received a copy of the GNU General Public License
 #	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#Version 2.0 Switched to using Tradier API.  Kept filename the same for uploading to my server through the discord interface.
+
+#Open this url in a browser, it directs you to TDA login page, HTTP server running fetches the Auth Code, and retrieves Auth/Refresh tokens.  You can disable the HTTPServer for 90 days if wanted
+#https://auth.tdameritrade.com/oauth?client_id=(YOUR_API_KEY_HERE)%40AMER.OAUTHAP&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A8080%2F
+
 #Version 1.7 Switched the way data was being stored to using Classes. Redid code for drawing charts, so it's easier to add different chart types
 #Version 1.6 Completely discord based.  Removed all GUI code.  Lots of bug fixes and new features
 #Version 1.5 Managed to get OAUTH tokens working.  Only drawing on PIL Image, and copying to TKinter Canvas. Rotated strikes prices. Moved lots of data to fundamentals area.  Still need to bot the login page!
@@ -25,7 +27,6 @@
 #Version 1.2  Got it to save chart as a png.  Preparing for a discord bot
 #Version 1.1  Improved display of data on charts to scale with max values
 
-#from datetime import date
 import datetime
 import time
 import requests
@@ -50,6 +51,7 @@ from itertools import accumulate
 #************************************************************
 #Get API Key from TDA Developer Account new App,  place in file named apikey.json with this for contents-> {"API_KEY": "your-key-here"}
 init = json.load(open('apikey.json'))
+TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 MY_API_KEY = init['API_KEY']
 BOT_TOKEN = init['BOT_TOKEN']
 BOT_USER_FOR_KILL = init['BOT_KILL_USER']  #make it your discord user name
@@ -431,10 +433,9 @@ def thread_discord():
 			exit(9)
 			await bot.close()
 			await bot.logout()
-		elif args[0] == "LOGIV":
+		elif args[0] == "LOGDATA":
 			await intr.response.send_message(user + " loggin IV data manually")
 			logData("SPX")
-			logData("SPY")
 		elif args[0] == "CLEAR":
 			await intr.response.send_message(user + " has cleared stored values")
 			clearStoredStrikes()
@@ -477,7 +478,6 @@ def thread_discord():
 #			logCounter += 1	
 
 	dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
-#	dailyTaskTime = datetime.time(hour=9, minute=53, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime)
 	async def dailyTask():
 		global tickers
@@ -489,11 +489,8 @@ def thread_discord():
 		await chnl.send("Fethcing Morning Charts")
 		await chnl.send( buildNews("TODAY")[0] )
 		clearStoredStrikes()
-		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		#tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		#
-		#logData("SPY")
+
 
 	dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 	@tasks.loop(time=dailyTaskTime2)
@@ -503,13 +500,10 @@ def thread_discord():
 		chnl = bot.get_channel(UPDATE_CHANNEL)
 		print("Daily Task Execution 2")
 		await chnl.send("Fethcing Morning Charts")
-		#tickers.append( ("VIX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
 		
 		chnl = bot.get_channel(1156977360881586177)
 		tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1156977360881586177, chnl) )
-		#tickers.append( ("SPX", 0, 40, CHART_JSON, UPDATE_CHANNEL, chnl) )
-		#logData("SPX")
 		logData("SPX", 40)
 
 
@@ -588,60 +582,6 @@ def drawRotatedText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
-"""
-def fetchEvents():
-	COLUMN = ['time', 'event', '\t ', 'Actual: ', 'Forecast: ', 'Prev: ', '', '', '', '', '', '']
-	url = "https://www.marketwatch.com/economy-politics/calendar"
-	try :
-		data = requests.get(url=url)
-		text = ""
-		tables = data.text.split( "<tbody>" )
-		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('\t', ' ').replace('</tr>','').replace('S&amp;P', '').replace(' am', ' am#').replace(' pm', ' pm#').replace('<b>', '@**').replace('</a>', '').split('<tr>')
-		
-		for s in txt:
-			s = s.replace('<td style="text-align: left;">', '').replace("&quot;", ":").replace('\n', '').replace('</a>', '').replace('</b>', '**END*').split('</td>')
-			counter = 0
-			largestSize = 0
-			for t in s:
-				#print("A")
-				try: 
-					if ('FRIDAY' in t) and (15 <= int(t.split(' ')[2].split('**')[0]) <= 21) : t = t.replace('FRIDAY', 'MOPEX - FRIDAY')
-				except: pass
-				#print("B")
-				if '<a href=' in t:
-					t = t.split('<a href=')[0] + t.split('">')[1]  #****  Use masked link  [text](url)
-				#print("C")
-				if counter > 1 and counter < 6 and len(t) > 1:	
-					t = " " + COLUMN[counter] + t + " "
-				#print("D")
-				counter += 1
-				if counter == 1 :
-					ind = t.find('m#')
-					t = t.replace('m#', 'm  ')
-					if ind == 6: t = t[0:5] + ' ' + t[5:]
-				#print("E")
-				while (counter == 2) and (len(t) < 40): t = t + ' '
-				#while (counter == 4) and (len(text) < 56): text = text + ' '
-				
-				#print("F")
-				if counter == 2 and t[0] == ' ' : t = t + ' '
-				text = text + t.lstrip()
-				#print("G")
-				
-			text = text + "\n"
-			
-		text = text.split('@')
-		del text[0]
-		for i in range(len(text) - 1) :
-			text[i] = text[i].replace('END*\n', '\n```fix\n') + '\n```'
-		text.append('')
-		return text
-	except Exception as e:
-		print( e )
-		return (url, '')
-"""
-
 
 lastNewsDay = -1
 todaysNews = None
@@ -713,31 +653,65 @@ def fetchEarnings():
 FIBS = [0.236, 0.382, 0.5, 0.618, 0.786]
 def getATRLevels(ticker_name):
 	ticker_name = ticker_name.upper()
-	if ticker_name == "SPX" : ticker_name = "$SPX.X"
-	if ticker_name == "XSP" : ticker_name = "$XSP.X"
-	content = getByHistoryType( False, ticker_name )
-	previousClose = 0.0
-	lastCandle = len(content['candles']) - 1
-	x = lastCandle
-	atr = 0
-	while x > lastCandle - 14:
-		candles = content['candles'][x]
-		x -= 1
-		previousClose = content['candles'][x]['close']
-		high = candles['high']
-		low = candles['low']
-		upper = abs( high - previousClose )
-		lower = abs( low - previousClose )
-		both = abs( high - low )
-		atr += max( [upper, lower, both] )
+#	if ticker_name == "SPX" : ticker_name = "$SPX.X"
+#	if ticker_name == "XSP" : ticker_name = "$XSP.X"
+#	content = getByHistoryType( False, ticker_name )
+#	previousClose = 0.0
+#	lastCandle = len(content['candles']) - 1
+#	x = lastCandle
+#	atr = 0
+#	while x > lastCandle - 14:
+#		candles = content['candles'][x]
+#		x -= 1
+#		previousClose = content['candles'][x]['close']
+#		high = candles['high']
+#		low = candles['low']
+#		upper = abs( high - previousClose )
+#		lower = abs( low - previousClose )
+#		both = abs( high - low )
+#		atr += max( [upper, lower, both] )
 		#tmpDate = str(datetime.datetime.fromtimestamp((candles['datetime'] // 1000) + 25200)).split(" ")[0]
 		#print(tmpDate, previousClose, low, high)
-		
 	#StandardDeviation = sqrt( sum( (each_TR - ATR)^2) ) / 14
-	previousClose = content['candles'][lastCandle]['close']
-	atr = atr / 14
-	#atr = atr * 0.0714 #Correct value 0.0714,  cheating to try and match TV
+#	previousClose = content['candles'][lastCandle]['close']
+#	atr = atr / 14
 	#print(previousClose, atr)
+
+
+	today = str(datetime.date.today()).split(":")[0]
+	atr_start = str(datetime.date.today() - datetime.timedelta(days=30)).split(":")[0]
+	response = requests.get('https://api.tradier.com/v1/markets/history',
+		params={'symbol': f'{ticker_name}', 'interval': 'daily', 'start': f'{atr_start}', 'end': f'{today}', 'session_filter': 'all'},
+		headers={'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
+	)
+	json_response = response.json()
+	if response.status_code == 200 and "history" in json_response and "day" in json_response['history']:
+		candles = json_response['history']['day']
+		previousClose = 0.0
+		lastCandle = len(candles) - 2
+		x = lastCandle
+		atr = 0
+		#print( lastCandle, ' candles' )
+		while x > lastCandle - 14:
+			candle = candles[x]
+			x -= 1
+			previousClose = candle['close']
+			high = candle['high']
+			low = candle['low']
+			upper = abs( high - previousClose )
+			lower = abs( low - previousClose )
+			both = abs( high - low )
+			atr += max( [upper, lower, both] )
+			#tmpDate = str(datetime.datetime.fromtimestamp((candles['datetime'] // 1000) + 25200)).split(" ")[0]
+			#print(candle['date'], previousClose, low, high)
+
+		#StandardDeviation = sqrt( sum( (each_TR - ATR)^2) ) / 14
+		previousClose = candles[lastCandle]['close']
+		atr = atr / 14
+		print( 'ATR is ', atr )
+
+
+
 	
 	result = []
 	result.append((0, previousClose - atr))
@@ -798,6 +772,8 @@ class StrikeData():
 		self.Ticker = ticker
 		self.Price = round(price, 2)
 		self.Date = date
+		self.MaxPain = 0
+		self.ZeroGamma = 0
 	def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
 		def chk( val ) : return 0.0 if math.isnan( float( val ) ) or (val == -999.0) else float( val )
 		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), abs(chk(gamma)), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
@@ -818,7 +794,51 @@ class StrikeData():
 				self.ClosestStrike = strike
 			#dist = self.Price // 1
 			self.PutDollars += d[strike].Dollars
+	def calcMaxPain(self):
+		maxP = {}
+		maxPain = next(iter(self.Strikes))
+		maxP[maxPain] = 0		
+		for i in self.Strikes :
+			calls = 0
+			puts = 0
+			for j in self.Strikes :
+				if i > j : calls += abs(j - i) * self.Calls[j].OI
+				if j > i : puts += abs(j - i) * self.Puts[j].OI
+			maxP[i] = calls + puts
+			if maxP[i] < maxP[maxPain] : maxPain = i
+		self.MaxPain = maxPain	
+	def calcZeroGamma(self):
+		#dayZeroG = {}
+		#maxTotalGEX = 0
+		calcZeroG = {}	
+		for i in self.Strikes :
+			self.TotalGEX[i] = self.Calls[i].GEX - self.Puts[i].GEX
+			self.TotalOI[i] = self.Calls[i].OI + self.Puts[i].OI
+			calcZeroG[i] = self.TotalGEX[i]
+			#if abs(self.TotalGEX[i]) > maxTotalGEX : maxTotalGEX = abs(self.TotalGEX[i])
+		self.ZeroGamma = zero_gex( calcZeroG, self.ClosestStrike ) if len( calcZeroG ) > 1 else 0.0
+	def shrinkToCount(self, count):
 
+		atmStrike = 0.0
+		dist = 99999
+		for x in self.Strikes:
+			thisDist = abs(x - self.Price)
+			if thisDist < dist:
+				atmStrike = x
+				dist = thisDist
+		
+		i = len(self.Strikes) -1
+		while (len(self.Strikes) > count) and i > -1:
+			matches = 0
+			dist = abs(atmStrike - self.Strikes[i])
+			for j in self.Strikes: 
+				if abs(atmStrike - j) < dist : matches += 1 
+			if matches > count: self.Strikes.pop(i) 
+			i -= 1
+
+
+
+"""
 def pullData(ticker_name, dte, count):
 	ticker_name = ticker_name.upper()
 #Get todays date, and hour.  Adjust date ranges so as not get data on a closed day
@@ -919,6 +939,79 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 	except Exception as e:
 		print( err, " ", str(e))
 		return "error.png"
+"""
+
+
+
+
+
+
+
+
+TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
+def getOOPS(ticker_name, dte, count, chartType = 0):
+	err = 0
+	try:
+		if chartType == CHART_ATR : return "error.png"
+		if chartType == CHART_IV : return "error.png"
+		err = 1
+
+		today = datetime.date.today()
+		if (int(time.strftime("%H")) > 12): today += datetime.timedelta(days=1)   #ADJUST FOR YOUR TIMEZONE,  options data contains NaN after hours
+
+		addDTE = 0
+		content = {}
+		while addDTE < 7:
+			dateRange = str(today + datetime.timedelta(days=int(dte + addDTE))).split(":")[0]
+			param = {'symbol': f'{ticker_name}', 'expiration': f'{dateRange}', 'greeks': 'true'}
+			response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
+
+			content = response.json()
+			if not (response.status_code == 200):
+				print(response.content)
+				return "error.png" #Failed, we tried our best
+			if content['options'] == None : addDTE += 1
+			else: break
+		content = content['options']['option']
+
+		err = 2
+		if chartType == CHART_JSON :
+			ticker_name = ticker_name + ".json"
+			with open(ticker_name, "w") as outfile:
+				outfile.write(json.dumps(content, indent=4))
+			return ticker_name
+		err = 3
+
+		param={'symbols': f'{ticker_name}', 'greeks': 'false'}
+		tickerData = requests.get('https://api.tradier.com/v1/markets/quotes', params=param, headers=TRADIER_HEADER).json()['quotes']['quote']
+
+		sdIndex = 0
+		price = tickerData['last']
+		strikesData = StrikeData(tickerData['symbol'], price, dte + addDTE)
+		dte = float(dte + addDTE)
+		for option in content:
+			oi = option['volume'] if chartType == CHART_VOLUME else option['open_interest']
+			call = option['option_type'] == 'call' 
+			greeks = option['greeks']
+			strikesData.addStrike( strike=option['strike'], gamma=greeks['gamma'], delta=greeks['delta'], vega=greeks['vega'], theta=greeks['theta'], timeValue=option['ask'], iv=greeks['mid_iv'], oi=oi, bid=option['bid'], ask=option['ask'], call=call, dte=dte )
+
+		strikesData.calcMaxPain()
+		strikesData.calcZeroGamma()
+		strikesData.shrinkToCount(count)
+
+		print( 'MaxPain ', strikesData.MaxPain, ' - ZeroG ', strikesData.ZeroGamma )
+
+		return drawOOPSChart( strikesData, chartType )
+	except Exception as e:
+		print( err, " ", str(e))
+		return "error.png"
+
+#getOOPS( "SPX", 3, 40, CHART_ROTATE)
+
+
+
+
+
 
 tmp = ['4', '5', '5', '6', '6', '7', '7', '7', '8', '8', '8', '9', '9', '9', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'F', 'F', 'F', 'F', 'F', 'F', 'F']
 tmp2 = ['f', 'e', 'e', 'e', 'c', 'c', 'c', 'b', 'b', 'a', 'a', '8', '8', '7', '7', '5', '5', '5', '4', '4', '4', '4', '3', '3', '3', '3', '2', '2', '2', '2', '1', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0']
@@ -1527,8 +1620,3 @@ mainloop()
 """
 
 thread_discord()
-
-"""
-beginning we were neg gamma which means illiquidity in the market overall, going to positive gamma afternoon but with flat PA means MMs still held their hedges from the neg gamma env, then going positive gamma with no downtrend means explosive rally upside due to the compounding effect of the hedge unwind)
-By illiquidity i mean the transaction around a strike goes down as in not enough buyers sellers so a skew of buyers vs sellers is created which can create a feedback loop
-"""

@@ -677,7 +677,7 @@ def getATRLevels(ticker_name):
 #	atr = atr / 14
 	#print(previousClose, atr)
 
-
+	print("Getting ATR")
 	today = str(datetime.date.today()).split(":")[0]
 	atr_start = str(datetime.date.today() - datetime.timedelta(days=30)).split(":")[0]
 	response = requests.get('https://api.tradier.com/v1/markets/history',
@@ -708,7 +708,7 @@ def getATRLevels(ticker_name):
 		#StandardDeviation = sqrt( sum( (each_TR - ATR)^2) ) / 14
 		previousClose = candles[lastCandle]['close']
 		atr = atr / 14
-		print( 'ATR is ', atr )
+		#print( 'ATR is ', atr )
 
 
 
@@ -981,25 +981,27 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 				outfile.write(json.dumps(content, indent=4))
 			return ticker_name
 		err = 3
-
 		param={'symbols': f'{ticker_name}', 'greeks': 'false'}
 		tickerData = requests.get('https://api.tradier.com/v1/markets/quotes', params=param, headers=TRADIER_HEADER).json()['quotes']['quote']
-
+		err = 4
 		sdIndex = 0
 		price = tickerData['last']
 		strikesData = StrikeData(tickerData['symbol'], price, dte + addDTE)
 		dte = float(dte + addDTE)
+		err = 5
+		
 		for option in content:
 			oi = option['volume'] if chartType == CHART_VOLUME else option['open_interest']
 			call = option['option_type'] == 'call' 
 			greeks = option['greeks']
+			if greeks == None : greeks = {"gamma": 0, "delta": 0, "vega": 0, "theta": 0, "mid_iv": 0}
 			strikesData.addStrike( strike=option['strike'], gamma=greeks['gamma'], delta=greeks['delta'], vega=greeks['vega'], theta=greeks['theta'], timeValue=option['ask'], iv=greeks['mid_iv'], oi=oi, bid=option['bid'], ask=option['ask'], call=call, dte=dte )
-
+		err = 6
 		strikesData.calcMaxPain()
 		strikesData.calcZeroGamma()
 		strikesData.shrinkToCount(count)
-
-		print( 'MaxPain ', strikesData.MaxPain, ' - ZeroG ', strikesData.ZeroGamma )
+		err = 7
+		#print( 'MaxPain ', strikesData.MaxPain, ' - ZeroG ', strikesData.ZeroGamma )
 
 		return drawOOPSChart( strikesData, chartType )
 	except Exception as e:

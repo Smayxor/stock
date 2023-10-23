@@ -775,7 +775,7 @@ class StrikeData():
 		self.MaxPain = 0
 		self.ZeroGamma = 0
 	def addStrike(self, strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, call, dte) :
-		def chk( val ) : return 0.0 if math.isnan( float( val ) ) or (val == -999.0) else float( val )
+		def chk( val ) : return 0.0 if (val is None) or math.isnan( float( val ) ) or (val == -999.0) else float( val )
 		strike, gamma, delta, vega, theta, timeValue, iv, oi, bid, ask, dte = chk(strike), abs(chk(gamma)), chk(delta), chk(vega), chk(theta), chk(timeValue), chk(iv), chk(oi), chk(bid), chk(ask), chk(dte)
 		if not strike in self.Strikes :
 			self.Strikes.append(strike)
@@ -991,11 +991,13 @@ def getOOPS(ticker_name, dte, count, chartType = 0):
 		err = 5
 		
 		for option in content:
+			#print( option )
 			oi = option['volume'] if chartType == CHART_VOLUME else option['open_interest']
 			call = option['option_type'] == 'call' 
 			greeks = option['greeks']
 			if greeks == None : greeks = {"gamma": 0, "delta": 0, "vega": 0, "theta": 0, "mid_iv": 0}
 			strikesData.addStrike( strike=option['strike'], gamma=greeks['gamma'], delta=greeks['delta'], vega=greeks['vega'], theta=greeks['theta'], timeValue=option['ask'], iv=greeks['mid_iv'], oi=oi, bid=option['bid'], ask=option['ask'], call=call, dte=dte )
+			
 		err = 6
 		strikesData.calcMaxPain()
 		strikesData.calcZeroGamma()
@@ -1530,11 +1532,6 @@ def clickButton():
 
 	drawTickerOnCanvas( e1.get().upper(), e2.get(), "orange" )
 
-	#drawTickerOnCanvas( "$SPX.X", e2.get(), "yellow" )
-	#drawTickerOnCanvas( "$VIX.X", e2.get(), "white" )
-	#drawTickerOnCanvas( "TLT", e2.get(), "orange" )
-#	drawTickerOnCanvas( "DXY", e2.get(), "purple" )
-
 def drawTickerOnCanvas( ticker, days, color ):
 	global canvas
 	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
@@ -1620,5 +1617,4 @@ canvas.configure(bg="#000000")
 clickButton()
 mainloop()
 """
-
 thread_discord()

@@ -1,3 +1,5 @@
+****  Rebuilding everything to use Tradier API.   ****
+
 For basic usage with only a TDA Developer account run stock.py    it has optional gui and server arguements
 The server is for discord bot, which requires you to make a discord developer account and create an app.
 To run without discord bot

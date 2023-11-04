@@ -361,14 +361,42 @@ async def news(ctx):
 def logFutureDTEs():
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]
+	fileName = f'./heatmap/SPX-{today}.json'
 	if today == exps[0] : exps.pop(0)
 	exps = exps[:5]
 	
+	date1 = datetime.datetime.strptime(today, "%Y-%m-%d")  #dp.getOptionsChain figures out date from a Xdte........
+	def convertDate2DTE(strDate):
+		date2 = datetime.datetime.strptime(strDate, "%Y-%m-%d")
+		timedelta = str(date2 - date1).split(" ")[0]
+		print( timedelta )
+		return timedelta
 	days = {}
 	for day in exps:
-		days[day] = dp.getOptionsChain("SPX", day)
-	
-	
-#logFutureDTEs()
+		strDTE = convertDate2DTE( day )
+		opts = dp.getOptionsChain("SPX", strDTE)
+		days[day] = dp.getGEX( opts[1] )
+	#datedData = {today: data}
+	"""try:
+		with open(fileName, 'r') as f:
+			oldData = json.load(f)
+		datedData.update(oldData)
+	except:
+		print('logData: Check oldData file contents ', fileName)
+	"""
+	with open(fileName,'w') as f: 
+		json.dump(days, f)
+
+"""def loadIVLog(ticker_name):
+	fileName = ticker_name + "-IV.json"
+	if not exists(fileName):  
+		with open(fileName, "w") as outfile:  
+			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
+	try:
+		data = json.load(open(fileName,'r'))
+	except:
+		print('Check file contents ', fileName)
+		return {}
+	return data"""
 
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

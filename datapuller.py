@@ -37,8 +37,9 @@ def getGEX(options):
 		index = len(strikes) - 1
 		while strikes[index][0] != strike: index -= 1
 		return index
+	
 	for option in options:
-		strike = option['strike']
+		strike = option['strike'] 
 		call = 1 if option['option_type'] == 'call' else -1
 		gamma = 0 
 		iv = 0
@@ -136,18 +137,28 @@ def getATR(ticker_name):
 def getATRLevels(price, atr): #	global FIBS, RANGE_FIBS
 	return [price + (atr * FIBS[x]) for x in RANGE_FIBS]
 
-def getCandles(ticker, days):
+def getCandles(ticker, days, interval):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
 	startDay = str(datetime.date.today() - datetime.timedelta(days=int(days) + 2)).split(":")[0]
 	endDay = str(datetime.date.today() + datetime.timedelta(days=int(days) + 1)).split(":")[0]
 	#print( "getCandles - ", startDay, endDay )
-	param = {'symbol': f'{ticker}', 'interval': '1min', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
+	#intervals     tick N/A?, 1min 10 days, 5min 18 days, 15min 18 days
+	param = {'symbol': f'{ticker}', 'interval': f'{interval}min', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
+
+def getHistory(ticker, days):
+	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
+	startDay = str(datetime.date.today() - datetime.timedelta(days=int(days))).split(":")[0]
+	endDay = str(datetime.date.today()).split(":")[0]
+	print( "getHistory - ", startDay, endDay )
+	#intervals      daily, weekly, monthly
+	param = {'symbol': f'{ticker}', 'interval': 'daily', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
+	return requests.get('https://api.tradier.com/v1/markets/history', params=param, headers=TRADIER_HEADER ).json()['history']['day']
 
 def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 	global SPY2SPXRatio
-	spyCandles = getCandles('SPY', 1)
-	spxCandles = getCandles('SPX', 1)
+	spyCandles = getCandles('SPY', 1, 15)
+	spxCandles = getCandles('SPX', 1, 15)
 
 	for spy in spyCandles: 
 		for spx in spxCandles: 

@@ -104,6 +104,8 @@ def drawGEXChart(ticker, count, dte):
 		for i in range(len(atrs)):
 			if atrs[i] == strike[0]: 
 				strikeText = str(round(atrs[i], 1))	
+		#strikeText = str(f'{round((abs(strike[8] - strike[10])), 2)}')		 #Call side has 2/3 value of Puts!!!  Could be used to determine SPX Price
+		#strikeText = str(f'{round((strike[8]), 2)} - {round((strike[10]), 2)}')		
 		drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)
 		
 		if strike[2] != 0 : drawRect(draw, 0, x, ((strike[2] / maxTotalOI) * 65), x + 12, color="#00F", border='')

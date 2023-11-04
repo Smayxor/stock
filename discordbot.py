@@ -229,9 +229,13 @@ async def dailyTask():
 	print("Daily Task Execution")
 	await chnl.send("Fethcing Morning Charts")
 	await chnl.send( buildNews("TODAY")[0] )
-	#clearStoredStrikes()
-	#tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-
+	fn = dc.drawGEXChart("SPX", count, dte)
+	if fn == "error.png": await intr.followup.send("Failed to get data")
+	else:
+		try: 
+			chnl = bot.get_channel(UPDATE_CHANNEL)
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await intr.followup.send("No image permissions")
 
 dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)
@@ -241,11 +245,15 @@ async def dailyTask2():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	print("Daily Task Execution 2")
 	await chnl.send("Fethcing Morning Charts")
-	#tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-	
-	#chnl = bot.get_channel(1156977360881586177)
-	#tickers.append( ("SPX", 0, 40, CHART_ROTATE, 1156977360881586177, chnl) )
-	#logData("SPX", 40)
+	fn = dc.drawGEXChart("SPX", count, dte)
+	if fn == "error.png": await intr.followup.send("Failed to get data")
+	else:
+		try: 
+			chnl = bot.get_channel(UPDATE_CHANNEL)
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			chnl = bot.get_channel(1156977360881586177)
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await intr.followup.send("No image permissions")
 
 blnFirstTime = True
 @bot.event

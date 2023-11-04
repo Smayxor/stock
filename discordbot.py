@@ -93,13 +93,13 @@ lastNewsDay = -1
 todaysNews = None
 class NewsData():
 	def __init__(self, day):
-		self.Day = day
+		self.Day = day.replace('<td>', '')
 		self.Events = []
 	def addEvent(self, txt):
 		if '<a href=' in txt:
 			txt = txt.replace('</a>', '')
 			txt = txt.split('<a href=')[0] + txt.split('">')[1]
-		self.Events.append( txt )
+		self.Events.append( txt.replace('<td>', '') )
 	def toString(self):
 		text = '**' + self.Day + '**```fix'
 		for e in self.Events:

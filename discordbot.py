@@ -268,13 +268,15 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await bot.logout()
 		exit(0)
 	elif args[0] == "UPDATE" :
-		await intr.response.send_message(user + " requested code update " + args[1])
+		await intr.response.send_message(user + " requested code update")
 		print("getting update")
-		fileName = args[1].lower()
-		r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
-		print("recieved file")
-		with open(fileName, "wb") as outfile:
-			outfile.write(r.content)
+		#fileName = args[1].lower()
+		files = ['discordbot.py', 'datapuller.py', 'drawchart.py']
+		for fileName in files:
+			r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
+			print("recieved file")
+			with open(fileName, "wb") as outfile:
+				outfile.write(r.content)
 		exit(9)
 		await bot.close()
 		await bot.logout()

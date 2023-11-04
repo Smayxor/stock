@@ -1,6 +1,6 @@
 import datetime
 import time
-import json
+import ujson as json
 import math
 import threading
 import sys
@@ -11,7 +11,7 @@ from discord.ext import commands
 from discord import app_commands
 from urllib.parse import unquote as unenc
 from urllib.parse import quote as enc
-#import datapuller as dp
+import datapuller as dp
 import drawchart as dc
 import requests
 
@@ -83,7 +83,73 @@ pumps = [enc("stock pump rocket moon"), enc("stock bull"), enc("pepe money rain"
 dumps = [enc("stock dump crash"), enc("bear stock")]
 titties = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
 asses = [enc("women ass twerk poggers"), enc("women sexy butt"), enc("latina big ass")]
-		
+
+
+
+
+def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
+
+lastNewsDay = -1
+todaysNews = None
+class NewsData():
+	def __init__(self, day):
+		self.Day = day
+		self.Events = []
+	def addEvent(self, txt):
+		if '<a href=' in txt:
+			txt = txt.replace('</a>', '')
+			txt = txt.split('<a href=')[0] + txt.split('">')[1]
+		self.Events.append( txt )
+	def toString(self):
+		text = '**' + self.Day + '**```fix'
+		for e in self.Events:
+			if len( e ) > 0 : text += '\n' + e
+		return text + '```'
+
+def fetchNews():
+	global lastNewsDay, todaysNews
+	today = datetime.date.today()
+	if lastNewsDay == today : return todaysNews
+	lastNewsDay = today
+	
+	COLUMN = ['', ' ', '\t ', ' Actual: ', ' Forecast: ', ' Prev: ', '', '', '', '', '', '']
+	url = "https://www.marketwatch.com/economy-politics/calendar"
+	news = []
+	try :
+		data = requests.get(url=url)
+		text = ""
+		tables = data.text.split( "<tbody>" )
+		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
+		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
+		for t in txt:
+			t = t.split('</tr>', 1)
+			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
+			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
+			newsD = NewsData( day )
+			for r in t[1].split('</tr>'):
+				event = ""
+				counter = 0
+				for td in r.split('</td>'):
+					if counter == 0:
+						if len(td) == 7 : td += " "
+						event = td
+					else:
+						while (counter == 1) and (len(td) < 40): td = td + ' '	
+						if len(td) > 0: event += COLUMN[counter] + td
+					counter += 1
+				newsD.addEvent( event )
+			news.append( newsD )
+	except:
+		print("BOOM")
+		for x in news: print( x.toString() )
+		#news.append( NewsData(today) )
+	todaysNews = news
+	return news
+
+
+
+
+
 class MyNewHelp(commands.MinimalHelpCommand):
 	async def send_pages(self):
 		strHelp = """}? for commands for Smayxor
@@ -214,10 +280,6 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await bot.logout()
 	print("Finished SUDO")
 
-	#@tasks.loop(seconds=1)
-	#async def channelUpdate():
-		#try: await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-
 dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime)
 async def dailyTask():
@@ -254,6 +316,7 @@ async def dailyTask2():
 			chnl = bot.get_channel(1156977360881586177)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
+	logFutureDTEs()
 
 blnFirstTime = True
 @bot.event
@@ -292,63 +355,18 @@ async def leaveg(ctx, *, guild_name):
 async def news(ctx):
 	#chnl = bot.get_channel(UPDATE_CHANNEL)
 	await ctx.send( buildNews("WEEK")[0] )
+
+def logFutureDTEs():
+	exps = dp.getExpirations('SPX')
+	today = str(datetime.date.today()).split(":")[0]
+	if today == exps[0] : exps.pop(0)
+	exps = exps[:5]
 	
-bot.run(BOT_TOKEN)
-
-
-
-def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
-
-lastNewsDay = -1
-todaysNews = None
-class NewsData():
-	def __init__(self, day):
-		self.Day = day
-		self.Events = []
-	def addEvent(self, txt):
-		if '<a href=' in txt:
-			txt = txt.replace('</a>', '')
-			txt = txt.split('<a href=')[0] + txt.split('">')[1]
-		self.Events.append( txt )
-	def toString(self):
-		text = '**' + self.Day + '**```fix'
-		for e in self.Events:
-			if len( e ) > 0 : text += '\n' + e
-		return text + '```'
-def fetchNews():
-	global lastNewsDay, todaysNews
-	today = datetime.date.today()
-	if lastNewsDay == today : return todaysNews
-	lastNewsDay = today
+	days = {}
+	for day in exps:
+		days[day] = dp.getOptionsChain("SPX", day)
 	
-	COLUMN = ['', ' ', '\t ', ' Actual: ', ' Forecast: ', ' Prev: ', '', '', '', '', '', '']
-	url = "https://www.marketwatch.com/economy-politics/calendar"
-	news = []
-	try :
-		data = requests.get(url=url)
-		text = ""
-		tables = data.text.split( "<tbody>" )
-		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
-		for t in txt:
-			t = t.split('</tr>', 1)
-			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
-			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
-			newsD = NewsData( day )
-			for r in t[1].split('</tr>'):
-				event = ""
-				counter = 0
-				for td in r.split('</td>'):
-					if counter == 0:
-						if len(td) == 7 : td += " "
-						event = td
-					else:
-						while (counter == 1) and (len(td) < 40): td = td + ' '	
-						if len(td) > 0: event += COLUMN[counter] + td
-					counter += 1
-				newsD.addEvent( event )
-			news.append( newsD )
-	except:
-		news.append( NewsData() )
-	todaysNews = news
-	return news
+	
+#logFutureDTEs()
+
+bot.run(BOT_TOKEN) #Last line of code, until bot is closed

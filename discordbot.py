@@ -93,13 +93,13 @@ lastNewsDay = -1
 todaysNews = None
 class NewsData():
 	def __init__(self, day):
-		self.Day = day.replace('<td>', '')
+		self.Day = day
 		self.Events = []
 	def addEvent(self, txt):
 		if '<a href=' in txt:
 			txt = txt.replace('</a>', '')
 			txt = txt.split('<a href=')[0] + txt.split('">')[1]
-		self.Events.append( txt.replace('<td>', '') )
+		self.Events.append( txt )
 	def toString(self):
 		text = '**' + self.Day + '**```fix'
 		for e in self.Events:
@@ -122,7 +122,7 @@ def fetchNews():
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
 		for t in txt:
-			t = t.split('</tr>', 1)
+			t = t.replace('<td>', '').split('</tr>', 1)
 			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
 			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
 			newsD = NewsData( day )
@@ -131,7 +131,7 @@ def fetchNews():
 				counter = 0
 				for td in r.split('</td>'):
 					if counter == 0:
-						if len(td) == 7 : td += " "
+						if len(td) == 7 : td = td.replace(' ', '  ')
 						event = td
 					else:
 						while (counter == 1) and (len(td) < 40): td = td + ' '	
@@ -141,7 +141,7 @@ def fetchNews():
 			news.append( newsD )
 	except:
 		print("BOOM")
-		for x in news: print( x.toString() )
+		#for x in news: print( x.toString() )
 		#news.append( NewsData(today) )
 	todaysNews = news
 	return news

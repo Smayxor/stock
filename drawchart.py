@@ -62,6 +62,8 @@ def drawGEXChart(ticker, count, dte):
 	maxPain = dp.calcMaxPain( strikes )
 	callDollars = sum([strike[4] * strike[9] for strike in strikes])  # Calc BEFORE shrinking count!!!
 	putDollars = sum([strike[6] * strike[11] for strike in strikes])
+	totalCalls = sum([strike[4] for strike in strikes]) 
+	totalPuts = sum([strike[6] for strike in strikes]) 
 
 	price = dp.getQuote(ticker)
 	strikes = dp.shrinkToCount(strikes, price, count)
@@ -132,6 +134,12 @@ def drawGEXChart(ticker, count, dte):
 	drawText(draw, x=x, y=y, txt=f'GEX Exp {expDate}', color="#3FF")
 	drawText(draw, x=x, y=y + (FONT_SIZE), txt="Zero Gamma "+"${:,.2f}".format(zeroG), color="orange")
 	drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
+	pcr = totalPuts / totalCalls
+#	color = 'white'
+#	if pcr < 0.5 : color = 'green'
+#	if pcr > 1.3 : color = 'red'
+	color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
+	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
 	
 	img.save("stock-chart.png")
 	return "stock-chart.png"

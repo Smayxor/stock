@@ -22,12 +22,24 @@ def getExpirationDate(ticker, dte):
 		if result in dates: break
 		dte += 1
 	return result
-	
+
 def getOptionsChain(ticker, dte):
 	expDate = getExpirationDate(ticker, dte)
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
 	options = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER ).json()['options']['option']
 	return (expDate, options)
+
+def getMultipleDTEOptionChain(ticker, days):
+	exps = getExpirations(ticker)
+	#if today == exps[0] : exps.pop(0)
+	exps = exps[:days]
+	days = {}
+	for exp in exps:
+		param = {'symbol': f'{ticker}', 'expiration': f'{exp}', 'greeks': 'true'}
+		options = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER ).json()['options']['option']
+		gex = getGEX( options )
+		days[exp] = gex
+	return days
 
 #{'symbol': 'SPY231030C00499000', 'description': 'SPY Oct 30 2023 $499.00 Call', 'exch': 'Z', 'type': 'option', 'last': 0.01, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.01, 'underlying': 'SPY', 'strike': 499.0, 'greeks': {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 2e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.716638, 'ask_iv': 0.716638, 'smv_vol': 0.16, 'updated_at': '2023-10-27 20:00:01'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 11, 'trade_date': 1697812231388, 'prevclose': 0.01, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'Q', 'bid_date': 1698437676000, 'asksize': 5608, 'askexch': 'X', 'ask_date': 1698437691000, 'open_interest': 36, 'contract_size': 100, 'expiration_date': '2023-10-30', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPY'}
 def getGEX(options):
@@ -145,12 +157,12 @@ def getCandles(ticker, days, interval):
 	#intervals     tick N/A?, 1min 10 days, 5min 18 days, 15min 18 days
 	param = {'symbol': f'{ticker}', 'interval': f'{interval}min', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
-
+#{'date': '2023-10-30', 'open': 4139.39, 'high': 4177.47, 'low': 4132.94, 'close': 4166.82, 'volume': 0}
 def getHistory(ticker, days):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
 	startDay = str(datetime.date.today() - datetime.timedelta(days=int(days))).split(":")[0]
 	endDay = str(datetime.date.today()).split(":")[0]
-	print( "getHistory - ", startDay, endDay )
+	#print( "getHistory - ", startDay, endDay )
 	#intervals      daily, weekly, monthly
 	param = {'symbol': f'{ticker}', 'interval': 'daily', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/history', params=param, headers=TRADIER_HEADER ).json()['history']['day']

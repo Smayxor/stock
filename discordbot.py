@@ -185,7 +185,11 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	global tickers, updateRunning, needsQueue
 	await intr.response.defer(thinking=True)
 	ticker = ticker.upper()
-	fn = dc.drawGEXChart(ticker, count, dte)
+	chartType = getChartType( chart )
+	if chartType == CHART_HEATMAP:
+		fn = dc.drawHeatMap(ticker, count, dte)
+	else:
+		fn = dc.drawGEXChart(ticker, count, dte)
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
@@ -318,7 +322,7 @@ async def dailyTask2():
 			chnl = bot.get_channel(1156977360881586177)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
-	logFutureDTEs()
+	logFutureDTEs() #For Heatmap
 
 blnFirstTime = True
 @bot.event
@@ -398,5 +402,7 @@ def logFutureDTEs():
 		print('Check file contents ', fileName)
 		return {}
 	return data"""
+
+#dc.drawHeatMap("SPX", 80, 9)
 
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

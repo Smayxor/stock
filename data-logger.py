@@ -4,7 +4,9 @@ import requests
 import threading
 import time
 import schedule
-import pandas as pd
+#import pandas as pd
+#import numpy as np
+import datapuller as dp
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -12,46 +14,45 @@ init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 blnRun = True
-
+INTERVAL = 60 #Time in seconds between recordings
 openPrice = 0.0
 dayData = {}
+#test = 0
 
-#dailyTaskTime = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)
-	
+def appendData():
+	global test
+	price = dp.getQuote('SPX')
+	options = dp.getOptionsChain("SPX", 0)
+	gex = dp.getGEX( options[1] )
+	gex = dp.shrinkToCount(gex, price, 100)
+	dayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+#	test += 1
+#	if test == 5: endDay()
+	threading.Timer(INTERVAL, minuteTimerThread).start()
+
 def startDay():
-	global openPrice, dayData
+	global openPrice, dayData, blnRun
+	blnRun = True
 	print( "Day started" )
 	#schedule.every(1).minutes.do(minuteTimerThread)
-	openPrice = getQuote('SPX')['last']
-	dayData[f'{getStrTime()}'] = {**{'price': openPrice, **getOptionsChain("SPX", openPrice).to_dict()}}
-	threading.Timer(60, minuteTimerThread).start()
-
+	appendData()
+	
 def endDay():
-	global dayData, blnRun
+	global blnRun, dayData
 	blnRun = False
 	today = str(datetime.date.today()).split(":")[0]
 	fileName = f'./logs/{today}-datalog.json'
 	with open(fileName,'w') as f: 
 		json.dump(dayData, f)
-	print("Saving Data ", len(dayData))
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
-
-def getQuote(ticker):
-	param={'symbols': f'{ticker}', 'greeks': 'false'}
-	return requests.get('https://api.tradier.com/v1/markets/quotes', params=param, headers=TRADIER_HEADER).json()['quotes']['quote']
 
 def minuteTimerThread():
 	global openPrice, dayData, blnRun
 	if not blnRun : return
-	threading.Timer(60, minuteTimerThread).start()
+	appendData()
 	
-	price = getQuote('SPX')['last']
-	timeNow = getStrTime()
-	dayData[f'{timeNow }'] = {**{'price': price}, **getOptionsChain("SPX", openPrice).to_dict()}
-	print("Recording - ", timeNow)
-	
-def getOptionsChain(ticker, price):	
+def getPandasOptionsChain(ticker, price):	#Unused, being kept in case I wanna mess with pandas someday.  Converting Pandas to Dict and storing in a file is a terrible data structure
 	today = datetime.date.today()
 	dte = 1
 	dateRange = str(today + datetime.timedelta(days=int(dte))).split(":")[0]
@@ -65,10 +66,9 @@ def getOptionsChain(ticker, price):
 	options = options.reset_index(drop = True)
 	return options
 
-print( datetime.date.today() )
-schedule.every().day.at("06:30").do(startDay)
+schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
-
+#startDay()
 # Loop so that the scheduling task keeps on running all time.
 while blnRun: # Checks whether a scheduled task is pending to run or not
 	schedule.run_pending()

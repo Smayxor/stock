@@ -86,14 +86,23 @@ def drawGEXChart(ticker, count, dte):
 		keyLevels.append(zero)
 		keyLevels.append(maxPain)
 	"""
-	
+	#[(4265.0, 4265.405714285714), (4275.0, 4276.613811428571), (4285.0, 4285.412691428571), (4290.0, 4291.592857142857), (4300.0, 4297.773022857143), (4305.0, 4305.419668571429), (4320.0, 4317.78), (4330.0, 4330.140331428571), (4340.0, 4337.786977142857), (4345.0, 4343.967142857143), (4350.0, 4350.147308571429), (4360.0, 4358.946188571428), (4370.0, 4370.154285714286)]
+	for i in range(len(atrs)):  #Should be done in the getATR code
+		closestStrike = 0
+		distToClosest = 99999
+		for s in strikes:
+			tmpDist = abs(atrs[i][1] - s[0])
+			if distToClosest > tmpDist:
+				distToClosest = tmpDist
+				closestStrike = s[0]
+		atrs[i] = (closestStrike, atrs[i][1])
 
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500
 	IMG_W += 110
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000")
 	draw = ImageDraw.Draw(img)
-
+	
 	x = IMG_W - 15
 	for strike in strikes :
 		x -= FONT_SIZE - 3
@@ -102,8 +111,8 @@ def drawGEXChart(ticker, count, dte):
 		if strike[0] == zeroG : strikeColor = "orange"
 		strikeText = str(round((strike[0]), 2))		
 		for i in range(len(atrs)):
-			if atrs[i] == strike[0]: 
-				strikeText = str(round(atrs[i], 1))	
+			if atrs[i][0] == strike[0]: 
+				strikeText = str(round(atrs[i][1], 1))	
 		#strikeText = str(f'{round((abs(strike[8] - strike[10])), 2)}')		 #Call side has 2/3 value of Puts!!!  Could be used to determine SPX Price
 		#strikeText = str(f'{round((strike[8]), 2)} - {round((strike[10]), 2)}')		
 		drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)

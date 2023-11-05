@@ -147,7 +147,8 @@ def getATR(ticker_name):
 	return (atr, getATRLevels(previousClose, atr))
 
 def getATRLevels(price, atr): #	global FIBS, RANGE_FIBS
-	return [price + (atr * FIBS[x]) for x in RANGE_FIBS]
+	result = [(0, price + (atr * FIBS[x])) for x in RANGE_FIBS]
+	return result
 
 def getCandles(ticker, days, interval):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]

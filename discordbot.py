@@ -66,6 +66,7 @@ print( requests.post(url, headers=headers, json=slash_command_json) )
 
 #Removes slash commands
 #print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
+#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1089558674533523486", headers=headers) )
 
 def getTenorGIF( search ):
 	url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
@@ -152,15 +153,15 @@ def fetchNews():
 
 class MyNewHelp(commands.MinimalHelpCommand):
 	async def send_pages(self):
-		strHelp = """}? for commands for Smayxor
-}s ticker dte, you can leave out DTE for 0DTE.  Can also use /gex ticker dte charttype
+		strHelp = """}help for commands for Smayxor
+/gex ticker dte strike-count charttype
 /8ball followed by a question, ending in ?
-The top bars are OI.
-The Red/Green bars above the strikes are Total Gamma Exposure, with blue/pink DEX lines.
-Under the strikes is Call Put GEX individually
-Additional Chart Types are V for volume, IV for ImpliedVolatility, R for rotated, and TV for TimeValue
-}s spx 0 v	for a volume chart
-Smayxor has switched to using /gex
+/news days <- Displays upcoming events
+
+The blue bars on left are OI.
+The Red/Green bars left of the strikes are Total Gamma Exposure.
+To the right of the strikes is Call Put GEX individually
+
 }gm }tits }ass }pump }dump also exist"""
 		destination = self.get_destination()
 		for page in self.paginator.pages:
@@ -404,5 +405,5 @@ def logFutureDTEs():
 	return data"""
 
 #dc.drawHeatMap("SPX", 80, 9)
-
+#MaxPain, CP Ratio,  fix-help, Heatmap, ???
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

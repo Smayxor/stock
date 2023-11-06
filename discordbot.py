@@ -287,7 +287,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await bot.logout()
 	print("Finished SUDO")
 
-dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+dailyTaskTime = datetime.time(hour=13, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime)
 async def dailyTask():
 	global tickers
@@ -298,7 +298,7 @@ async def dailyTask():
 	print("Daily Task Execution")
 	await chnl.send("Fethcing Morning Charts")
 	await chnl.send( buildNews("TODAY")[0] )
-	fn = dc.drawGEXChart("SPX", count, dte)
+	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: 
@@ -306,7 +306,7 @@ async def dailyTask():
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
 
-dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+dailyTaskTime2 = datetime.time(hour=14, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)
 async def dailyTask2():
 	global tickers
@@ -314,7 +314,7 @@ async def dailyTask2():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	print("Daily Task Execution 2")
 	await chnl.send("Fethcing Morning Charts")
-	fn = dc.drawGEXChart("SPX", count, dte)
+	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: 

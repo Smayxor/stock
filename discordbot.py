@@ -405,5 +405,5 @@ def logFutureDTEs():
 	return data"""
 
 #dc.drawHeatMap("SPX", 80, 9)
-#MaxPain, CP Ratio,  fix-help, Heatmap, ???
+
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

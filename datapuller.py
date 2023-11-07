@@ -63,7 +63,7 @@ def getGEX(options):
 		#exDate = option['expiration_date']
 		bid = option['bid']
 		ask = option['ask']
-		
+		#if strike == 4350 : print( option )
 		if (len(strikes) == 0) or (strikes[index][0] != strike): #fast, assumes strikes are in order
 			strikes.append( (strike, 0, 0, 0, 0, 0, 0, 0, 0, 0) ) #0-Strike, 1-CallGEX, 2-CallOI,  3-PutGEX, 4-PutOI, 5-IV, 6-CallBid, 7-CallAsk, 8-PutBid, 9-PutAsk
 			index = findIndex(strike) # always make sure we're on the right strike index
@@ -87,10 +87,14 @@ def calcZeroGEX(data): #def add(a, b): return (b[0], a[1] + b[1]) #cumsum = list
 def calcMaxPain(strikes):
 	maxP = {}
 	maxPain = next(iter(strikes))[0]
-	maxP[maxPain] = 0		
+	maxP[maxPain] = 0
 	for i in strikes :
 		dollars = 0
-		for j in strikes : dollars += abs(j[0] - i[0]) * (j[1] if i[0] > j[0] else j[3])
+		for j in strikes : 
+#			if i[0] > j[0] : dollars += abs(j[0] - i[0]) * j[4]
+#			if i[0] < j[0] : dollars += abs(j[0] - i[0]) * j[6]
+#			if i[0] == j[0] : dollars += j[4] + j[6]
+			dollars += abs(j[0] - i[0]) * (j[4] if i[0] > j[0] else j[6])
 		maxP[i[0]] = dollars
 		if maxP[i[0]] < maxP[maxPain] : maxPain = i[0]
 	return maxPain
@@ -120,9 +124,9 @@ def getQuote(ticker):
 	if ticker == 'SPX' : result *= SPY2SPXRatio
 	return result
 
-def getATR(ticker_name):
-	#today = str(datetime.date.today()).split(":")[0]
-	today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
+def getATR(ticker_name):  #SPX needs to grab SPY and convert
+	today = str(datetime.date.today()).split(":")[0]
+	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
 	atr_start = str(datetime.date.today() - datetime.timedelta(days=21)).split(":")[0]
 
 	param = {'symbol': f'{ticker_name}', 'interval': 'daily', 'start': f'{atr_start}', 'end': f'{today}', 'session_filter': 'all'}
@@ -144,7 +148,7 @@ def getATR(ticker_name):
 
 	previousClose = candles[lastCandle]['close']
 	atr = atr / 14
-	return (atr, getATRLevels(previousClose, atr))
+	return (atr, getATRLevels(previousClose, atr), previousClose)
 
 def getATRLevels(price, atr): #	global FIBS, RANGE_FIBS
 	result = [(0, price + (atr * FIBS[x])) for x in RANGE_FIBS]
@@ -179,3 +183,8 @@ def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 				SPY2SPXRatio = spx['high'] / spy['high']
 				return
 findSPY2SPXRatio()
+
+
+#param = {'symbol': 'SPXW231106C04350000', 'interval': '1min', 'start': '2023-11-04', 'end': '2023-11-06', 'session_filter': 'all'}
+#response = requests.get('https://api.tradier.com/v1/markets/history',    params=param,    headers=TRADIER_HEADER )
+#print( response.json() )

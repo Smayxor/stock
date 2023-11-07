@@ -73,15 +73,17 @@ def getGEX(options):
 		#combine tuples for that specific strike.  Combine Calls + Puts + DifferentRootSymbol - SPX/SPXW
 		if call == 1: strikes[index] = (strike, strikes[index][1] + gex, strikes[index][2] + oi, strikes[index][3], strikes[index][4], iv, bid, ask, strikes[index][8], strikes[index][9], volume, bidSize, askSize, strikes[index][13], strikes[index][14], strikes[index][15])
 		else: strikes[index] = (strike, strikes[index][1], strikes[index][2], strikes[index][3] + gex, strikes[index][4] + oi, iv, strikes[index][6], strikes[index][7], bid, ask, strikes[index][10], strikes[index][11], strikes[index][12], volume, bidSize, askSize)
-	#x = ("apple", "banana", "cherry")
-	#y = list(x)
-	#y[1] = "kiwi"
-	#x = tuple(y)
 	for index in range( len(strikes) ):
 		strike = strikes[index]
 		totalOI = strike[2] + strike[4]
 		totalGEX = strike[1] + strike[3]
 		strike = (strike[0], totalGEX, totalOI, strike[1], strike[2], strike[3], strike[4], strike[5], strike[6], strike[7], strike[8], strike[9], strike[10], strike[11], strike[12], strike[13], strike[14], strike[15] )#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
+		for i in range( 17 ):  #filter out any suprises
+			if strike[i] == None:
+				tmp = list( strike )
+				tmp[i] = 0
+				strike = tuple(tmp)
+
 		strikes[index] = strike
 	return strikes
 

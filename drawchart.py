@@ -60,6 +60,13 @@ def drawGEXChart(ticker, count, dte):
 	atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
 	maxPain = dp.calcMaxPain( strikes )
+	
+	strikeLen = len( strikes[0] )
+	for strike in strikes:
+		for i in range(strikeLen):
+			if strike[i] == None : print( strike )
+
+
 	callDollars = sum([strike[4] * strike[9] for strike in strikes])  # Calc BEFORE shrinking count!!!
 	putDollars = sum([strike[6] * strike[11] for strike in strikes])
 	totalCalls = sum([strike[4] for strike in strikes]) 

@@ -7,6 +7,7 @@ import schedule
 #import pandas as pd
 #import numpy as np
 import datapuller as dp
+import socket
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -18,23 +19,26 @@ INTERVAL = 60 #Time in seconds between recordings
 openPrice = 0.0
 dayData = {}
 #test = 0
+openPrice = 0  #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+
 
 def appendData():
 	global test
 	price = dp.getQuote('SPX')
 	options = dp.getOptionsChain("SPX", 0)
 	gex = dp.getGEX( options[1] )
-	gex = dp.shrinkToCount(gex, price, 100)
+	gex = dp.shrinkToCount(gex, openPrice, 100)  #Must be centered around same price all day long!!!
 	dayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 #	test += 1
 #	if test == 5: endDay()
 	threading.Timer(INTERVAL, minuteTimerThread).start()
+	#schedule.every(1).minutes.do(minuteTimerThread)
 
 def startDay():
-	global openPrice, dayData, blnRun
+	global openPrice, dayData, blnRun, openPrice
 	blnRun = True
 	print( "Day started" )
-	#schedule.every(1).minutes.do(minuteTimerThread)
+	openPrice = dp.getQuote('SPX')
 	appendData()
 	
 def endDay():
@@ -66,8 +70,42 @@ def getPandasOptionsChain(ticker, price):	#Unused, being kept in case I wanna me
 	options = options.reset_index(drop = True)
 	return options
 
+
+
+
+
+def serverThread():  #Was thinking about a file server, so data-logger.py could be ran on a different machine
+	# Create a socket
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	# Bind the socket to a port
+	sock.bind(('', 8080))
+	# Listen for connections
+	sock.listen(1)
+	# Accept a connection
+	client, addr = sock.accept()
+	# Receive the filename
+	filename = client.recv(1024)
+	# Create a file with the same name
+	with open(filename, 'wb') as f:
+		# Receive the file data
+		while True:
+			data = client.recv(1024)
+			if not data:
+				break
+				f.write(data)
+
+				# Close the connection
+				client.close()
+
+#	if __name__ == '__main__':
+#		main()
+
+
+
+print("Running Version 2.0 ArrayOfTuples - NoPandas")
 schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
+#schedule.every().day.at("07:00").do(endDay)
 #startDay()
 # Loop so that the scheduling task keeps on running all time.
 while blnRun: # Checks whether a scheduled task is pending to run or not

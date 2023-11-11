@@ -392,6 +392,12 @@ def logFutureDTEs():
 	with open(fileName,'w') as f: 
 		json.dump(days, f)
 
+#def loadPastDTEs():
+#	files = [f for f in os.listdir('./heatmap') if os.path.isfile(f)]
+#	print(files)
+#	#os.remove("file_name.txt")
+#loadPastDTEs()
+
 """def loadIVLog(ticker_name):
 	fileName = ticker_name + "-IV.json"
 	if not exists(fileName):  
@@ -405,5 +411,5 @@ def logFutureDTEs():
 	return data"""
 
 #dc.drawHeatMap("SPX", 80, 9)
-
+#dc.drawGEXChart("SPX", 40, 0)
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

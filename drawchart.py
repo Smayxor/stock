@@ -20,7 +20,6 @@ del tmp
 def getColorGradient(maxVal, val):	return LETTER[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
 def getTextColorGradient(maxVal, val):	return TEXT_COLOR[int((val / maxVal) * MIDDLE_LETTER) + MIDDLE_LETTER]
 
-
 def drawRect(draw, x, y, w, h, color, border):
 	if border in 'none': border = color
 	try:	draw.rectangle([x,y,w,h], fill=color, outline=border)   #for PIL Image
@@ -163,9 +162,14 @@ def drawGEXChart(ticker, count, dte):
 
 def drawHeatMap(ticker, strikeCount, dayTotal):
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
-	days = dp.getMultipleDTEOptionChain(ticker, dayTotal)
+
+	days = dp.loadPastDTE() + dp.getMultipleDTEOptionChain(ticker, dayTotal)
+	#print( 'Total Days ', len(days) )
+	#for key, value in days: print(key)#, ' - ', value, '\r')
+	days = sorted(days, key=lambda x: x[0])
+	
 	price = dp.getQuote(ticker)
-	candles = dp.getHistory(ticker, 7)
+	candles = dp.getHistory(ticker, 14)
 	def findRange( day ): #Used to find range for a previous day
 		for candle in candles:
 			if candle['date'] == day: 
@@ -177,7 +181,8 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 	priceLow = price - strikeCount
 	priceHigh = price + strikeCount
 	for day in days:
-		for strike in days[day]:
+		#print( day )
+		for strike in day[1]:
 			if (priceLow < strike[0] < priceHigh) and (strike[0] not in lStrikes): lStrikes.append(strike[0])
 	lStrikes = sorted(lStrikes)
 	count = len(lStrikes)  #done to ensure correct # of strikes are displayed
@@ -191,7 +196,7 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 	x = 0
 	for day in days:
 		x += 80
-		strikes = days[day]
+		strikes = day[1]
 		zeroG = dp.calcZeroGEX( strikes )
 		maxPain = dp.calcMaxPain( strikes )
 		#print( zeroG, maxPain )
@@ -200,7 +205,7 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 		maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
 		minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
 		maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
-		dayRange = findRange(day)
+		dayRange = findRange(day[0])
 		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 		y = IMG_H - FONT_SIZE - 10
 		for displayStrike in lStrikes:
@@ -213,7 +218,8 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 			color = 'yellow' if strike[0] == zeroG else getColorGradient(maxTotalGEX, strike[1])
 			color = 'grey' if strike[0] == maxPain else color
 			drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')
-			if dayRange[0] > displayStrike > dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
+			if dayRange[0] < displayStrike < dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
+			
 			val = alignValue(strike[2], 8)
 			drawText(draw, x=x, y=y, txt=val, color="white")
 	#***************************************
@@ -229,7 +235,7 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 	y = IMG_H - FONT_SIZE - 10
 	for day in days :
 		x += 80
-		strDay = day.split("-", 1)[1]
+		strDay = day[0].split("-", 1)[1]
 		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
 		draw.line([x, y2, x, IMG_H], fill="white", width=1)
 	#Draw title for heatmap
@@ -238,3 +244,4 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 
 	img.save("stock-chart.png")
 	return "stock-chart.png"
+#drawHeatMap('SPX', 100, 1)

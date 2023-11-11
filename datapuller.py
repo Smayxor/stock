@@ -1,6 +1,7 @@
 import datetime
 import ujson as json #usjon is json written in C
 import requests
+import os
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
@@ -33,12 +34,12 @@ def getMultipleDTEOptionChain(ticker, days):
 	exps = getExpirations(ticker)
 	#if today == exps[0] : exps.pop(0)
 	exps = exps[:days]
-	days = {}
+	days = []
 	for exp in exps:
 		param = {'symbol': f'{ticker}', 'expiration': f'{exp}', 'greeks': 'true'}
 		options = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER ).json()['options']['option']
 		gex = getGEX( options )
-		days[exp] = gex
+		days.append( (exp, gex) )
 	return days
 
 #{'symbol': 'SPY231030C00499000', 'description': 'SPY Oct 30 2023 $499.00 Call', 'exch': 'Z', 'type': 'option', 'last': 0.01, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.01, 'underlying': 'SPY', 'strike': 499.0, 'greeks': {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 2e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.716638, 'ask_iv': 0.716638, 'smv_vol': 0.16, 'updated_at': '2023-10-27 20:00:01'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 11, 'trade_date': 1697812231388, 'prevclose': 0.01, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'Q', 'bid_date': 1698437676000, 'asksize': 5608, 'askexch': 'X', 'ask_date': 1698437691000, 'open_interest': 36, 'contract_size': 100, 'expiration_date': '2023-10-30', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPY'}
@@ -105,6 +106,8 @@ def calcMaxPain(strikes):
 			dollars += abs(j[0] - i[0]) * (j[4] if i[0] > j[0] else j[6])
 		maxP[i[0]] = dollars
 		if maxP[i[0]] < maxP[maxPain] : maxPain = i[0]
+#	print( maxPain )
+	
 	return maxPain
 
 def shrinkToCount(strikes, price, count):
@@ -164,7 +167,7 @@ def getATRLevels(price, atr): #	global FIBS, RANGE_FIBS
 
 def getCandles(ticker, days, interval):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
-	startDay = str(datetime.date.today() - datetime.timedelta(days=int(days) + 2)).split(":")[0]
+	startDay = str(datetime.date.today() - datetime.timedelta(days=int(days) + 0)).split(":")[0]
 	endDay = str(datetime.date.today() + datetime.timedelta(days=int(days) + 1)).split(":")[0]
 	#print( "getCandles - ", startDay, endDay )
 	#intervals     tick N/A?, 1min 10 days, 5min 18 days, 15min 18 days
@@ -192,6 +195,23 @@ def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 				return
 findSPY2SPXRatio()
 
+def loadPastDTE():
+	files = [f'./heatmap/{f}' for f in os.listdir('./heatmap/')]
+	
+	for prevFiles in files:
+		tmpName = prevFiles.split('/')[2].split('-', 1)[1].split('.json')[0]
+		date1 = datetime.datetime.strptime(tmpName, "%Y-%m-%d")
+		date2 = datetime.datetime.now()
+		difference = (date2 - date1).days
+		print(f'Past GEX {difference} days')
+	result = []
+	for prevFile in files:
+		jsonData = json.load(open(prevFile))
+		day = next(iter(jsonData))
+		gexData = jsonData[day]
+		result.append( (day, gexData) )
+	return result
+#loadPastDTE()
 
 #param = {'symbol': 'SPXW231106C04350000', 'interval': '1min', 'start': '2023-11-04', 'end': '2023-11-06', 'session_filter': 'all'}
 #response = requests.get('https://api.tradier.com/v1/markets/history',    params=param,    headers=TRADIER_HEADER )

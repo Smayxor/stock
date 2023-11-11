@@ -24,7 +24,7 @@ Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
 
 e1 = Entry(win, width=8)
 e1.grid(row=0, column=0, sticky='E')
-e1.insert(0, "SPY")
+e1.insert(0, "SPX")
 
 e2 = Entry(win, width=4)
 e2.grid(row=0, column=1, sticky='E')

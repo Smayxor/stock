@@ -149,23 +149,11 @@ def drawGEXChart(ticker, count, dte):
 	
 	img.save("stock-chart.png")
 	return "stock-chart.png"
-"""
-			for kl in keyLevels:
-				if strike == kl: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#77F")
-			if strike == strikes.ClosestStrike: drawPointer(draw, 218 + font.getmask(str(strike)).getbbox()[2], x + 8, "#FF7")
-		y = 0
-		if chartType == CHART_ROTATE :
-			x = x + 280
-		else: 
-			y = FONT_SIZE * 5
-"""
 
 def drawHeatMap(ticker, strikeCount, dayTotal):
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
 
 	days = dp.loadPastDTE() + dp.getMultipleDTEOptionChain(ticker, dayTotal)
-	#print( 'Total Days ', len(days) )
-	#for key, value in days: print(key)#, ' - ', value, '\r')
 	days = sorted(days, key=lambda x: x[0])
 	
 	price = dp.getQuote(ticker)
@@ -201,10 +189,12 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 		maxPain = dp.calcMaxPain( strikes )
 		#print( zeroG, maxPain )
 		#strikes = dp.shrinkToCount(strikes, price, 60)
-		maxOI = max(strikes, key=lambda i: i[2])[2]
-		maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
-		minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
-		maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
+		maxCallOI = max(strikes, key=lambda i: i[4])[4]
+		maxPutOI = max(strikes, key=lambda i: i[6])[6]
+		maxTotalOI = max(strikes, key=lambda i: i[2])[2]
+		#maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
+		#minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
+		#maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
 		dayRange = findRange(day[0])
 		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 		y = IMG_H - FONT_SIZE - 10
@@ -215,10 +205,18 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 				if val[0] == displayStrike:
 					strike = val
 					break
-			color = 'yellow' if strike[0] == zeroG else getColorGradient(maxTotalGEX, strike[1])
-			color = 'grey' if strike[0] == maxPain else color
-			drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')
+			#color = 'yellow' if strike[0] == zeroG else getColorGradient(maxTotalOI, strike[2])
+			#color = 'grey' if strike[0] == maxPain else color
+			#drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')
+			
+			if strike[0] == zeroG : drawRect(draw, x, y + FONT_SIZE - 4, x + 80, y + FONT_SIZE, color='yellow', border='')
+			if strike[0] == maxPain : drawRect(draw, x, y, x + 80, y + 4, color='grey', border='')			
 			if dayRange[0] < displayStrike < dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
+			
+			callColor = getColorGradient(maxCallOI, strike[4])
+			putColor = getColorGradient(maxPutOI, -strike[6])
+			drawRect(draw, x, y, x + 40, y + FONT_SIZE, color=callColor, border='')
+			drawRect(draw, x + 41, y, x + 80, y + FONT_SIZE, color=putColor, border='')
 			
 			val = alignValue(strike[2], 8)
 			drawText(draw, x=x, y=y, txt=val, color="white")

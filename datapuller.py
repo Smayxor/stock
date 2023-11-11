@@ -203,7 +203,7 @@ def loadPastDTE():
 		date1 = datetime.datetime.strptime(tmpName, "%Y-%m-%d")
 		date2 = datetime.datetime.now()
 		difference = (date2 - date1).days
-		print(f'Past GEX {difference} days')
+		#print(f'Past GEX {difference} days')
 	result = []
 	for prevFile in files:
 		jsonData = json.load(open(prevFile))

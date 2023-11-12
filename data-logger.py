@@ -13,46 +13,63 @@ TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 blnRun = True
 INTERVAL = 60 #Time in seconds between recordings
-openPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
-dayData = {}
+
+SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+SPXdayData = {}
+SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+SPYdayData = {}
 #test = 0
 
 def appendData():
-	global openPrice, dayData, INTERVAL#, test
+	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL#, test
 	price = dp.getQuote('SPX')
 	options = dp.getOptionsChain("SPX", 0)
 	gex = dp.getGEX( options[1] )
-	gex = dp.shrinkToCount(gex, openPrice, 100)  #Must be centered around same price all day long!!!
-	dayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
-#	test += 1
-#	if test == 5: endDay()
+	gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
+	SPXdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+
+	price = dp.getQuote('SPY')
+	options = dp.getOptionsChain("SPY", 0)
+	gex = dp.getGEX( options[1] )
+	gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
+	SPYdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+
 	threading.Timer(INTERVAL, minuteTimerThread).start()
 	#schedule.every(1).minutes.do(minuteTimerThread)
 
 def startDay():
-	global openPrice, dayData, blnRun, openPrice
+	global SPXopenPrice, SPXdayData, blnRun, SPYopenPrice, SPYdayData
 	state = dp.getMarketHoursToday()['state']
 	if 'open' not in state : 
 		print( 'Market Closed Today')
 		return
 	blnRun = True
-	dayData = {}
-	openPrice = dp.getQuote('SPX')
+	SPXdayData = {}
+	SPXopenPrice = dp.getQuote('SPX')
+	SPYdayData = {}
+	SPYopenPrice = dp.getQuote('SPY')
 	print( "Day started" )
 	appendData()
 	
 def endDay():
-	global blnRun, dayData
+	global blnRun, SPXdayData, SPYdayData
 	blnRun = False
 	today = str(datetime.date.today()).split(":")[0]
-	fileName = f'./logs/{today}-datalog.json'
+
+	fileName = f'./logs/SPX-{today}-datalog.json'
 	with open(fileName,'w') as f: 
-		json.dump(dayData, f)
+		json.dump(SPXdayData, f)
+
+	fileName = f'./logs/SPY-{today}-datalog.json'
+	with open(fileName,'w') as f: 
+		json.dump(SPYdayData, f)
+
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
 		fileName = f'./pricelogs/{today}-pricelog.json'
 		with open(fileName,'w') as f: 
-			json.dump(dayCandles, f)
+			json.dump(dayCandles, f)	
+
 	savePriceChart('SPX')
 	savePriceChart('SPY')
 	savePriceChart('VIX')
@@ -62,7 +79,7 @@ def endDay():
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 
 def minuteTimerThread():
-	global openPrice, dayData, blnRun
+	global blnRun
 	if not blnRun : return
 	appendData()
 """	

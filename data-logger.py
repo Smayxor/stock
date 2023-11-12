@@ -4,10 +4,7 @@ import requests
 import threading
 import time
 import schedule
-#import pandas as pd
-#import numpy as np
 import datapuller as dp
-import socket
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -16,14 +13,12 @@ TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 blnRun = True
 INTERVAL = 60 #Time in seconds between recordings
-openPrice = 0.0
+openPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 dayData = {}
 #test = 0
-openPrice = 0  #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
-
 
 def appendData():
-	global test
+	global openPrice, dayData, INTERVAL#, test
 	price = dp.getQuote('SPX')
 	options = dp.getOptionsChain("SPX", 0)
 	gex = dp.getGEX( options[1] )
@@ -36,9 +31,14 @@ def appendData():
 
 def startDay():
 	global openPrice, dayData, blnRun, openPrice
+	state = dp.getMarketHoursToday()['state']
+	if 'open' not in state : 
+		print( 'Market Closed Today')
+		return
 	blnRun = True
-	print( "Day started" )
+	dayData = {}
 	openPrice = dp.getQuote('SPX')
+	print( "Day started" )
 	appendData()
 	
 def endDay():
@@ -48,6 +48,16 @@ def endDay():
 	fileName = f'./logs/{today}-datalog.json'
 	with open(fileName,'w') as f: 
 		json.dump(dayData, f)
+	def savePriceChart(ticker):
+		dayCandles = dp.getCandles(ticker, 0, 1)
+		fileName = f'./pricelogs/{today}-pricelog.json'
+		with open(fileName,'w') as f: 
+			json.dump(dayCandles, f)
+	savePriceChart('SPX')
+	savePriceChart('SPY')
+	savePriceChart('VIX')
+	savePriceChart('DXY')
+	savePriceChart('TLT')
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 
@@ -55,7 +65,7 @@ def minuteTimerThread():
 	global openPrice, dayData, blnRun
 	if not blnRun : return
 	appendData()
-	
+"""	
 def getPandasOptionsChain(ticker, price):	#Unused, being kept in case I wanna mess with pandas someday.  Converting Pandas to Dict and storing in a file is a terrible data structure
 	today = datetime.date.today()
 	dte = 1
@@ -70,10 +80,7 @@ def getPandasOptionsChain(ticker, price):	#Unused, being kept in case I wanna me
 	options = options.reset_index(drop = True)
 	return options
 
-
-
-
-
+import socket
 def serverThread():  #Was thinking about a file server, so data-logger.py could be ran on a different machine
 	# Create a socket
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -99,16 +106,14 @@ def serverThread():  #Was thinking about a file server, so data-logger.py could 
 
 #	if __name__ == '__main__':
 #		main()
-
-
-
+"""
 print("Running Version 2.0 ArrayOfTuples - NoPandas")
 schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 #schedule.every().day.at("07:00").do(endDay)
 #startDay()
 # Loop so that the scheduling task keeps on running all time.
-while blnRun: # Checks whether a scheduled task is pending to run or not
+while True: # Checks whether a scheduled task is pending to run or not
 	schedule.run_pending()
 	time.sleep(1)
 print( 'Finished logging data' )

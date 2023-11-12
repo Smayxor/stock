@@ -11,6 +11,10 @@ FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0
 RANGE_FIBS = range(len(FIBS))
 SPY2SPXRatio = 0
 
+def getMarketHoursToday():
+	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
+	return requests.get('https://api.tradier.com/v1/markets/clock', params={'delayed': 'false'}, headers=TRADIER_HEADER).json()['clock']
+
 def getExpirations(ticker):
 	param = {'symbol': f'{ticker}', 'includeAllRoots': 'true', 'strikes': 'false'}   #'strikes': 'true'}
 	return requests.get('https://api.tradier.com/v1/markets/options/expirations', params=param, headers=TRADIER_HEADER).json()['expirations']['date']
@@ -185,8 +189,8 @@ def getHistory(ticker, days):
 
 def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 	global SPY2SPXRatio
-	spyCandles = getCandles('SPY', 1, 15)
-	spxCandles = getCandles('SPX', 1, 15)
+	spyCandles = getCandles('SPY', 4, 15)
+	spxCandles = getCandles('SPX', 4, 15)
 
 	for spy in spyCandles: 
 		for spx in spxCandles: 
@@ -197,19 +201,28 @@ findSPY2SPXRatio()
 
 def loadPastDTE():
 	files = [f'./heatmap/{f}' for f in os.listdir('./heatmap/')]
-	
+	result = []
+	"""
 	for prevFiles in files:
 		tmpName = prevFiles.split('/')[2].split('-', 1)[1].split('.json')[0]
 		date1 = datetime.datetime.strptime(tmpName, "%Y-%m-%d")
 		date2 = datetime.datetime.now()
 		difference = (date2 - date1).days
 		#print(f'Past GEX {difference} days')
-	result = []
-	for prevFile in files:
-		jsonData = json.load(open(prevFile))
-		day = next(iter(jsonData))
+	"""
+	lastDay = files[-1]
+	print( f'Comparing to {lastDay}' )
+	jsonData = json.load(open(lastDay))
+	
+	for day in jsonData:
 		gexData = jsonData[day]
 		result.append( (day, gexData) )
+	#for prevFile in files:
+	#	jsonData = json.load(open(prevFile))
+		#day = next(iter(jsonData))   #ONLY GRABBING THE FIRST DAY
+	#	for day in jsonData:
+	#		gexData = jsonData[day]
+	#		result.append( (day, gexData) )
 	return result
 #loadPastDTE()
 

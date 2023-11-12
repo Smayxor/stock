@@ -18,10 +18,9 @@ SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all
 SPXdayData = {}
 SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 SPYdayData = {}
-#test = 0
 
 def appendData():
-	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL#, test
+	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL
 	price = dp.getQuote('SPX')
 	options = dp.getOptionsChain("SPX", 0)
 	gex = dp.getGEX( options[1] )
@@ -66,7 +65,7 @@ def endDay():
 
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
-		fileName = f'./pricelogs/{today}-pricelog.json'
+		fileName = f'./pricelogs/{ticker}-{today}-pricelog.json'
 		with open(fileName,'w') as f: 
 			json.dump(dayCandles, f)	
 
@@ -127,8 +126,10 @@ def serverThread():  #Was thinking about a file server, so data-logger.py could 
 print("Running Version 2.0 ArrayOfTuples - NoPandas")
 schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
-#schedule.every().day.at("07:00").do(endDay)
+
 #startDay()
+#schedule.every().day.at("09:30").do(endDay)
+
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not
 	schedule.run_pending()

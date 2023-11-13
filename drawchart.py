@@ -153,11 +153,12 @@ def drawGEXChart(ticker, count, dte):
 def drawHeatMap(ticker, strikeCount, dayTotal):
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
 
-	days = dp.loadPastDTE() + dp.getMultipleDTEOptionChain(ticker, dayTotal)
+	#pastDays = dp.loadPastDTE() #set to grab -1 dte
+	days = dp.getMultipleDTEOptionChain(ticker, dayTotal)
 	days = sorted(days, key=lambda x: x[0])
 	
 	price = dp.getQuote(ticker)
-	candles = dp.getHistory(ticker, 14)
+	#candles = dp.getHistory(ticker, 14)
 	def findRange( day ): #Used to find range for a previous day
 		for candle in candles:
 			if candle['date'] == day: 
@@ -185,18 +186,16 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 	for day in days:
 		x += 80
 		strikes = day[1]
+		print(day[0])
 		zeroG = dp.calcZeroGEX( strikes )
 		maxPain = dp.calcMaxPain( strikes )
-		#print( zeroG, maxPain )
-		#strikes = dp.shrinkToCount(strikes, price, 60)
 		maxCallOI = max(strikes, key=lambda i: i[4])[4]
 		maxPutOI = max(strikes, key=lambda i: i[6])[6]
 		maxTotalOI = max(strikes, key=lambda i: i[2])[2]
 		#maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
 		#minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
 		#maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
-		dayRange = findRange(day[0])
-		#print( dayRange )
+		#dayRange = findRange(day[0])
 		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 		y = IMG_H - FONT_SIZE - 10
 		for displayStrike in lStrikes:
@@ -206,10 +205,6 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 				if val[0] == displayStrike:
 					strike = val
 					break
-			#color = 'yellow' if strike[0] == zeroG else getColorGradient(maxTotalOI, strike[2])
-			#color = 'grey' if strike[0] == maxPain else color
-			#drawRect(draw, x, y, x + 80, y + FONT_SIZE, color=color, border='')
-			
 			callColor = getColorGradient(maxCallOI, strike[4])
 			putColor = getColorGradient(maxPutOI, -strike[6])
 			drawRect(draw, x, y, x + 40, y + FONT_SIZE, color=callColor, border='')
@@ -217,7 +212,7 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 			
 			if strike[0] == zeroG : drawRect(draw, x, y + FONT_SIZE - 4, x + 80, y + FONT_SIZE, color='yellow', border='')
 			if strike[0] == maxPain : drawRect(draw, x, y, x + 80, y + 4, color='grey', border='')			
-			if dayRange[0] < displayStrike < dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
+			#if dayRange[0] < displayStrike < dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
 			
 			val = alignValue(strike[2], 8)
 			drawText(draw, x=x, y=y, txt=val, color="#F82")

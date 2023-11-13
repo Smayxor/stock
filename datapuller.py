@@ -117,7 +117,7 @@ def calcMaxPain(strikes):
 def shrinkToCount(strikes, price, count):
 	atmStrike = 0.0
 	dist = 99999
-	for x in strikes:
+	for x in strikes:  #Locate the most ATM Strike
 		thisDist = abs(x[0] - price)
 		if thisDist < dist:
 			atmStrike = x[0]

@@ -363,6 +363,29 @@ async def news(ctx):
 	#chnl = bot.get_channel(UPDATE_CHANNEL)
 	await ctx.send( buildNews("WEEK")[0] )
 
+@bot.command(name="list")
+async def list(ctx):
+	await ctx.send( str(dp.pullLogFileList()) )
+
+@bot.command(name="pc")
+async def pc(ctx, *args):
+	if 'help' in args[0] or len(args) < 3: 
+		await ctx.send( '}pc Options Price Chart.\rSimply type =pc SPY/SPX day strikec or strikep.\r=pc SPX 11-06 4450c 4425p 4500c\rYou can also type =list to get a list of available days' )
+		return
+	ticker = 'SPX' if args[0].upper() == 'SPX' else 'SPY'
+	fileList = dp.pullLogFileList()
+	file = fileList[-1] #str(datetime.date.today()).split(":")[0]
+	for x in fileList:
+		if (args[1] in x) and (True if ticker == 'SPX' else ('SPY' in x)):
+			file = x
+			break
+	strikes = [args[i] for i in range(2, len(args))]
+
+	gexData = dp.pullLogFile(file)
+	chart = dc.drawPriceChart( ticker, file, gexData, strikes )
+	
+	await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+
 def logFutureDTEs():
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]

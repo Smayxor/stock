@@ -150,6 +150,58 @@ def drawGEXChart(ticker, count, dte):
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
+def drawPriceChart(ticker, fileName, gexData, userArgs):
+	IMG_W = 400
+	IMG_H = 500 + FONT_SIZE + 5
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)	
+	drawText(draw, x=0, y=0, txt=f'{ticker} Options PriceChart', color="#0ff")
+
+	def strikeExists(strikeVal):
+		for x in gexData[next(iter(gexData))]['data']:
+			if x[0] == strikeVal: return True
+		return False
+	strikes = []
+	for arg in userArgs:
+		strikeVal = int(arg[:-1])
+		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
+		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
+	if len(strikes) == 0: return 'error.png'
+
+	prices = [gexData[t]['price'] for t in gexData]
+	maxPrice = max( prices )
+	minPrice = min( prices )
+	priceDif = maxPrice - minPrice
+	if priceDif == 0: priceDif = 1
+	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
+	
+	for i in range(1, len(prices)):
+		draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
+	
+	for strike in strikes:
+		print("Drawing ", strike)
+		index = 0
+		nex = gexData[next(iter(gexData))]['data']
+		for x in range(len(nex)):
+			if nex[x][0] == strike[0]: 
+				index = x
+				break
+		element = 9 if strike[1] == 'call' else 11
+		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
+		prices = [gexData[t]['data'][index][element] for t in gexData]
+		maxPrice = max( prices )
+		minPrice = min( prices )
+		priceDif = maxPrice - minPrice
+		if priceDif == 0: priceDif = 1
+		colr = "green" if strike[1] == 'call' else "red"
+		for i in range(1, len(prices)):
+			draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
+			
+		#if gexData[t]['data'][0] == strike[0]]
+	
+	img.save("price-chart.png")
+	return "price-chart.png"
+
 def drawHeatMap(ticker, strikeCount, dayTotal):
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
 

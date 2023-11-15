@@ -18,9 +18,21 @@ SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all
 SPXdayData = {}
 SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 SPYdayData = {}
+tenMinutes = 0
+
+def save0dte():
+	global SPXdayData, SPYdayData
+	today = str(datetime.date.today()).split(":")[0]
+	fileName = f'./logs/{today}-datalog.json'
+	with open(fileName,'w') as f: 
+		json.dump(SPXdayData, f)
+
+	fileName = f'./logs/SPY-{today}-datalog.json'
+	with open(fileName,'w') as f: 
+		json.dump(SPYdayData, f)
 
 def appendData():
-	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL
+	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL, tenMinutes
 	price = dp.getQuote('SPX')
 	options = dp.getOptionsChain("SPX", 0)
 	gex = dp.getGEX( options[1] )
@@ -35,6 +47,10 @@ def appendData():
 
 	threading.Timer(INTERVAL, minuteTimerThread).start()
 	#schedule.every(1).minutes.do(minuteTimerThread)
+	tenMinutes += 1
+	if tenMinutes == 10:
+		tenMinutes = 0
+		save0dte()
 
 def startDay():
 	global SPXopenPrice, SPXdayData, blnRun, SPYopenPrice, SPYdayData
@@ -54,15 +70,16 @@ def endDay():
 	global blnRun, SPXdayData, SPYdayData
 	blnRun = False
 	today = str(datetime.date.today()).split(":")[0]
-
-	fileName = f'./logs/SPX-{today}-datalog.json'
+	save0dte()
+	"""
+	fileName = f'./logs/{today}-datalog.json'
 	with open(fileName,'w') as f: 
 		json.dump(SPXdayData, f)
 
 	fileName = f'./logs/SPY-{today}-datalog.json'
 	with open(fileName,'w') as f: 
 		json.dump(SPYdayData, f)
-
+	"""
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
 		fileName = f'./pricelogs/{ticker}-{today}-pricelog.json'
@@ -95,33 +112,6 @@ def getPandasOptionsChain(ticker, price):	#Unused, being kept in case I wanna me
 	options = options.drop(columns=['greeks', 'theta', 'vega', 'rho', 'phi', 'bid_iv', 'ask_iv', 'smv_vol', 'updated_at'])
 	options = options.reset_index(drop = True)
 	return options
-
-import socket
-def serverThread():  #Was thinking about a file server, so data-logger.py could be ran on a different machine
-	# Create a socket
-	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	# Bind the socket to a port
-	sock.bind(('', 8080))
-	# Listen for connections
-	sock.listen(1)
-	# Accept a connection
-	client, addr = sock.accept()
-	# Receive the filename
-	filename = client.recv(1024)
-	# Create a file with the same name
-	with open(filename, 'wb') as f:
-		# Receive the file data
-		while True:
-			data = client.recv(1024)
-			if not data:
-				break
-				f.write(data)
-
-				# Close the connection
-				client.close()
-
-#	if __name__ == '__main__':
-#		main()
 """
 print("Running Version 2.0 ArrayOfTuples - NoPandas")
 schedule.every().day.at("06:30").do(startDay)  #Currently set to PST

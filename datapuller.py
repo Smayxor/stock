@@ -229,3 +229,12 @@ def loadPastDTE():
 #param = {'symbol': 'SPXW231106C04350000', 'interval': '1min', 'start': '2023-11-04', 'end': '2023-11-06', 'session_filter': 'all'}
 #response = requests.get('https://api.tradier.com/v1/markets/history',    params=param,    headers=TRADIER_HEADER )
 #print( response.json() )
+
+#Running on data-logger.py machine --> python3 -m http.server 8080
+#Using a Windows Shortcut  C:\Windows\System32\cmd.com /c "PATH\python3 -m http.server 8080"
+def pullLogFileList():
+	response = str(requests.get('http://192.168.1.254:8080').content).split('<a href="', 1)[1].split('<a href="')
+	return [tmp.split('">')[0] for tmp in response]
+	
+def pullLogFile(fileName):
+	return requests.get(f'http://192.168.1.254:8080/{fileName}').json()

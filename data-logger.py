@@ -18,7 +18,7 @@ SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all
 SPXdayData = {}
 SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 SPYdayData = {}
-tenMinutes = 0
+#tenMinutes = 0
 
 def save0dte():
 	global SPXdayData, SPYdayData
@@ -47,10 +47,8 @@ def appendData():
 
 	threading.Timer(INTERVAL, minuteTimerThread).start()
 	#schedule.every(1).minutes.do(minuteTimerThread)
-	tenMinutes += 1
-	if tenMinutes == 10:
-		tenMinutes = 0
-		save0dte()
+#	tenMinutes = (tenMinutes + 1) % 10
+	save0dte()
 
 def startDay():
 	global SPXopenPrice, SPXdayData, blnRun, SPYopenPrice, SPYdayData

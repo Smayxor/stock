@@ -12,18 +12,21 @@ blnRun = True
 IMG_H = 500
 lastIndex = 0
 t = None
-
+previousClose = 0
+averageRange = 0
 options = dp.getOptionsChain('SPX', 0)
 gexList = dp.getGEX(options[1])
 
 def identifyKeyLevels(ticker, strikes):
+	global previousClose, averageRange
 	price = dp.getQuote(ticker)
 	atr = dp.getATR(ticker)
+	previousClose = atr[2]
+	averageRange = atr[0]
 	atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
 	maxPain = dp.calcMaxPain( strikes )
 	strikes = dp.shrinkToCount(strikes, price, 100)
-	print( atr )
 	#maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
 	#minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
 	#maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
@@ -57,6 +60,15 @@ def identifyKeyLevels(ticker, strikes):
 	print( txtTmp )
 identifyKeyLevels('SPX', gexList)
 
+#************ Calced after identifyKeyLevels sets values
+previousClose = round(previousClose / dp.SPY2SPXRatio, 2)
+averageRange = round(averageRange / dp.SPY2SPXRatio, 2)
+highPrice = previousClose + (averageRange * 1.1)
+lowPrice = previousClose - (averageRange * 1.1)
+priceRange = highPrice - lowPrice
+scale = IMG_H / priceRange
+#******************************************
+
 def clickButton():
 	global canvas, lastIndex
 	canvas.delete("all")
@@ -76,28 +88,36 @@ class RepeatTimer(Timer):
 def timerThread():
 	global blnRun
 	if not blnRun : return
-	print("Update")
 	drawTickerOnCanvas( e1.get().upper(), e2.get(), "orange" )
 
 def drawTickerOnCanvas( ticker, days, color ):	
 	avgs = []
 	candles = dp.getCandles('SPY', days, 1)
+	#lastClose = 0
 	for i in range( len( candles ) ) :
 		avgs.append( candles[i]['open'] )
-		avgs.append( candles[i]['close'] )
-	drawAVGs(avgs, 'yellow')
+		#avgs.append( candles[i]['close'] )
+		#lastClose = candles[i]['close']
+	try: buyPrice = int(eBuyPrice.get())
+	except: buyPrice = 0
+	try: sellPrice = int(eSellPrice.get())
+	except: sellPrice = 0
 
-def drawAVGs(avgs, color):
+	candle = candles[-1]
+	lastClose = candle['close']
+	lastLow = candle['low']
+	lastHigh = candle['high']
+
+	if lastLow <= buyPrice <= lastHigh : print(f'{buyPrice} Within range {lastLow} - {lastHigh}')
+	canvas.itemconfig(lastPriceTextObject,text=str(round(lastClose, 2)))
+	#print(f'Buy at {buyPrice}, Sell at {sellPrice}' )
+	drawAVGs(avgs, 'yellow', lastClose)
+
+def drawAVGs(avgs, color, lastClose):
 	global canvas, lastIndex
 	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
-	
-	highPrice = max(avgs)
-	lowPrice = min(avgs)
-	priceRange = highPrice - lowPrice
-	scale = IMG_H / priceRange
-#	maxVolume = max(volumes)
 	lenavgs = len(avgs)
-	
+	"""  Find peaks and valleys
 	highs = []
 	lows = []
 	last = avgs[0]
@@ -125,19 +145,28 @@ def drawAVGs(avgs, color):
 			high = i
 		else:
 			pass
-
+	"""
 	def convertY( val ):	return IMG_H - ((val - lowPrice) * scale)
 	if lenavgs > 2000 : lenavgs = 2000
 	for x in range( 1, lenavgs ):
-		if x > lastIndex :
-			lastIndex = x
+		if x > lastIndex:
 			y1 = convertY(avgs[x-1])
 			y2 = convertY(avgs[x])
 			canvas.create_line(x-1,y1,x,y2, fill=color, width=1)
-	
-	canvas.create_line(0, 2, 1850, 2, dash=(1,3), fill="green", width=2)
+			lastIndex = x
+
+	x = lastIndex - 1
+	y = convertY(lastClose) - 1
+	canvas.coords(lastPriceObject, (x, y, x+2, y+2))
+	canvas.coords(lastPriceTextObject, (x + 50, y))
+	#print( len( canvas.find("all") ) )
+
+def drawPriceScale():
+	canvas.create_line(0, 3, 1850, 3, dash=(1,3), fill="green", width=3)
+	canvas.create_line(0, IMG_H / 2, 1850, IMG_H / 2, dash=(1,3), fill="white", width=2)
 	canvas.create_line(0, IMG_H, 1850, IMG_H, dash=(1,3), fill="red", width=2)
 	canvas.create_text(1850, 10, text=str(highPrice), fill="green")#, font=('Helvetica 15 bold'))
+	canvas.create_text(1850, IMG_H / 2 + 10, text=str(previousClose), fill="red")
 	canvas.create_text(1850, IMG_H + 10, text=str(lowPrice), fill="red")
 	
 #50% retracement is to tell you that we are testing whether or not we would even extend. If we retrace more than 50%, then we are unlikely to extend
@@ -169,6 +198,8 @@ tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=4,
 canvas = tk.Canvas(win, width=2000, height=IMG_H + 50)
 canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
 canvas.configure(bg="#000000")
+lastPriceObject = canvas.create_oval(0, 0, 2, 2, fill="blue", outline="#DDD", width=2)
+lastPriceTextObject = canvas.create_text(0, 0, text=str(0), fill="blue")
 
 tk.Label(win, text="BuyPrice", width=10).grid(row=25, column=0, sticky="W")
 eBuyPrice = tk.Entry(win, width=8)
@@ -177,25 +208,23 @@ tk.Label(win, text="SellPrice", width=10).grid(row=25, column=1, sticky="W")
 eSellPrice = tk.Entry(win, width=8)
 eSellPrice.grid(row=25, column=1, sticky="E")
 
+checkCall = tk.IntVar()
+cbCall = tk.Checkbutton(win, text='Call',variable=checkCall, onvalue=1, offvalue=0)#, command=print_selection)
+cbCall.grid(row=25, column=2, sticky="W")
+checkCall.set(1)
+
+drawPriceScale()
 timer = RepeatTimer(1, timerThread)
 timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
 timer.start()
 #clickButton()
 tk.mainloop()
 
-
-
 """
-def drawAVGs(avgs, color):
-	global canvas
-	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
-	
-	
 	highPrice = max(avgs)
 	lowPrice = min(avgs)
 	priceRange = highPrice - lowPrice
 	scale = IMG_H / priceRange
-#	maxVolume = max(volumes)
 	lenavgs = len(avgs)
 	
 	highs = []

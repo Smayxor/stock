@@ -98,9 +98,10 @@ def drawTickerOnCanvas( ticker, days, color ):
 		avgs.append( candles[i]['open'] )
 		#avgs.append( candles[i]['close'] )
 		#lastClose = candles[i]['close']
-	try: buyPrice = int(eBuyPrice.get())
+	
+	try: buyPrice = float(eBuyPrice.get())
 	except: buyPrice = 0
-	try: sellPrice = int(eSellPrice.get())
+	try: sellPrice = float(eSellPrice.get())
 	except: sellPrice = 0
 
 	candle = candles[-1]

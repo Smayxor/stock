@@ -87,7 +87,6 @@ def endDay():
 	savePriceChart('SPX')
 	savePriceChart('SPY')
 	savePriceChart('VIX')
-	savePriceChart('DXY')
 	savePriceChart('TLT')
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]

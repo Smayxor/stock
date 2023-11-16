@@ -1,20 +1,19 @@
 import datetime
-import threading
+from threading import Timer
 import time
 import schedule
-from tkinter import *
+import tkinter as tk
+#from tkinter import Entry, Label, Button, Canvas
 import datapuller as dp
 import os
 import ujson as json #usjon is json written in C
 
 blnRun = True
 IMG_H = 500
+lastIndex = 0
+t = None
 
-def timerThread():
-	pass
-
-
-"""options = dp.getOptionsChain('SPX', 0)
+options = dp.getOptionsChain('SPX', 0)
 gexList = dp.getGEX(options[1])
 
 def identifyKeyLevels(ticker, strikes):
@@ -57,69 +56,136 @@ def identifyKeyLevels(ticker, strikes):
 	for level in keyLevels: txtTmp = txtTmp + "  -  " + str(level)
 	print( txtTmp )
 identifyKeyLevels('SPX', gexList)
-"""
+
 def clickButton():
-	global canvas
-	#canvas.create_rectangle(0, 0, 2000, IMG_H + 50, fill='black')
+	global canvas, lastIndex
 	canvas.delete("all")
+	lastIndex = 0
+
+def on_closing():
+	global blnRun, timer
+	blnRun = False
+	timer.cancel()
+	win.destroy()
+
+class RepeatTimer(Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+
+def timerThread():
+	global blnRun
+	if not blnRun : return
+	print("Update")
 	drawTickerOnCanvas( e1.get().upper(), e2.get(), "orange" )
 
-def prepData( strikePrice, call ):
-	#candles = dp.getCandles(ticker, days, e3.get())
-	#candles = dp.getHistory(ticker, days)
-	
-	files = [f'./logs/{f}' for f in os.listdir('./logs/')] # if os.path.isfile(f)
-	#print(files)
-	#os.remove("file_name.txt")
-	
-	dayData = json.load(open(files[0]))
-	#price volume bid ask strike bidsize asksize open_interest option_type delta gamma mid_iv
-	
-	#res = list(test_dict.keys())[0]    O(n)
-	#res = next(iter(test_dict))        O(1)
-	#for new_s, new_val in student_name.items():   res=new_s; break;    O(1)
-	#first_key = list(student_name.keys())[0]      O(n)
-	
+def drawTickerOnCanvas( ticker, days, color ):	
 	avgs = []
-
-	firstTime = next(iter(dayData))
-	price = dayData[firstTime]['price']
-	strikes = [strike for strike in dayData[firstTime]['data']]
-
-	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
-	element = 9 if call == 1 else 11
-	for times in dayData:
-		price = dayData[times]['price']
-		for strike in dayData[times]['data']:
-			if strike[0] == strikePrice : avgs.append( strike[element] )
-	return avgs
-	
-#	volumes = []
+	candles = dp.getCandles('SPY', days, 1)
 	for i in range( len( candles ) ) :
-		#avgs.append( (candles[i]['high'] + candles[i]['low']) / 2 )
 		avgs.append( candles[i]['open'] )
 		avgs.append( candles[i]['close'] )
-#		volumes.append( candles[i]['volume'] + 1)
-#		volumes.append( candles[i]['volume'] + 1)
+	drawAVGs(avgs, 'yellow')
 
-	return avgs
-
-def drawTickerOnCanvas( ticker, days, color ):
-	avgs = prepData( 4360, 1 )
-	drawAVGs(avgs, 'green')
-	avgs = prepData( 4370, 1 )
-	drawAVGs(avgs, 'green')
-	avgs = prepData( 4350, 1 )
-	drawAVGs(avgs, 'green')
+def drawAVGs(avgs, color):
+	global canvas, lastIndex
+	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
 	
-	avgs = prepData( 4360, -1 )
-	drawAVGs(avgs, 'red')
-	avgs = prepData( 4370, -1 )
-	drawAVGs(avgs, 'red')
-	avgs = prepData( 4350, -1 )
-	drawAVGs(avgs, 'red')
+	highPrice = max(avgs)
+	lowPrice = min(avgs)
+	priceRange = highPrice - lowPrice
+	scale = IMG_H / priceRange
+#	maxVolume = max(volumes)
+	lenavgs = len(avgs)
 	
+	highs = []
+	lows = []
+	last = avgs[0]
+	high = 0
+	low = 0
+	def checkNextHigh(index):
+		last = index + 10 if index + 10 < lenavgs else lenavgs
+		for i in range(index, last):
+			if avgs[i] > avgs[index] : return False
+		return True
+	def checkNextLow(index):
+		last = index + 10 if index + 10 < lenavgs else lenavgs
+		for i in range(index, last):
+			if avgs[i] < avgs[index] : return False
+		return True
 
+	for i in range( 1, lenavgs ) :
+		if avgs[i] > avgs[high] and checkNextHigh(i):
+			highs.append(i)
+			high = i
+			low = i
+		elif avgs[i] < avgs[low] and checkNextLow(i):
+			lows.append(i)
+			low = i
+			high = i
+		else:
+			pass
+
+	def convertY( val ):	return IMG_H - ((val - lowPrice) * scale)
+	if lenavgs > 2000 : lenavgs = 2000
+	for x in range( 1, lenavgs ):
+		if x > lastIndex :
+			lastIndex = x
+			y1 = convertY(avgs[x-1])
+			y2 = convertY(avgs[x])
+			canvas.create_line(x-1,y1,x,y2, fill=color, width=1)
+	
+	canvas.create_line(0, 2, 1850, 2, dash=(1,3), fill="green", width=2)
+	canvas.create_line(0, IMG_H, 1850, IMG_H, dash=(1,3), fill="red", width=2)
+	canvas.create_text(1850, 10, text=str(highPrice), fill="green")#, font=('Helvetica 15 bold'))
+	canvas.create_text(1850, IMG_H + 10, text=str(lowPrice), fill="red")
+	
+#50% retracement is to tell you that we are testing whether or not we would even extend. If we retrace more than 50%, then we are unlikely to extend
+#(VIX / 16) * ATR * FIB
+
+
+win = tk.Tk()
+win.geometry(str(2000 + 5) + "x" + str(IMG_H + 95 + 50))
+win.protocol("WM_DELETE_WINDOW", on_closing)
+
+tk.Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
+
+e1 = tk.Entry(win, width=8)
+e1.grid(row=0, column=0, sticky='E')
+e1.insert(0, "SPY")
+
+e2 = tk.Entry(win, width=4)
+e2.grid(row=0, column=1, sticky='E')
+e2.insert(0, '0')
+
+e3 = tk.Entry(win, width=4)
+e3.grid(row=0, column=2, sticky='E')
+e3.insert(0, '5')
+tk.Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
+
+tk.Label(win, text="Interval", width=10).grid(row=0, column=3, sticky='W')
+tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=4, sticky='E')
+
+canvas = tk.Canvas(win, width=2000, height=IMG_H + 50)
+canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
+canvas.configure(bg="#000000")
+
+tk.Label(win, text="BuyPrice", width=10).grid(row=25, column=0, sticky="W")
+eBuyPrice = tk.Entry(win, width=8)
+eBuyPrice.grid(row=25, column=0, sticky="E")
+tk.Label(win, text="SellPrice", width=10).grid(row=25, column=1, sticky="W")
+eSellPrice = tk.Entry(win, width=8)
+eSellPrice.grid(row=25, column=1, sticky="E")
+
+timer = RepeatTimer(1, timerThread)
+timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
+timer.start()
+#clickButton()
+tk.mainloop()
+
+
+
+"""
 def drawAVGs(avgs, color):
 	global canvas
 	#{'open': 450.9499, 'high': 450.9499, 'low': 450.89, 'close': 450.92, 'volume': 2493, 'datetime': 1693612740000}
@@ -179,31 +245,4 @@ def drawAVGs(avgs, color):
 	#	canvas.create_line(highs[x-1],convertY(avgs[highs[x-1]]),highs[x],convertY(avgs[highs[x]]), fill="green", width=1)
 	#for x in range(1, len(lows)):
 	#	canvas.create_line(lows[x-1],convertY(avgs[lows[x-1]]),lows[x],convertY(avgs[lows[x]]), fill="red", width=1)
-
-win = Tk()
-win.geometry(str(2000 + 5) + "x" + str(IMG_H + 95))
-
-Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
-
-e1 = Entry(win, width=8)
-e1.grid(row=0, column=0, sticky='E')
-e1.insert(0, "SPY")
-
-e2 = Entry(win, width=4)
-e2.grid(row=0, column=1, sticky='E')
-e2.insert(0, '1')
-
-e3 = Entry(win, width=4)
-e3.grid(row=0, column=2, sticky='E')
-e3.insert(0, '5')
-Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
-
-Label(win, text="Interval", width=10).grid(row=0, column=3, sticky='W')
-Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=4, sticky='E')
-
-canvas = Canvas(win, width=2000, height=IMG_H + 50)
-canvas.grid(row=4, column=0, columnspan=20, rowspan=20)
-canvas.configure(bg="#000000")
-
-clickButton()
-mainloop()
+"""

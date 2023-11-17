@@ -190,7 +190,7 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	if chartType == CHART_HEATMAP:
 		fn = dc.drawHeatMap(ticker, count, dte)
 	else:
-		fn = dc.drawGEXChart(ticker, count, dte)
+		fn = dc.drawGEXChart(ticker, count, dte, getChartType(chart))
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))

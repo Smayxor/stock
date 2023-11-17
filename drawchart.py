@@ -50,11 +50,12 @@ def drawRotatedText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte):
+def drawGEXChart(ticker, count, dte, chartType = 0):
 	ticker = ticker.upper()
 	optionsChains = dp.getOptionsChain(ticker, dte)
+
 	expDate = optionsChains[0]
-	strikes = dp.getGEX(optionsChains[1])
+	strikes = dp.getGEX(optionsChains[1], chartType=chartType)
 	atr = dp.getATR(ticker)
 	atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
@@ -64,7 +65,6 @@ def drawGEXChart(ticker, count, dte):
 	for strike in strikes:
 		for i in range(strikeLen):
 			if strike[i] == None : print( strike )
-
 
 	callDollars = sum([strike[4] * strike[9] for strike in strikes])  # Calc BEFORE shrinking count!!!
 	putDollars = sum([strike[6] * strike[11] for strike in strikes])
@@ -137,7 +137,9 @@ def drawGEXChart(ticker, count, dte):
 	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Total "+"${:,.2f}".format(callDollars-putDollars), color="yellow")
 	y = 0
 	x = 260
-	drawText(draw, x=x, y=y, txt=f'GEX Exp {expDate}', color="#3FF")
+	if chartType == 1: txt = f'Volume Exp {expDate}' 
+	else : txt = f'GEX Exp {expDate}'
+	drawText(draw, x=x, y=y, txt=txt, color="#3FF")
 	drawText(draw, x=x, y=y + (FONT_SIZE), txt="Zero Gamma "+"${:,.2f}".format(zeroG), color="orange")
 	drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
 	pcr = totalPuts / totalCalls
@@ -175,8 +177,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	if priceDif == 0: priceDif = 1
 	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
 	
-	for i in range(1, len(prices)):
-		draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
+	#for i in range(1, len(prices)):
+	#	draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
 	
 	for strike in strikes:
 		print("Drawing ", strike)

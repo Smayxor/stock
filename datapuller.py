@@ -11,6 +11,9 @@ FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0
 RANGE_FIBS = range(len(FIBS))
 SPY2SPXRatio = 0
 
+#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
+GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+
 def getMarketHoursToday():
 	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
 	return requests.get('https://api.tradier.com/v1/markets/clock', params={'delayed': 'false'}, headers=TRADIER_HEADER).json()['clock']
@@ -47,7 +50,7 @@ def getMultipleDTEOptionChain(ticker, days):
 	return days
 
 #{'symbol': 'SPY231030C00499000', 'description': 'SPY Oct 30 2023 $499.00 Call', 'exch': 'Z', 'type': 'option', 'last': 0.01, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.01, 'underlying': 'SPY', 'strike': 499.0, 'greeks': {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 2e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.716638, 'ask_iv': 0.716638, 'smv_vol': 0.16, 'updated_at': '2023-10-27 20:00:01'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 11, 'trade_date': 1697812231388, 'prevclose': 0.01, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'Q', 'bid_date': 1698437676000, 'asksize': 5608, 'askexch': 'X', 'ask_date': 1698437691000, 'open_interest': 36, 'contract_size': 100, 'expiration_date': '2023-10-30', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPY'}
-def getGEX(options):
+"""def getOldGEX(options):  #Original list of tuples code
 	index = 0
 	strikes = []
 	def findIndex( strike ): #loop from end of list, confirm we are using correct index
@@ -76,8 +79,12 @@ def getGEX(options):
 			strikes.append( (strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) ) #0-Strike, 1-CallGEX, 2-CallOI,  3-PutGEX, 4-PutOI, 5-IV, 6-CallBid, 7-CallAsk, 8-PutBid, 9-PutAsk, 10-CallVolume, 11-CallBidSize, 12-CallAskSize, 13-PutVolume, 14-PutBidSize, 15-PutAskSize
 			index = findIndex(strike) # always make sure we're on the right strike index
 		#combine tuples for that specific strike.  Combine Calls + Puts + DifferentRootSymbol - SPX/SPXW
+		
+		
 		if call == 1: strikes[index] = (strike, strikes[index][1] + gex, strikes[index][2] + oi, strikes[index][3], strikes[index][4], iv, bid, ask, strikes[index][8], strikes[index][9], volume, bidSize, askSize, strikes[index][13], strikes[index][14], strikes[index][15])
 		else: strikes[index] = (strike, strikes[index][1], strikes[index][2], strikes[index][3] + gex, strikes[index][4] + oi, iv, strikes[index][6], strikes[index][7], bid, ask, strikes[index][10], strikes[index][11], strikes[index][12], volume, bidSize, askSize)
+
+		
 	for index in range( len(strikes) ):
 		strike = strikes[index]
 		totalOI = strike[2] + strike[4]
@@ -90,6 +97,56 @@ def getGEX(options):
 				strike = tuple(tmp)
 
 		strikes[index] = strike
+	return strikes
+"""
+def getGEX(options, chartType = 0):  #New test code
+	index = 0
+	strikes = []
+	def findIndex( strike ): #loop from end of list, confirm we are using correct index
+		index = len(strikes) - 1
+		while strikes[index][0] != strike: index -= 1
+		return index
+	
+	for option in options:
+		strike = option['strike'] 
+		call = 1 if option['option_type'] == 'call' else -1
+		gamma = 0 
+		iv = 0
+		if option['greeks'] is not None:
+			gamma = option['greeks']['gamma']
+			iv = option['greeks']['mid_iv']
+		volume = option['volume']
+		oi = option['open_interest'] 
+		
+		if chartType == 1: oi = abs(oi - volume) #For Volume charts
+		gex = oi * gamma * call
+		#exDate = option['expiration_date']
+		bid = option['bid']
+		ask = option['ask']
+		bidSize = option['bidsize']
+		askSize = option['asksize']
+		#if strike == 4350 : print( option )
+		if (len(strikes) == 0) or (strikes[index][0] != strike): #fast, assumes strikes are in order
+			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ) 
+			index = findIndex(strike) # always make sure we're on the right strike index
+		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE
+		tmp = strikes[index]
+		if call == 1: 
+			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_CALL_BID], tmp[GEX_CALL_ASK], tmp[GEX_CALL_VOLUME], tmp[GEX_CALL_BID_SIZE], tmp[GEX_CALL_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
+			tmp[GEX_CALL_GEX] += gex  #We can have multiple root symbols SPX and SPXW
+			tmp[GEX_CALL_OI]+= oi
+		else: 
+			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_PUT_BID], tmp[GEX_PUT_ASK], tmp[GEX_PUT_VOLUME], tmp[GEX_PUT_BID_SIZE], tmp[GEX_PUT_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
+			tmp[GEX_PUT_GEX] += gex
+			tmp[GEX_PUT_OI]+= oi
+		#strikes[index] = tmp
+
+	for index in range( len(strikes) ):
+		tmp = strikes[index]
+		tmp[GEX_TOTAL_GEX] = tmp[GEX_CALL_GEX] + tmp[GEX_PUT_GEX]
+		tmp[GEX_TOTAL_OI] = tmp[GEX_CALL_OI] + tmp[GEX_PUT_OI]
+		#for i in range( 17 ): if tmp[i] == None: tmp[i] = 0
+		tmp = [0 if i is None else i for i in tmp]#filter out any suprises
 	return strikes
 
 def calcZeroGEX(data): #def add(a, b): return (b[0], a[1] + b[1]) #cumsum = list(accumulate(data, add)) #return min(cumsum, key=lambda i: i[1])[0]

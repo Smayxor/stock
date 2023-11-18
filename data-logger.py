@@ -74,10 +74,10 @@ def endDay():
 		fileName = f'./pricelogs/{ticker}-{today}-pricelog.json'
 		with open(fileName,'w') as f: 
 			json.dump(dayCandles, f)
-	#savePriceChart('SPX')
-	#savePriceChart('SPY')
-	#savePriceChart('VIX')
-	#savePriceChart('TLT')
+	savePriceChart('SPX')
+	savePriceChart('SPY')
+	savePriceChart('VIX')
+	savePriceChart('TLT')
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 

@@ -69,25 +69,15 @@ def endDay():
 	blnRun = False
 	today = str(datetime.date.today()).split(":")[0]
 	save0dte()
-	"""
-	fileName = f'./logs/{today}-datalog.json'
-	with open(fileName,'w') as f: 
-		json.dump(SPXdayData, f)
-
-	fileName = f'./logs/SPY-{today}-datalog.json'
-	with open(fileName,'w') as f: 
-		json.dump(SPYdayData, f)
-	"""
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
 		fileName = f'./pricelogs/{ticker}-{today}-pricelog.json'
 		with open(fileName,'w') as f: 
-			json.dump(dayCandles, f)	
-
-	savePriceChart('SPX')
-	savePriceChart('SPY')
-	savePriceChart('VIX')
-	savePriceChart('TLT')
+			json.dump(dayCandles, f)
+	#savePriceChart('SPX')
+	#savePriceChart('SPY')
+	#savePriceChart('VIX')
+	#savePriceChart('TLT')
 
 def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 

@@ -5,6 +5,7 @@ import os
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
+TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -295,3 +296,28 @@ def pullLogFileList():
 	
 def pullLogFile(fileName):
 	return requests.get(f'http://192.168.1.254:8080/{fileName}').json()
+
+#************************************* Placing orders ************************************************
+def getAccountBalance():
+	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/balances', params={}, headers=TRADIER_HEADER).json()['balances']
+
+def getPositions():
+	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/positions', params={}, headers=TRADIER_HEADER).json()['positions']
+
+def getOrders():
+	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', params={'page': '3', 'includeTags': 'true'}, headers=TRADIER_HEADER).json()['orders']
+
+def getAnOrder(orderID):
+	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', params={'includeTags': 'true'}, headers=TRADIER_HEADER).json()
+
+def cancelOrder(orderID):
+	return requests.delete(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', data={}, headers=TRADIER_HEADER).json()
+
+def modifyOrder(orderID, type, duration, price, stop):
+	param = {'type': type, 'duration': duration, 'price': price, 'stop': stop}
+	return requests.put(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', data=param, headers=TRADIER_HEADER)
+
+def placeOptionOrder(symbol, price, stop, ticker = 'SPY', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test'):
+	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'stop': stop, 'tag': tag}
+	return requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER).json()
+	

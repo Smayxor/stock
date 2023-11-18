@@ -175,32 +175,36 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	minPrice = min( prices )
 	priceDif = maxPrice - minPrice
 	if priceDif == 0: priceDif = 1
-	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
-	
+	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 2
 	#for i in range(1, len(prices)):
 	#	draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
-	
+	firstTime = True
 	for strike in strikes:
-		print("Drawing ", strike)
 		index = 0
 		nex = gexData[next(iter(gexData))]['data']
-		for x in range(len(nex)):
+		for x in range(len(nex)):  #Find the index to the desired strike
 			if nex[x][0] == strike[0]: 
 				index = x
 				break
-		element = 9 if strike[1] == 'call' else 11
-		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
+		element = dp.GEX_CALL_ASK if strike[1] == 'call' else dp.GEX_PUT_ASK
 		prices = [gexData[t]['data'][index][element] for t in gexData]
-		maxPrice = max( prices )
-		minPrice = min( prices )
-		priceDif = maxPrice - minPrice
-		if priceDif == 0: priceDif = 1
+		if firstTime :
+			maxPrice = max( prices )
+			minPrice = min( prices )
+			priceDif = maxPrice - minPrice
+			if priceDif == 0: priceDif = 1
+			drawRotatedPriceLine(draw, convertY(maxPrice), "green")
+			drawText( draw, 50, 30, txt=str( maxPrice ), color="green")
+			midPrice = (maxPrice + minPrice) / 2
+			drawRotatedPriceLine(draw, convertY(midPrice), "yellow")
+			drawText( draw, 50, 250, txt=str( midPrice ), color="yellow")
+			drawRotatedPriceLine(draw, convertY(minPrice), "red")
+			drawText( draw, 50, IMG_H - 30, txt=str( minPrice ), color="red")
+			firstTime = False
 		colr = "green" if strike[1] == 'call' else "red"
 		for i in range(1, len(prices)):
 			draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
-			
-		#if gexData[t]['data'][0] == strike[0]]
-	
+		
 	img.save("price-chart.png")
 	return "price-chart.png"
 

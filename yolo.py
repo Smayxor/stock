@@ -3,7 +3,6 @@ from threading import Timer
 import time
 import schedule
 import tkinter as tk
-#from tkinter import Entry, Label, Button, Canvas
 import datapuller as dp
 import os
 import ujson as json #usjon is json written in C
@@ -16,6 +15,11 @@ previousClose = 0
 averageRange = 0
 options = dp.getOptionsChain('SPX', 0)
 gexList = dp.getGEX(options[1])
+
+balance = dp.getAccountBalance()['cash']
+print(f'Account Balance {balance}')
+print(f'Open positions {dp.getPositions()}')
+print(f'Open orders {dp.getOrders()}')
 
 def identifyKeyLevels(ticker, strikes):
 	global previousClose, averageRange
@@ -174,7 +178,7 @@ def drawPriceScale():
 #(VIX / 16) * ATR * FIB
 
 win = tk.Tk()
-win.geometry(str(800 + 5) + "x" + str(IMG_H + 95 + 50))
+win.geometry(str(880 + 5) + "x" + str(IMG_H + 95 + 50))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
 tk.Label(win, text="Ticker", width=10).grid(row=0, column=0, sticky='W')
@@ -193,7 +197,7 @@ e3.insert(0, '5')
 tk.Label(win, text="Days", width=10).grid(row=0, column=2, sticky='W')
 
 tk.Label(win, text="Interval", width=10).grid(row=0, column=3, sticky='W')
-tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=4, sticky='E')
+tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=4, sticky='W')
 
 canvas = tk.Canvas(win, width=2000, height=IMG_H + 50)
 canvas.grid(row=4, column=0, columnspan=20, rowspan=20)

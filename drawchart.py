@@ -208,7 +208,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	img.save("price-chart.png")
 	return "price-chart.png"
 
-def drawHeatMap(ticker, strikeCount, dayTotal):
+def drawHeatMap(ticker, strikeCount, dayTotal): #Works on any ticker, doesnt use historical data
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
 
 	#pastDays = dp.loadPastDTE() #set to grab -1 dte
@@ -245,6 +245,116 @@ def drawHeatMap(ticker, strikeCount, dayTotal):
 		x += 80
 		strikes = day[1]
 		print(day[0])
+		zeroG = dp.calcZeroGEX( strikes )
+		maxPain = dp.calcMaxPain( strikes )
+		maxCallOI = max(strikes, key=lambda i: i[4])[4]
+		maxPutOI = max(strikes, key=lambda i: i[6])[6]
+		maxTotalOI = max(strikes, key=lambda i: i[2])[2]
+		#maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
+		#minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
+		#maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
+		#dayRange = findRange(day[0])
+		#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
+		y = IMG_H - FONT_SIZE - 10
+		for displayStrike in lStrikes:
+			y -= FONT_SIZE + 2
+			strike = (displayStrike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+			for val in strikes:
+				if val[0] == displayStrike:
+					strike = val
+					break
+			callColor = getColorGradient(maxCallOI, strike[4])
+			putColor = getColorGradient(maxPutOI, -strike[6])
+			drawRect(draw, x, y, x + 40, y + FONT_SIZE, color=callColor, border='')
+			drawRect(draw, x + 41, y, x + 80, y + FONT_SIZE, color=putColor, border='')
+			
+			if strike[0] == zeroG : drawRect(draw, x, y + FONT_SIZE - 4, x + 80, y + FONT_SIZE, color='yellow', border='')
+			if strike[0] == maxPain : drawRect(draw, x, y, x + 80, y + 4, color='grey', border='')			
+			#if dayRange[0] < displayStrike < dayRange[1] : drawRect(draw, x, y, x + 10, y + FONT_SIZE, color='blue', border='white')
+			
+			val = alignValue(strike[2], 8)
+			drawText(draw, x=x, y=y, txt=val, color="#F82")
+	#***************************************
+	#Draw the grid, strikes, and dates
+	y2 = FONT_SIZE * 2 
+	y = IMG_H - FONT_SIZE - 10
+	for j in lStrikes :
+		draw.line([0, y, IMG_W, y], fill="white", width=1)
+		y -= FONT_SIZE
+		drawText(draw, x=0, y=y, txt=str(j), color="#77f")
+		y -= 2
+	x = 0
+	y = IMG_H - FONT_SIZE - 10
+	for day in days :
+		x += 80
+		strDay = day[0].split("-", 1)[1]
+		drawText(draw, x=x, y=y, txt="  " + strDay, color="#CCC")
+		draw.line([x, y2, x, IMG_H], fill="white", width=1)
+	#Draw title for heatmap
+	drawRect(draw, 0, 0, IMG_W-2, FONT_SIZE+5, color="#000", border="#CCF")
+	drawText(draw, x=0, y=0, txt=f'{ticker} Options Heatmap', color="#0ff")
+
+	img.save("stock-chart.png")
+	return "stock-chart.png"
+
+def drawPrecentageHeatMap(ticker, strikeCount, dayTotal):
+	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
+
+	pastDays = dp.loadPastDTE(-5)  #Currently always pulls last DTE from each day
+	days = dp.getMultipleDTEOptionChain(ticker, 5)
+	days = sorted(days, key=lambda x: x[0])
+
+	def getDay(day):
+		for j in days:
+			if j[0] == day: return j
+		return -1
+	def getStrike(day, strike):
+		for s in day:
+			if strike == s[dp.GEX_STRIKE] : return s
+	
+	for pDay in pastDays:   #Change original list to new % data reflecting change over 5dte
+		day = getDay(pDay[0])
+		if day == -1 : break #return
+#		print(f'Match found {pDay[0]} with {day[0]}')
+		for strike in pDay[1]:
+			tday = getStrike( day[1], strike[dp.GEX_STRIKE] )
+			try:
+				tday[dp.GEX_TOTAL_OI] = ((strike[dp.GEX_TOTAL_OI] / tday[dp.GEX_TOTAL_OI]) * 100) - 100
+				tday[dp.GEX_TOTAL_GEX] = ((strike[dp.GEX_TOTAL_GEX] / tday[dp.GEX_TOTAL_GEX]) * 100) - 100
+			except: 
+				tday[dp.GEX_TOTAL_OI] = -9990
+				tday[dp.GEX_TOTAL_GEX] = -9990
+			
+	print( f'Total days {len( days )}' )
+	price = dp.getQuote(ticker)
+	#candles = dp.getHistory(ticker, 14)
+	def findRange( day ): #Used to find range for a previous day
+		for candle in candles:
+			if candle['date'] == day: 
+				return (candle['low'], candle['high'])
+		return (0,0)
+	#**************************************
+	#Build list of strikes to display
+	lStrikes = []  
+	priceLow = price - strikeCount
+	priceHigh = price + strikeCount
+	for day in days:
+		for strike in day[1]:
+			if (priceLow < strike[0] < priceHigh) and (strike[0] not in lStrikes): lStrikes.append(strike[0])
+	lStrikes = sorted(lStrikes)
+	count = len(lStrikes)  #done to ensure correct # of strikes are displayed
+	
+	IMG_W = (len(days) + 1) * 80
+	IMG_H = ((count + 2) * (FONT_SIZE + 2)) + 10
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)		
+	#*************************************
+	#Draw each cell
+	x = 0
+	for day in days:
+		x += 80
+		strikes = day[1]
+		#print(day[0])
 		zeroG = dp.calcZeroGEX( strikes )
 		maxPain = dp.calcMaxPain( strikes )
 		maxCallOI = max(strikes, key=lambda i: i[4])[4]

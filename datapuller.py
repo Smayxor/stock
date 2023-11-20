@@ -257,32 +257,28 @@ def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 				return
 findSPY2SPXRatio()
 
-def loadPastDTE():
+def cleanHeatmaps():
 	files = [f'./heatmap/{f}' for f in os.listdir('./heatmap/')]
 	result = []
-	"""
-	for prevFiles in files:
-		tmpName = prevFiles.split('/')[2].split('-', 1)[1].split('.json')[0]
-		date1 = datetime.datetime.strptime(tmpName, "%Y-%m-%d")
-		date2 = datetime.datetime.now()
-		difference = (date2 - date1).days
-		#print(f'Past GEX {difference} days')
-	"""
-	lastDay = files[-1]
-	print( f'Comparing to {lastDay}' )
-	jsonData = json.load(open(lastDay))
+	files.sort()   #Datestamps should always sort
+	while len(files) > 5: 
+		tmp = files.pop(0)
+		print("removing ", tmp)
+		os.remove(tmp)
+	return files
 	
-	for day in jsonData:
-		gexData = jsonData[day]
-		result.append( (day, gexData) )
-	#for prevFile in files:
-	#	jsonData = json.load(open(prevFile))
-		#day = next(iter(jsonData))   #ONLY GRABBING THE FIRST DAY
-	#	for day in jsonData:
-	#		gexData = jsonData[day]
-	#		result.append( (day, gexData) )
+def loadPastDTE(daysAhead):
+	if daysAhead < -5: daysAhead = -5
+	if daysAhead > -1: daysAhead = -1
+	files = cleanHeatmaps()
+	for f in files:
+		logDate = json.load(open(f))
+		day = next(iter(reversed(logDate)))
+		result.append( (day, logDate[day]) )
+		#for day in logDate:
+		#print( f, ' log reading ', day )
 	return result
-#loadPastDTE()
+#loadPastDTE(-5)
 
 #param = {'symbol': 'SPXW231106C04350000', 'interval': '1min', 'start': '2023-11-04', 'end': '2023-11-06', 'session_filter': 'all'}
 #response = requests.get('https://api.tradier.com/v1/markets/history',    params=param,    headers=TRADIER_HEADER )

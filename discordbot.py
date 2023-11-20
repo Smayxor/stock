@@ -389,6 +389,14 @@ async def pc(ctx, *args):
 	except:
 		await ctx.send( "Error drawing price chart" )
 
+@bot.command(name="heatmap")
+async def heatmap(ctx, *args):
+	print("Fetching % based heatmap")
+	try:
+		fileName = dc.drawPrecentageHeatMap('SPX', 100, 1)
+		await ctx.send( file=discord.File(open(f'./{fileName}', 'rb'), fileName) )
+	except: pass
+	
 def logFutureDTEs():
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]
@@ -407,35 +415,9 @@ def logFutureDTEs():
 		strDTE = convertDate2DTE( day )
 		opts = dp.getOptionsChain("SPX", strDTE)
 		days[day] = dp.getGEX( opts[1] )
-	#datedData = {today: data}
-	"""try:
-		with open(fileName, 'r') as f:
-			oldData = json.load(f)
-		datedData.update(oldData)
-	except:
-		print('logData: Check oldData file contents ', fileName)
-	"""
+
 	with open(fileName,'w') as f: 
 		json.dump(days, f)
+	dp.cleanHeatmaps()
 
-#def loadPastDTEs():
-#	files = [f for f in os.listdir('./heatmap') if os.path.isfile(f)]
-#	print(files)
-#	#os.remove("file_name.txt")
-#loadPastDTEs()
-
-"""def loadIVLog(ticker_name):
-	fileName = ticker_name + "-IV.json"
-	if not exists(fileName):  
-		with open(fileName, "w") as outfile:  
-			outfile.write('{"IVData": "SPX"}')   #File Must have contents for JSON decoder
-	try:
-		data = json.load(open(fileName,'r'))
-	except:
-		print('Check file contents ', fileName)
-		return {}
-	return data"""
-
-#dc.drawHeatMap("SPX", 80, 9)
-#dc.drawGEXChart("SPX", 40, 0)
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

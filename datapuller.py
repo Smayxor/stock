@@ -146,8 +146,17 @@ def getGEX(options, chartType = 0):  #New test code
 		tmp = strikes[index]
 		tmp[GEX_TOTAL_GEX] = tmp[GEX_CALL_GEX] + tmp[GEX_PUT_GEX]
 		tmp[GEX_TOTAL_OI] = tmp[GEX_CALL_OI] + tmp[GEX_PUT_OI]
-		#for i in range( 17 ): if tmp[i] == None: tmp[i] = 0
-		tmp = [0 if i is None else i for i in tmp]#filter out any suprises
+
+		
+		for i in range( 17 ): 
+			if tmp[i] == None: tmp[i] = 0
+		#tmp = [0 if i is None else i for i in tmp]#filter out any suprises
+
+
+		for i in tmp:
+			if i == None: print(f'Failed at {tmp}')
+
+		
 	return strikes
 
 def calcZeroGEX(data): #def add(a, b): return (b[0], a[1] + b[1]) #cumsum = list(accumulate(data, add)) #return min(cumsum, key=lambda i: i[1])[0]

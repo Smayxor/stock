@@ -187,6 +187,9 @@ def getCandles(ticker, days, interval):
 	#intervals     tick N/A?, 1min 10 days, 5min 18 days, 15min 18 days
 	param = {'symbol': f'{ticker}', 'interval': f'{interval}min', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
+def getRecentCandles(ticker, interval):
+	param = {'symbol': f'{ticker}', 'interval': f'{interval}min'}
+	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
 #{'date': '2023-10-30', 'open': 4139.39, 'high': 4177.47, 'low': 4132.94, 'close': 4166.82, 'volume': 0}
 def getHistory(ticker, days):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
@@ -196,6 +199,13 @@ def getHistory(ticker, days):
 	#intervals      daily, weekly, monthly
 	param = {'symbol': f'{ticker}', 'interval': 'daily', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/history', params=param, headers=TRADIER_HEADER ).json()['history']['day']
+
+def getTodayStatus():
+	#{'date': '2023-11-26', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1700995046, 'next_change': '07:00', 'next_state': 'premarket'}
+	return requests.get('https://api.tradier.com/v1/markets/clock', params={}, headers=TRADIER_HEADER).json()['clock']
+
+def getCalendar():
+	return requests.get('https://api.tradier.com/v1/markets/calendar', params={}, headers=TRADIER_HEADER).json()['calendar']
 
 def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 	global SPY2SPXRatio
@@ -268,8 +278,6 @@ def modifyOrder(orderID, type, duration, price, stop):
 def placeOptionOrder(symbol, price, stop, ticker = 'SPY', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test'):
 	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'stop': stop, 'tag': tag}
 	return requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER).json()
-
-
 
 """testList = [[4655.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],
 			[4655.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],

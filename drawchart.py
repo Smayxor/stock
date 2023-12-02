@@ -50,12 +50,14 @@ def drawRotatedText(img, x, y, txt, color):
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte, chartType = 0):
+def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0):
 	ticker = ticker.upper()
-	optionsChains = dp.getOptionsChain(ticker, dte)
-
-	expDate = optionsChains[0]
-	strikes = dp.getGEX(optionsChains[1], chartType=chartType)
+	
+	if strikes == None:
+		optionsChains = dp.getOptionsChain(ticker, dte)
+		expDate = optionsChains[0]
+		strikes = dp.getGEX(optionsChains[1], chartType=chartType)
+	
 	atr = dp.getATR(ticker)
 	atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
@@ -156,25 +158,32 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	IMG_W = 400
 	IMG_H = 500 + FONT_SIZE + 5
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
-	draw = ImageDraw.Draw(img)	
-	drawText(draw, x=0, y=0, txt=f'{ticker} Options PriceChart', color="#0ff")
+	draw = ImageDraw.Draw(img)
+	txt = fileName.replace('SPY-','').replace('-datalog.json','')
+	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
+
+	#print(1)
 
 	def strikeExists(strikeVal):
 		for x in gexData[next(iter(gexData))]['data']:
+			#print( x[0], strikeVal )
 			if x[0] == strikeVal: return True
 		return False
 	strikes = []
+
+	#print(2)
 	for arg in userArgs:
 		strikeVal = int(arg[:-1])
 		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
 		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
 	if len(strikes) == 0: return 'error.png'
-
+	#print(3)
 	prices = [gexData[t]['price'] for t in gexData]
 	maxPrice = max( prices )
 	minPrice = min( prices )
 	priceDif = maxPrice - minPrice
 	if priceDif == 0: priceDif = 1
+	#print(4)
 	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 2
 	#for i in range(1, len(prices)):
 	#	draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)

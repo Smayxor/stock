@@ -10,7 +10,6 @@ import ujson as json #usjon is json written in C
 blnRun = True
 IMG_H = 500
 lastIndex = 0
-t = None
 previousClose = 0
 averageRange = 0
 options = dp.getOptionsChain('SPX', 0)
@@ -50,27 +49,32 @@ def identifyKeyLevels(ticker, strikes):
 	
 	for i in range(1, len(strikes) - 1):
 		strike = strikes[i]
-		if strike[2] > oiThreshold: addKeyLevel( strike[0] )
+		if strike[dp.GEX_TOTAL_OI] > oiThreshold: addKeyLevel( strike[dp.GEX_STRIKE] )
 		#cpRatio = (strike[4] / strike[6])
 		#if cpRatio > 0.9 and cpRatio < 0.1 : addKeyLevel( strike[0] )
-		if strike[4] > callOIThreshold and strike[6] > putOIThreshold : 
-			totalPrev = strikes[i-1][4] + strikes[i-1][6]
-			totalMe = strikes[i][4] + strikes[i][6]
-			totalNext = strikes[i+1][4] + strikes[i+1][6]
-			#if (totalMe > totalPrev * 0.80) and (totalMe > totalNext * 0.80) and (totalMe > totalOIThreshold ):	addKeyLevel( strike[0] )
-		
-	txtTmp = ''
-	for level in keyLevels: txtTmp = txtTmp + "  -  " + str(level)
-	print( txtTmp )
-identifyKeyLevels('SPX', gexList)
+		if strike[dp.GEX_CALL_OI] > callOIThreshold and strike[dp.GEX_PUT_OI] > putOIThreshold : 
+			totalPrev = strikes[i-1][dp.GEX_CALL_OI] + strikes[i-1][dp.GEX_PUT_OI]
+			totalMe = strikes[i][dp.GEX_CALL_OI] + strikes[i][dp.GEX_PUT_OI]
+			totalNext = strikes[i+1][dp.GEX_CALL_OI] + strikes[i+1][dp.GEX_PUT_OI]
+			if (totalMe > totalPrev * 0.80) and (totalMe > totalNext * 0.80) and (totalMe > totalOIThreshold ):	addKeyLevel( strike[0] )
+
+	for x in range(len(keyLevels)):
+		keyLevels[x] = round(keyLevels[x] / dp.SPY2SPXRatio, 2)
+	
+	return keyLevels
+keyLevels = identifyKeyLevels('SPX', gexList)
 
 #************ Calced after identifyKeyLevels sets values
 previousClose = round(previousClose / dp.SPY2SPXRatio, 2)
 averageRange = round(averageRange / dp.SPY2SPXRatio, 2)
-highPrice = previousClose + (averageRange * 1.1)
-lowPrice = previousClose - (averageRange * 1.1)
+highPrice = previousClose + (averageRange * 1.5)
+lowPrice = previousClose - (averageRange * 1.5)
+keyLevels.append(previousClose + averageRange)
+keyLevels.append(previousClose)
+keyLevels.append(previousClose - averageRange)
 priceRange = highPrice - lowPrice
 scale = IMG_H / priceRange
+print(f'PC {previousClose} - ATR {averageRange} - Low {lowPrice} - High {highPrice}')
 #******************************************
 
 def clickButton():
@@ -85,9 +89,10 @@ def on_closing():
 	win.destroy()
 
 class RepeatTimer(Timer):
-    def run(self):
-        while not self.finished.wait(self.interval):
-            self.function(*self.args, **self.kwargs)
+	def run(self):
+#		self.interval = 2
+		while not self.finished.wait(self.interval):
+			self.function(*self.args, **self.kwargs)
 
 def timerThread():
 	global blnRun
@@ -117,6 +122,8 @@ def drawTickerOnCanvas( ticker, days, color ):
 	canvas.itemconfig(lastPriceTextObject,text=str(round(lastClose, 2)))
 	#print(f'Buy at {buyPrice}, Sell at {sellPrice}' )
 	drawAVGs(avgs, 'yellow', lastClose)
+
+def convertY( val ):	return IMG_H - ((val - lowPrice) * scale)
 
 def drawAVGs(avgs, color, lastClose):
 	global canvas, lastIndex
@@ -151,7 +158,6 @@ def drawAVGs(avgs, color, lastClose):
 		else:
 			pass
 	"""
-	def convertY( val ):	return IMG_H - ((val - lowPrice) * scale)
 	if lenavgs > 2000 : lenavgs = 2000
 	for x in range( 1, lenavgs ):
 		if x > lastIndex:
@@ -167,13 +173,22 @@ def drawAVGs(avgs, color, lastClose):
 	#print( len( canvas.find("all") ) )
 
 def drawPriceScale():
+
+	for key in keyLevels:
+		y = convertY(key)
+		#print( f'{key} drawn at {y}')
+		canvas.create_line(0, y, 750, y, dash=(1,3), fill="white", width=1)
+		canvas.create_text(780, y, text=str(key), fill="white" )
+		print( key, y )
+"""
 	canvas.create_line(0, 3, 750, 3, dash=(1,3), fill="green", width=3)
 	canvas.create_line(0, IMG_H / 2, 750, IMG_H / 2, dash=(1,3), fill="white", width=2)
 	canvas.create_line(0, IMG_H, 750, IMG_H, dash=(1,3), fill="red", width=2)
 	canvas.create_text(750, 10, text=str(highPrice), fill="green")#, font=('Helvetica 15 bold'))
 	canvas.create_text(750, IMG_H / 2 + 10, text=str(previousClose), fill="red")
 	canvas.create_text(750, IMG_H + 10, text=str(lowPrice), fill="red")
-	
+"""
+
 #50% retracement is to tell you that we are testing whether or not we would even extend. If we retrace more than 50%, then we are unlikely to extend
 #(VIX / 16) * ATR * FIB
 
@@ -221,7 +236,6 @@ drawPriceScale()
 timer = RepeatTimer(1, timerThread)
 timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
 timer.start()
-#clickButton()
 tk.mainloop()
 
 #50% retracement is to tell you that we are testing whether or not we would even extend. If we retrace more than 50%, then we are unlikely to extend

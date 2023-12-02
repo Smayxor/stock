@@ -7,7 +7,6 @@ import time
 
 blnRun = True
 IMG_H = 1000
-spCoords = [(0, 0), (0, 0), (0, 0)]
 vPrice = 0
 vcStrikes = []
 lastPriceIndex = 0
@@ -18,6 +17,7 @@ lowPrice = 0
 priceRange = 0
 scale = 0
 ticker = 'SPX'
+SCANVAS_HEIGHT = 300
 
 class CanvasItem():
 	Strike = 0
@@ -30,8 +30,14 @@ class CanvasItem():
 		self.Y = y
 		self.Strike = strike
 
+blnReset = True
 def clickButton():
-	global canvas, ticker
+	global blnReset
+	blnReset = True
+
+def triggerReset():
+	global canvas, ticker, blnReset
+	blnReset = False
 	ticker = e1.get().upper()
 	
 	options = dp.getOptionsChain(ticker, 0)
@@ -46,18 +52,18 @@ def clickButton():
 	initVChart( gexList, ticker )
 
 def timerThread():
-#	global ticker
-#	ticker = e1.get().upper()
-	
+	if blnReset: triggerReset()
 	options = dp.getOptionsChain(ticker, 0)
 	gexList = dp.getGEX(options[1])
 	refreshVCanvas(strikes=gexList)
-	refreshPriceChart()
+	try:	refreshPriceChart()
+	except: pass
 
 def initVChart(strikes, ticker):
-	global vPrice, vCallGEX, vPutGEX, pcPoly
+	global vPrice, vCallGEX, vPutGEX, vcStrikes
 	vcanvas.delete('all')
-	#vcanvas.configure(bg='black')
+	del vcStrikes
+	vcStrikes = []
 	price = dp.getQuote(ticker)
 	vPrice = price
 	strikes = dp.shrinkToCount(strikes, price, 30)
@@ -82,61 +88,81 @@ def initVChart(strikes, ticker):
 	highPrice = previousClose + (averageRange * 1.1)
 	lowPrice = previousClose - (averageRange * 1.1)
 	priceRange = highPrice - lowPrice
-	scale = 300 / priceRange
-
-	print( ticker, price, scale, lowPrice, highPrice, averageRange, previousClose )
+	scale = SCANVAS_HEIGHT / priceRange
 
 	scanvas.delete('all')
-	pcPoly = scanvas.create_polygon(fill="blue", *spCoords)
+	#pcPoly = scanvas.create_polygon(fill="yellow", *spCoords, width=3)
 	lastPriceIndex = 0
-	refreshPriceChart()
-
-def convertY( val ):	return 300 - ((val - lowPrice) * scale)
-
-def refreshPriceChart():
-	global scanvas, lastPriceIndex
+	refreshPriceChart()#	try:
+#	except: pass
 	
-	avgs = []
-	candles = dp.getCandles(ticker, 0, 1)
-	for i in range( len( candles ) ) :
-		avgs.append( candles[i]['open'] )
+def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
+
+lastPriceRect, lastPriceLine = None, None
+def refreshPriceChart():
+	global scanvas, lastPriceIndex, lastPriceRect, lastPriceLine
+
+	if ticker == 'SPX':
+		candles = dp.getRecentCandles('SPY', 1)
+		for x in candles:
+			x['open'] *= dp.SPY2SPXRatio
+			x['high'] *= dp.SPY2SPXRatio
+			x['low'] *= dp.SPY2SPXRatio
+			x['close'] *=  dp.SPY2SPXRatio
+	else:
+		candles = dp.getRecentCandles(ticker, 1)
+	#print(f'{len(candles)} Candles Found')
+	def getCandleCoords(candle):
+		o = convertY(candle['open'])
+		c = convertY(candle['close'])
+		h = convertY(candle['high'])
+		l = convertY(candle['low'])
+		colr = 'green' if o >= c  else 'red'
+		if o > c :
+			tmp = c
+			c = o
+			o = tmp
+		o -= 1
+		c += 1
+		return (o, c, h, l, colr)
+	i = 0
+	for candle in candles:
+		if i > lastPriceIndex:
+			x = i * 5
+			coords = getCandleCoords(candle)
+			#print(f'Drawing Candle {coords}')
+			lastPriceRect = scanvas.create_rectangle([x,coords[0], x+5, coords[1]], fill=coords[4])
+			lastPriceLine = scanvas.create_line([x+3,coords[2]-1, x+3, coords[3]+1], fill=coords[4])
+			lastPriceIndex = i
+		i += 1
 
 	candle = candles[-1]
-	lastClose = candle['close']
-	lastLow = candle['low']
-	lastHigh = candle['high']
+	x = (i-1) * 5
+	coords = getCandleCoords(candle)
+	scanvas.coords(lastPriceRect, (x,coords[0], x+5, coords[1]))
+	scanvas.coords(lastPriceLine, (x+3,coords[2]-1, x+3, coords[3]+1))
 
-	#scanvas.itemconfig(lastPriceTextObject,text=str(round(lastClose, 2)))
-	lenavgs = len(avgs)
-
-	if lenavgs > 2000 : lenavgs = 2000
-	for x in range( 1, lenavgs ):
-		if x > lastPriceIndex:
-			y1 = convertY(avgs[x-1])
-			y2 = convertY(avgs[x])
-			#print(f'Drawing at {x} x {y2}')
-			scanvas.create_line(x-1,y1,x,y2, fill='blue', width=1)
-			lastPriceIndex = x
-
-	x = lastPriceIndex - 1
-	y = convertY(lastClose) - 1
+	#print(f'{len(scanvas.find("all"))} items on canvas')
+	#x = lastPriceIndex - 1
+	#y = convertY(lastClose) - 1
 	#scanvas.coords(lastPriceObject, (x, y, x+2, y+2))
 	#scanvas.coords(lastPriceTextObject, (x + 50, y))
 
 def refreshVCanvas(strikes = None):
 	calcVals = []
 	for strike in strikes:
-		callSize = abs(strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME])
-		putSize = abs(strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME])
+		callSize = abs(strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME])# * (strike[dp.GEX_CALL_BID_SIZE] / strike[dp.GEX_CALL_ASK_SIZE])
+		putSize = abs(strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME])# * (strike[dp.GEX_PUT_BID_SIZE] / strike[dp.GEX_PUT_ASK_SIZE])
 		calcVals.append( (strike[dp.GEX_STRIKE], callSize, putSize) )
 		
 	maxCallOI = max(calcVals, key=lambda i: i[1])[1]
 	maxPutOI = abs( min(calcVals, key=lambda i: i[2])[2] )
 	maxCallPutOI = max( (maxCallOI, maxPutOI) )
 	maxSize = 50
+	#print(calcVals)
 	for vcItem in vcStrikes:
+		#print( vcItem.Strike )
 		strike = next(x for x in calcVals if x[0] == vcItem.Strike)
-		#vcanvas.itemconfig( vcItem.callCanvas, fill='white')
 		callSize = (strike[1] / maxCallPutOI) * maxSize
 		putSize = (strike[2] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callCanvas, 170-callSize, vcItem.Y - 10, 170, vcItem.Y + 10)
@@ -180,9 +206,8 @@ vcanvas.configure(width=500, height=700, bg='black')
 
 scanvas = tk.Canvas()
 scanvas.grid(row=2, column=0, columnspan=4)#, rowspan=40)
-scanvas.configure(width=1000, height=300, bg='black')
+scanvas.configure(width=1000, height=SCANVAS_HEIGHT, bg='black')
 
-clickButton()
 timer = RepeatTimer(1, timerThread)
 timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
 timer.start()

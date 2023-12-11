@@ -199,6 +199,9 @@ def getHistory(ticker, days):
 	#intervals      daily, weekly, monthly
 	param = {'symbol': f'{ticker}', 'interval': 'daily', 'start': f'{startDay}', 'end': f'{endDay}', 'session_filter': 'all'}
 	return requests.get('https://api.tradier.com/v1/markets/history', params=param, headers=TRADIER_HEADER ).json()['history']['day']
+def getHistoryRange(ticker, start, end):
+	param = {'symbol': f'{ticker}', 'interval': 'daily', 'start': f'{start}', 'end': f'{end}', 'session_filter': 'all'}
+	return requests.get('https://api.tradier.com/v1/markets/history', params=param, headers=TRADIER_HEADER ).json()['history']['day']
 
 def getTodayStatus():
 	#{'date': '2023-11-26', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1700995046, 'next_change': '07:00', 'next_state': 'premarket'}

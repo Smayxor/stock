@@ -175,7 +175,11 @@ def on_closing():
 	win.destroy()
 
 class RepeatTimer(Timer):
-	def run(self):
+	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
+		Timer.__init__(self, interval, callback, args, kwds)
+		self.daemon = daemon  #Solves runtime error using tkinter from another thread
+		
+	def run(self):#, daemon=True):
 		self.interval = 2
 		while not self.finished.wait(self.interval):
 			self.function(*self.args, **self.kwargs)
@@ -208,8 +212,7 @@ scanvas = tk.Canvas()
 scanvas.grid(row=2, column=0, columnspan=4)#, rowspan=40)
 scanvas.configure(width=1000, height=SCANVAS_HEIGHT, bg='black')
 
-timer = RepeatTimer(1, timerThread)
-timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
+timer = RepeatTimer(1, timerThread, daemon=True)
 timer.start()
 
 tk.mainloop()

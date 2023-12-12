@@ -107,7 +107,7 @@ def timerThread():
 	appendData()
 
 print("Running Version 2.0 ArrayOfTuples - NoPandas")
-schedule.every().day.at("12:26").do(startDay)  #Currently set to PST
+schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 
 #startDay()

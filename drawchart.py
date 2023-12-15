@@ -49,8 +49,11 @@ def drawRotatedText(img, x, y, txt, color):
 	rotated_text_layer = text_layer.rotate(270.0, expand=1)
 	PILImg.Image.paste( img, rotated_text_layer, (x,y) )
 
+def drawPointer(draw, y, color = 'yellow'):
+	draw.polygon( [290, y, 300, y-10, 300, y+10, 290, y], fill=color, outline='blue')
+
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0):
+def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0):
 	ticker = ticker.upper()
 	
 	if strikes == None:
@@ -58,8 +61,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 		expDate = optionsChains[0]
 		strikes = dp.getGEX(optionsChains[1], chartType=chartType)
 	
-	atr = dp.getATR(ticker)
-	atrs = atr[1]
+	#atr = dp.getATR(ticker)
+	#atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
 	maxPain = dp.calcMaxPain( strikes )
 	
@@ -73,7 +76,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 	totalCalls = sum([strike[4] for strike in strikes]) 
 	totalPuts = sum([strike[6] for strike in strikes]) 
 
-	price = dp.getQuote(ticker)
+	if price == 0: price = dp.getQuote(ticker)
 	strikes = dp.shrinkToCount(strikes, price, count)
 	count = len(strikes)
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
@@ -87,17 +90,24 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 	maxPutGEX = abs(min(strikes, key=lambda i: i[5])[5])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
  
-	"""	largeOI = maxTop * 0.77
-		largeGEX = maxAbove * 0.87
-		largeCall = maxUpper * 0.8
-		largePut = maxLower * 0.8
-		for i in sorted(strikes.Strikes) :
-			if (top[i] > largeOI) or (above[i] > largeGEX) or (upper[i] > largeCall) or (lower[i] > largePut): keyLevels.append(i)
-		keyLevels.append(zero)
-		keyLevels.append(maxPain)
-	"""
-	#[(4265.0, 4265.405714285714), (4275.0, 4276.613811428571), (4285.0, 4285.412691428571), (4290.0, 4291.592857142857), (4300.0, 4297.773022857143), (4305.0, 4305.419668571429), (4320.0, 4317.78), (4330.0, 4330.140331428571), (4340.0, 4337.786977142857), (4345.0, 4343.967142857143), (4350.0, 4350.147308571429), (4360.0, 4358.946188571428), (4370.0, 4370.154285714286)]
-	for i in range(len(atrs)):  #Should be done in the getATR code
+	keyLevels = []
+	largeOI = maxTotalOI * 0.77
+	largeGEX = maxCallPutGEX * 0.87
+	largeCall = maxCallGEX * 0.8
+	largePut = maxPutGEX * 0.8
+	
+	def checkIfExists( strike ):
+		if strike not in keyLevels: keyLevels.append( strike )
+	for strike in strikes :
+		if strike[dp.GEX_TOTAL_OI] > largeOI : checkIfExists(strike[dp.GEX_STRIKE])
+		if strike[dp.GEX_TOTAL_GEX] > largeGEX : checkIfExists(strike[dp.GEX_STRIKE])
+		#if strike[dp.GEX_CALL_OI] > largeCall : checkIfExists(strike[dp.GEX_STRIKE])
+		#if strike[dp.GEX_PUT_OI] > largePut : checkIfExists(strike[dp.GEX_STRIKE])
+		
+	keyLevels.append(zeroG)
+	keyLevels.append(maxPain)
+	
+	"""for i in range(len(atrs)):  #Should be done in the getATR code
 		closestStrike = 0
 		distToClosest = 99999
 		for s in strikes:
@@ -106,7 +116,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 				distToClosest = tmpDist
 				closestStrike = s[0]
 		atrs[i] = (closestStrike, atrs[i][1])
-
+	"""
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500
 	IMG_W += 110
@@ -119,10 +129,12 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 		strikeColor = "#CCC"
 		if strike[0] == maxPain : strikeColor = "#F00"
 		if strike[0] == zeroG : strikeColor = "orange"
-		strikeText = str(round((strike[0]), 2))		
+		strikeText = str(round((strike[0]), 2))	
+		"""
 		for i in range(len(atrs)):
 			if atrs[i][0] == strike[0]: 
-				strikeText = str(round(atrs[i][1], 1))	
+				strikeText = str(round(atrs[i][1], 1))
+		"""
 		#strikeText = str(f'{round((abs(strike[8] - strike[10])), 2)}')		 #Call side has 2/3 value of Puts!!!  Could be used to determine SPX Price
 		#strikeText = str(f'{round((strike[8]), 2)} - {round((strike[10]), 2)}')		
 		drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)
@@ -131,6 +143,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0)
 		if strike[1] != 0 : drawRect(draw, 215 - ((abs(strike[1]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[1] > -1) else "#f00"), border='')
 		if (strike[3] != 0) : drawRect(draw, 399 - ((strike[3] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[5] != 0) : drawRect(draw, 401, x, 401 - ((strike[5] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
+		
+		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
 		
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")

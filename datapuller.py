@@ -215,8 +215,8 @@ def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 	spyCandles = getCandles('SPY', 4, 15)
 	spxCandles = getCandles('SPX', 4, 15)
 
-	for spy in spyCandles: 
-		for spx in spxCandles: 
+	for spy in reversed(spyCandles): 
+		for spx in reversed(spxCandles): 
 			if spy['time'] == spx['time']:
 				SPY2SPXRatio = spx['high'] / spy['high']
 				return

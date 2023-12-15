@@ -398,6 +398,25 @@ async def heatmap(ctx, *args):
 		await ctx.send( file=discord.File(open(f'./{fileName}', 'rb'), fileName) )
 	except: pass
 	
+@bot.command(name="ph")
+async def ph(ctx, *args):
+	try:
+		ticker = 'SPX'
+		index = int( args[0] )
+		fileList = [x for x in dp.pullLogFileList() if ((ticker=='SPX') ^ ('SPY' in x))]
+		file = fileList[ index ]
+
+		gexData = dp.pullLogFile(file)
+		day = file.replace('-datalog.json', '')
+		minute = next(iter(gexData))
+		price = gexData[minute]['price']
+		strikes = gexData[minute]['data']
+		chart = dc.drawGEXChart('SPX', 40, 0, chartType = 0, strikes = strikes, expDate = day, price = price)
+	
+		await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+	except:
+		await ctx.send( "Error drawing price chart" )
+
 def logFutureDTEs():
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]

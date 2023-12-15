@@ -101,7 +101,7 @@ def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
 lastPriceRect, lastPriceLine = None, None
 def refreshPriceChart():
 	global scanvas, lastPriceIndex, lastPriceRect, lastPriceLine
-
+	#lowestValue = 9999
 	if ticker == 'SPX':
 		candles = dp.getRecentCandles('SPY', 1)
 		for x in candles:
@@ -109,8 +109,10 @@ def refreshPriceChart():
 			x['high'] *= dp.SPY2SPXRatio
 			x['low'] *= dp.SPY2SPXRatio
 			x['close'] *=  dp.SPY2SPXRatio
+			#lowestValue = min([lowestValue, x['open'], x['high'], x['low'], x['close']])
 	else:
 		candles = dp.getRecentCandles(ticker, 1)
+	#print( lowestValue )
 	#print(f'{len(candles)} Candles Found')
 	def getCandleCoords(candle):
 		o = convertY(candle['open'])
@@ -142,6 +144,8 @@ def refreshPriceChart():
 	scanvas.coords(lastPriceRect, (x,coords[0], x+5, coords[1]))
 	scanvas.coords(lastPriceLine, (x+3,coords[2]-1, x+3, coords[3]+1))
 
+
+	win.title( candle['close'] )
 	#print(f'{len(scanvas.find("all"))} items on canvas')
 	#x = lastPriceIndex - 1
 	#y = convertY(lastClose) - 1

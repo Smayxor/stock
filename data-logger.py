@@ -67,10 +67,13 @@ def appendData():
 
 def startDay():
 	global SPXopenPrice, SPXdayData, blnRun, SPYopenPrice, SPYdayData
-	state = dp.getMarketHoursToday()['state']
-	if 'open' not in state : 
+	state = dp.getMarketHoursToday()
+	print( state )
+	if 'open' not in state['state'] : #Seems to not apply to sunday!!!
 		print( 'Market Closed Today')
+		
 		return
+	if datetime.datetime.now().weekday() > 4 : return
 	blnRun = True
 	SPXdayData = {}
 	SPXopenPrice = dp.getQuote('SPX')

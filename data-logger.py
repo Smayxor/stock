@@ -70,17 +70,18 @@ def startDay():
 	state = dp.getMarketHoursToday()
 	print( state )
 	if 'open' not in state['state'] : #Seems to not apply to sunday!!!
+		#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
 		print( 'Market Closed Today')
-		
 		return
 	if datetime.datetime.now().weekday() > 4 : return
+	
 	blnRun = True
 	SPXdayData = {}
 	SPXopenPrice = dp.getQuote('SPX')
 	SPYdayData = {}
 	SPYopenPrice = dp.getQuote('SPY')
 	print( "Day started" )
-	timer = RepeatTimer(60, timerThread, daemon=True)
+	#timer = RepeatTimer(60, timerThread, daemon=True)
 	timer.start()
 	#appendData()
 	
@@ -88,6 +89,7 @@ def endDay():
 	global blnRun, SPXdayData, SPYdayData
 	if not blnRun : return
 	blnRun = False
+	timer.cancel()
 	today = str(datetime.date.today()).split(":")[0]
 	save0dte()
 	def savePriceChart(ticker):
@@ -113,8 +115,8 @@ print("Running Version 2.0 ArrayOfTuples - NoPandas")
 schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 
+timer = RepeatTimer(60, timerThread, daemon=True)
 #startDay()
-#schedule.every().day.at("09:30").do(endDay)
 
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not

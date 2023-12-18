@@ -143,10 +143,19 @@ def shrinkToCount(strikes, price, count):
 	return strikes
 
 def getQuote(ticker):
+	ticker = ticker.upper()
 	param = {'symbols': 'SPY', 'greeks': 'false'} if ticker == 'SPX' else {'symbols': f'{ticker}', 'greeks': 'false'}
 	#param = {'symbols': f'{ticker}', 'greeks': 'false'}
-	result = requests.get('https://api.tradier.com/v1/markets/quotes', params=param, headers=TRADIER_HEADER).json()['quotes']['quote']['last']
-	if ticker == 'SPX' : result *= SPY2SPXRatio
+	result = requests.get('https://api.tradier.com/v1/markets/quotes', params=param, headers=TRADIER_HEADER).json()
+	print( result )
+	"""{'quotes': {'quote': {'symbol': 'SPY', 'description': 'SPDR S&P 500', 'exch': 'P', 'type': 'etf', 'last': 469.33, 'change': 0.0, 
+	'volume': 308790, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 470.74, 'ask': 470.75, 'change_percentage': 0.0, 
+	'average_volume': 83226262, 'last_volume': 0, 'trade_date': 1702688400003, 'prevclose': 469.33, 'week_52_high': 473.73, 'week_52_low': 374.77, 
+	'bidsize': 1, 'bidexch': 'Q', 'bid_date': 1702906169000, 'asksize': 32, 'askexch': 'P', 'ask_date': 1702906170000, 'root_symbols': 'SPY'}}}"""
+	result = result['quotes']['quote']['ask']
+	if ticker == 'SPX' : 
+		result *= SPY2SPXRatio
+		#print(f' SPX price {result}')
 	return result
 
 def getATR(ticker_name):  #SPX needs to grab SPY and convert

@@ -53,12 +53,13 @@ def appendData():
 		gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPYdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
-		price = price * dp.SPY2SPXRatio #dp.getQuote('SPX')
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
+		price = gex[0][dp.GEX_STRIKE] + gex[0][dp.GEX_CALL_BID] #price * dp.SPY2SPXRatio #dp.getQuote('SPX')
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPXdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
+		print(  f'SPX Price ${price}')
 		#schedule.every(1).minutes.do(minuteTimerThread)
 	#	tenMinutes = (tenMinutes + 1) % 10
 		save0dte()

@@ -287,17 +287,4 @@ def placeOptionOrder(symbol, price, stop, ticker = 'SPY', side='buy_to_open', qu
 	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'stop': stop, 'tag': tag}
 	return requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER).json()
 
-"""testList = [[4655.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],
-			[4655.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],
-			[4655.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],
-			[5100.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0],
-			[5100.0, 0, 0, 0, 0, 0, 0, 0, None, None, None, None, 0, 0, 0, 0, 0, 0]]
 
-for i in range(len(testList)): #for entry in testList: #modifying entry wont update testList
-	entry = testList[i]	#Makes a copy of values
-	testList[i]	= [(0 if j is None else j) for j in testList[i]]#filter out any suprises
-	print( entry )
-#for entry in testList:
-#	entry = [(0 if j is None else j) for j in entry]
-#	print( entry )
-for x in testList: print(x)"""

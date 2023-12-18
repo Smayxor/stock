@@ -313,6 +313,7 @@ async def dailyTask2():
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	print("Daily Task Execution 2")
+	dp.findSPY2SPXRatio()
 	await chnl.send("Fethcing Morning Charts")
 	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await intr.followup.send("Failed to get data")

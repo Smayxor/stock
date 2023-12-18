@@ -55,6 +55,14 @@ def timerThread():
 	if blnReset: triggerReset()
 	options = dp.getOptionsChain(ticker, 0)
 	gexList = dp.getGEX(options[1])
+	
+	
+	firstStrike = gexList[0]
+	lastStrike = gexList[-1]
+	callEstimate = firstStrike[dp.GEX_STRIKE] + firstStrike[dp.GEX_CALL_BID]
+	putEstimate = lastStrike[dp.GEX_STRIKE] - lastStrike[dp.GEX_PUT_BID]
+	win.title( f'Call {callEstimate} - Put {putEstimate}')
+	
 	refreshVCanvas(strikes=gexList)
 	try:	refreshPriceChart()
 	except: pass
@@ -145,7 +153,7 @@ def refreshPriceChart():
 	scanvas.coords(lastPriceLine, (x+3,coords[2]-1, x+3, coords[3]+1))
 
 
-	win.title( candle['close'] )
+	#win.title( candle['close'] )
 	#print(f'{len(scanvas.find("all"))} items on canvas')
 	#x = lastPriceIndex - 1
 	#y = convertY(lastClose) - 1

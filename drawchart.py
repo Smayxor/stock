@@ -76,7 +76,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	totalCalls = sum([strike[4] for strike in strikes]) 
 	totalPuts = sum([strike[6] for strike in strikes]) 
 
-	if price == 0: price = dp.getQuote(ticker)
+	if price == 0: price = strikes[0][dp.GEX_STRIKE] + strikes[0][dp.GEX_CALL_BID] # dp.getQuote(ticker)
 	strikes = dp.shrinkToCount(strikes, price, count)
 	count = len(strikes)
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk

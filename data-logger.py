@@ -11,7 +11,7 @@ from threading import Timer
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
-blnRun = True
+blnRun = False
 timer =  None
 
 SPXdayData = {}
@@ -75,15 +75,11 @@ def startDay():
 	SPYdayData = {}
 	#SPYopenPrice = dp.getQuote('SPY')
 	print( "Day started" )
-	#timer = RepeatTimer(60, timerThread, daemon=True)
-	#timer.start()
-	#appendData()
 	
 def endDay():
 	global blnRun, SPXdayData, SPYdayData
 	if not blnRun : return
 	blnRun = False
-	#timer.cancel()
 	today = str(datetime.date.today()).split(":")[0]
 	save0dte()
 	def savePriceChart(ticker):
@@ -113,8 +109,10 @@ timer = RepeatTimer(60, timerThread, daemon=True)
 timer.start()
 now = datetime.datetime.now()
 tmp = (now.hour * 100) + now.minute
-if (tmp > 630) and (tmp < 1300): startDay()
-#if ((now.hour == 6) and (now.minute > 30)) or (now.hour > 6)) and (now.hour < 13): startDay()
+if (tmp > 630) and (tmp < 1300): 
+	print('Late start to the day')
+	startDay()
+#startDay()
 
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not

@@ -1,7 +1,6 @@
 import datetime
 import ujson as json #usjon is json written in C
 import requests
-#import threading
 import time
 import schedule
 import datapuller as dp
@@ -13,14 +12,12 @@ init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 blnRun = True
-INTERVAL = 60 #Time in seconds between recordings
 timer =  None
 
-SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 SPXdayData = {}
-SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 SPYdayData = {}
-#tenMinutes = 0
+#SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+#SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
@@ -44,30 +41,26 @@ def save0dte():
 		json.dump(SPYdayData, f)
 
 def appendData():
-	global SPXopenPrice, SPXdayData, SPYopenPrice, SPYdayData, INTERVAL, tenMinutes
-	#threading.Timer(INTERVAL, minuteTimerThread).start()
+	global SPXdayData, SPYdayData#, SPXopenPrice, SPYopenPrice
 	try:
-		price = dp.getQuote('SPY')
 		options = dp.getOptionsChain("SPY", 0)
 		gex = dp.getGEX( options[1] )
-		gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
+		price = gex[0][dp.GEX_STRIKE] + gex[0][dp.GEX_CALL_BID] #dp.getQuote('SPY')
+		#gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPYdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
 		price = gex[0][dp.GEX_STRIKE] + gex[0][dp.GEX_CALL_BID] #price * dp.SPY2SPXRatio #dp.getQuote('SPX')
-		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
+		#gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPXdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
-		print(  f'SPX Price ${price}')
-		#schedule.every(1).minutes.do(minuteTimerThread)
-	#	tenMinutes = (tenMinutes + 1) % 10
 		save0dte()
 	except:
 		print('An error occoured')
 
 def startDay():
-	global SPXopenPrice, SPXdayData, blnRun, SPYopenPrice, SPYdayData
+	global blnRun, SPXdayData, SPYdayData#, SPXopenPrice, SPYopenPrice
 	state = dp.getMarketHoursToday()
 	print( state )
 	if 'open' not in state['state'] : #Seems to not apply to sunday!!!
@@ -78,19 +71,19 @@ def startDay():
 	
 	blnRun = True
 	SPXdayData = {}
-	SPXopenPrice = dp.getQuote('SPX')
+	#SPXopenPrice = dp.getQuote('SPX')
 	SPYdayData = {}
-	SPYopenPrice = dp.getQuote('SPY')
+	#SPYopenPrice = dp.getQuote('SPY')
 	print( "Day started" )
 	#timer = RepeatTimer(60, timerThread, daemon=True)
-	timer.start()
+	#timer.start()
 	#appendData()
 	
 def endDay():
 	global blnRun, SPXdayData, SPYdayData
 	if not blnRun : return
 	blnRun = False
-	timer.cancel()
+	#timer.cancel()
 	today = str(datetime.date.today()).split(":")[0]
 	save0dte()
 	def savePriceChart(ticker):
@@ -117,7 +110,11 @@ schedule.every().day.at("06:30").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 
 timer = RepeatTimer(60, timerThread, daemon=True)
-#startDay()
+timer.start()
+now = datetime.datetime.now()
+tmp = (now.hour * 100) + now.minute
+if (tmp > 630) and (tmp < 1300): startDay()
+#if ((now.hour == 6) and (now.minute > 30)) or (now.hour > 6)) and (now.hour < 13): startDay()
 
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not

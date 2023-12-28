@@ -16,8 +16,8 @@ timer =  None
 
 SPXdayData = {}
 SPYdayData = {}
-#SPYopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
-#SPXopenPrice = 0.0#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+SPYopenPrice = -1#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned.  Reduces file size by 2/3
+SPXopenPrice = -1#Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
@@ -41,18 +41,20 @@ def save0dte():
 		json.dump(SPYdayData, f)
 
 def appendData():
-	global SPXdayData, SPYdayData#, SPXopenPrice, SPYopenPrice
+	global SPXdayData, SPYdayData, SPXopenPrice, SPYopenPrice
 	try:
 		options = dp.getOptionsChain("SPY", 0)
 		gex = dp.getGEX( options[1] )
-		price = gex[0][dp.GEX_STRIKE] + gex[0][dp.GEX_CALL_BID] #dp.getQuote('SPY')
-		#gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
+		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
+		if SPYopenPrice == -1: SPYopenPrice = price
+		gex = dp.shrinkToCount(gex, SPYopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPYdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
-		price = gex[0][dp.GEX_STRIKE] + gex[0][dp.GEX_CALL_BID] #price * dp.SPY2SPXRatio #dp.getQuote('SPX')
-		#gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
+		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
+		if SPXopenPrice == -1: SPXopenPrice = price
+		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPXdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
 		save0dte()
@@ -60,7 +62,7 @@ def appendData():
 		print('An error occoured')
 
 def startDay():
-	global blnRun, SPXdayData, SPYdayData#, SPXopenPrice, SPYopenPrice
+	global blnRun, SPXdayData, SPYdayData, SPXopenPrice, SPYopenPrice
 	state = dp.getMarketHoursToday()
 	print( state )
 	if 'open' not in state['state'] : #Seems to not apply to sunday!!!
@@ -71,9 +73,9 @@ def startDay():
 	
 	blnRun = True
 	SPXdayData = {}
-	#SPXopenPrice = dp.getQuote('SPX')
+	SPXopenPrice = -1# dp.getQuote('SPX')
 	SPYdayData = {}
-	#SPYopenPrice = dp.getQuote('SPY')
+	SPYopenPrice = -1#dp.getQuote('SPY')
 	print( "Day started" )
 	
 def endDay():

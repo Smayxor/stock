@@ -6,11 +6,28 @@ import os
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
+
+'''
+GITHUB_ACCESS_CODE = init['GITHUB']
+authorization = f'token {GITHUB_ACCESS_CODE}'
+headers = {
+    "Accept": "application/vnd.github.v3+json",
+    "Authorization" : authorization,
+    }
+r = requests.post(
+    url='https://api.github.com/tradingview-pine-seeds/seed_smayxor_gex/tree/master/data/GEX.csv',
+    data='my,data',
+    headers=headers
+    )
+print( r.status_code )
+print( r.content )
+'''
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
 RANGE_FIBS = range(len(FIBS))
-SPY2SPXRatio = 0
+SPY2SPXRatio = 0 # No longer used
+INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
 #0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
@@ -154,6 +171,15 @@ def getQuote(ticker):
 	if ticker == 'SPX' : result *= SPY2SPXRatio
 	return result
 
+def getPrice(ticker, strikes = None):
+	if ticker in indices and strikes not None:
+		#*****************************************************************************************
+		# Needs to factor in DTE for more accurate pricing
+		#*****************************************************************************************
+		#putPrice = strikes[-1][dp.GEX_STRIKE] - ((strikes[0][dp.GEX_PUT_BID] + strikes[0][dp.GEX_PUT_ASK]) / 2)
+		price = strikes[0][dp.GEX_STRIKE] + ((strikes[0][dp.GEX_CALL_BID] + strikes[0][dp.GEX_CALL_ASK]) / 2)
+	else: price = dp.getQuote(ticker)
+
 def getATR(ticker_name):  #SPX needs to grab SPY and convert
 	today = str(datetime.date.today()).split(":")[0]
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
@@ -225,7 +251,7 @@ def findSPY2SPXRatio():  #Used to Convert SPY to SPX, bypass delayed data
 			if spy['time'] == spx['time']:
 				SPY2SPXRatio = spx['close'] / spy['close']
 				return
-findSPY2SPXRatio()
+#findSPY2SPXRatio() #No longer used.
 
 def cleanHeatmaps():
 	files = [f'./heatmap/{f}' for f in os.listdir('./heatmap/')]

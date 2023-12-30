@@ -172,7 +172,7 @@ def getQuote(ticker):
 	return result
 
 def getPrice(ticker, strikes = None):
-	if ticker in indices and strikes not None:
+	if ticker in INDICES and strikes != None:
 		#*****************************************************************************************
 		# Needs to factor in DTE for more accurate pricing
 		#*****************************************************************************************

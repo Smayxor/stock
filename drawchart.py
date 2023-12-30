@@ -76,7 +76,17 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	totalCalls = sum([strike[4] for strike in strikes]) 
 	totalPuts = sum([strike[6] for strike in strikes]) 
 
-	if price == 0: price = strikes[0][dp.GEX_STRIKE] + ((strikes[0][dp.GEX_CALL_BID] + strikes[0][dp.GEX_CALL_ASK]) / 2) # dp.getQuote(ticker)
+	#****************************************************************************************
+	#Used to find price on 0dte for Index.   May also use similar calc wth Puts 
+	#Other tickers should use getQuote, or factor in TimeTillExpiration
+	if price == 0: 
+		indices = ['SPX', 'VIX', 'XSP', 'SOX']
+		if ticker in indices :
+			#putPrice = strikes[-1][dp.GEX_STRIKE] - ((strikes[0][dp.GEX_PUT_BID] + strikes[0][dp.GEX_PUT_ASK]) / 2)
+			price = strikes[0][dp.GEX_STRIKE] + ((strikes[0][dp.GEX_CALL_BID] + strikes[0][dp.GEX_CALL_ASK]) / 2)
+		else: price = dp.getQuote(ticker)
+	#*****************************************************************************************
+	
 	strikes = dp.shrinkToCount(strikes, price, count)
 	count = len(strikes)
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk

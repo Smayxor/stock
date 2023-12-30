@@ -220,7 +220,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 			drawText( draw, 50, 30, txt=str( maxPrice ), color="green")
 			midPrice = (maxPrice + minPrice) / 2
 			drawRotatedPriceLine(draw, convertY(midPrice), "yellow")
-			drawText( draw, 50, 250, txt=str( midPrice ), color="yellow")
+			drawText( draw, 50, 250, txt=str( round((midPrice), 2)), color="yellow")
 			drawRotatedPriceLine(draw, convertY(minPrice), "red")
 			drawText( draw, 50, IMG_H - 30, txt=str( minPrice ), color="red")
 			firstTime = False

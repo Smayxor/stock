@@ -177,8 +177,10 @@ def getPrice(ticker, strikes = None):
 		# Needs to factor in DTE for more accurate pricing
 		#*****************************************************************************************
 		#putPrice = strikes[-1][GEX_STRIKE] - ((strikes[0][GEX_PUT_BID] + strikes[0][GEX_PUT_ASK]) / 2)
+		#print(f'Calcing price {strikes[0][GEX_STRIKE]} with {strikes[0][GEX_CALL_BID]} and {strikes[0][GEX_CALL_ASK]}')
 		price = strikes[0][GEX_STRIKE] + ((strikes[0][GEX_CALL_BID] + strikes[0][GEX_CALL_ASK]) / 2)
 	else: price = getQuote(ticker)
+	return price
 
 def getATR(ticker_name):  #SPX needs to grab SPY and convert
 	today = str(datetime.date.today()).split(":")[0]

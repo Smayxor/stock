@@ -87,8 +87,11 @@ def getGEX(options, chartType = 0):  #New test code
 		volume = option['volume']
 		oi = option['open_interest'] 
 		
-		if chartType == 1: oi = volume #For Volume charts
-		gex = oi * gamma * call
+		if chartType == 1: 
+			oi = volume #For Volume charts
+			gex = oi * call
+		else:
+			gex = oi * gamma * call
 		#exDate = option['expiration_date']
 		bid = option['bid']
 		ask = option['ask']

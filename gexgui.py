@@ -29,7 +29,8 @@ class CanvasItem():
 	putVolCanvas = None
 	callPriceText = None
 	putPriceText =  None
-	def __init__(self, strike, y, callCanvas, putCanvas, callVolCanvas, putVolCanvas, callPriceText, putPriceText):
+	strikeText = None
+	def __init__(self, strike, y, callCanvas, putCanvas, callVolCanvas, putVolCanvas, callPriceText, putPriceText, strikeText):
 		self.callCanvas = callCanvas
 		self.putCanvas = putCanvas
 		self.callVolCanvas = callVolCanvas
@@ -38,7 +39,7 @@ class CanvasItem():
 		self.putPriceText = putPriceText
 		self.Y = y
 		self.Strike = strike
-
+		self.strikeText = strikeText
 blnReset = True
 def clickButton():
 	global blnReset
@@ -65,36 +66,34 @@ def triggerReset():
 	loadStrikeChart()
 	
 def loadStrikeChart():
-	fileList = [x for x in dp.pullLogFileList() if ((ticker=='SPX') ^ ('SPY' in x))]
-	file = fileList[-1]
-	gexData = dp.pullLogFile(file)
-	filename = dc.drawPriceChart(ticker, file, gexData, [e3.get()])
-	if 'error' in filename: return
-	image = Image.open("./" + filename)
-	tk_image = ImageTk.PhotoImage(image)
-	strikecanvas.configure(image=tk_image)
-	strikecanvas.image = tk_image
+	try:
+		fileList = [x for x in dp.pullLogFileList() if ((ticker=='SPX') ^ ('SPY' in x))]
+		file = fileList[-1]
+		gexData = dp.pullLogFile(file)
+		filename = dc.drawPriceChart(ticker, file, gexData, [e3.get()])
+		if 'error' in filename: return
+		image = Image.open("./" + filename)
+		tk_image = ImageTk.PhotoImage(image)
+		strikecanvas.configure(image=tk_image)
+		strikecanvas.image = tk_image
+	except:
+		pass
 
 def timerThread():
 	if blnReset: triggerReset()
-	dte =  e2.get()
+	dte = e2.get()
 	if not dte.isnumeric(): dte = 0
+	try:
+		options = dp.getOptionsChain(ticker, int(dte))
+		gexList = dp.getGEX(options[1])
+		refreshVCanvas(strikes=gexList)
+		loadStrikeChart()	
 
-	options = dp.getOptionsChain(ticker, int(dte))
-	gexList = dp.getGEX(options[1])
-	refreshVCanvas(strikes=gexList)
-	loadStrikeChart()	
-
-	#options = dp.getOptionsChain("VIX", 0)
-	#gexList = dp.getGEX(options[1])
-	
-	firstStrike = gexList[0]
-	lastStrike = gexList[-1]
-	callEstimate = firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)
-	putEstimate = lastStrike[dp.GEX_STRIKE] - ((lastStrike[dp.GEX_PUT_BID] + lastStrike[dp.GEX_PUT_ASK]) / 2)
-	
-	win.title( f'Price ${callEstimate} from {firstStrike[dp.GEX_CALL_BID]} - {firstStrike[dp.GEX_CALL_ASK]} using strike {firstStrike[dp.GEX_STRIKE]}, or  or {putEstimate} from {lastStrike[dp.GEX_PUT_BID]} - {lastStrike[dp.GEX_PUT_ASK]} using strike {lastStrike[dp.GEX_STRIKE]}')
-
+		price = dp.getPrice( ticker, gexList, options[0] )
+		win.title( f'Price ${price}')
+	except:
+		print( 'Error ', dte )
+		
 def initVChart(strikes, ticker):
 	global vPrice, vCallGEX, vPutGEX, vcStrikes
 	vcanvas.delete('all')
@@ -106,7 +105,7 @@ def initVChart(strikes, ticker):
 	strikes = dp.shrinkToCount(strikes, price, 30)
 	y = 680
 	for strike in strikes:
-		vcanvas.create_text( 70, y, fill='white', text=str(round((strike[0]), 2)) )
+		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=str(round((strike[0]), 2)) )
 		canvasCall = vcanvas.create_rectangle(0, y-10, 50, y + 10, fill='green')
 		canvasCallVol = vcanvas.create_rectangle(0, y-10, 100, y, fill='blue')
 
@@ -116,7 +115,7 @@ def initVChart(strikes, ticker):
 		canvasCallPrice = vcanvas.create_text(3, y, fill='red', anchor="w", text=str(round((strike[dp.GEX_CALL_BID]), 2)))
 		canvasPutPrice = vcanvas.create_text(130, y, fill='green', anchor="w", text=str(round((strike[dp.GEX_PUT_BID]), 2)))
 		
-		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice) )
+		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 20
 	refreshVCanvas(strikes = strikes)
 
@@ -148,11 +147,11 @@ def refreshPriceChart():
 	#lowestValue = 9999
 	if ticker == 'SPX':
 		candles = dp.getRecentCandles('SPY', 1)
-		for x in candles:
-			x['open'] *= dp.SPY2SPXRatio
-			x['high'] *= dp.SPY2SPXRatio
-			x['low'] *= dp.SPY2SPXRatio
-			x['close'] *=  dp.SPY2SPXRatio
+#		for x in candles:
+#			x['open'] *= dp.SPY2SPXRatio
+#			x['high'] *= dp.SPY2SPXRatio
+#			x['low'] *= dp.SPY2SPXRatio
+#			x['close'] *=  dp.SPY2SPXRatio
 			#lowestValue = min([lowestValue, x['open'], x['high'], x['low'], x['close']])
 	else:
 		candles = dp.getRecentCandles(ticker, 1)
@@ -214,6 +213,7 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	for vcItem in vcStrikes:
 		#print( vcItem.Strike )
 		strike = next(x for x in calcVals if x[0] == vcItem.Strike)
+		
 		callSize = (strike[1] / maxCallPutOI) * maxSize
 		putSize = (strike[2] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callCanvas, 50-callSize, vcItem.Y - 10, 50, vcItem.Y + 10)
@@ -226,6 +226,8 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 		
 		vcanvas.itemconfig(vcItem.callPriceText, text=str(round((strike[5]), 2)))
 		vcanvas.itemconfig(vcItem.putPriceText, text=str(round((strike[6]), 2)))
+
+		vcanvas.itemconfig(vcItem.strikeText, text=str(round((strike[0]), 2)))
 
 def on_closing():
 	global blnRun, timer
@@ -255,11 +257,11 @@ e1.insert(0, ticker)
 tk.Label(win, text="                 Days", width=10).grid(row=0, column=0)#, sticky='E')
 e2 = tk.Entry(win, width=4)
 e2.grid(row=0, column=0)#, sticky='E')
-e2.insert(0, '1')
+e2.insert(0, '0')
 
 e3 = tk.Entry(win, width=8)
 e3.grid(row=0, column=0, sticky='E')
-e3.insert(0, '4800p')
+e3.insert(0, '4700p')
 
 tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=2, sticky='E')
 

@@ -365,6 +365,21 @@ async def dailyTask2():
 		except: await intr.followup.send("No image permissions")
 	logFutureDTEs() #For Heatmap
 
+dailyTaskTime3 = datetime.time(hour=14, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+@tasks.loop(time=dailyTaskTime3)
+async def dailyTask3():
+	global tickers
+	if datetime.datetime.now().weekday() > 4 : return
+	chnl = bot.get_channel(1193060258088759356)
+	print("Daily Task Execution 3")
+	fn = dc.drawGEXChart("SPX", 40, 0, chartType=CHART_VOLUME)
+	if fn == "error.png": await intr.followup.send("Failed to get data")
+	else:
+		try: 
+			chnl = bot.get_channel(1193060258088759356)
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await intr.followup.send("No image permissions")
+
 blnFirstTime = True
 @bot.event
 async def on_ready():

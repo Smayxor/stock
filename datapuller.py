@@ -87,7 +87,7 @@ def getGEX(options, chartType = 0):  #New test code
 		volume = option['volume']
 		oi = option['open_interest'] 
 		
-		if chartType == 1: oi = abs(oi - volume) #For Volume charts
+		if chartType == 1: oi = volume #For Volume charts
 		gex = oi * gamma * call
 		#exDate = option['expiration_date']
 		bid = option['bid']
@@ -171,14 +171,25 @@ def getQuote(ticker):
 	if ticker == 'SPX' : result *= SPY2SPXRatio
 	return result
 
-def getPrice(ticker, strikes = None):
+def getPrice(ticker, strikes = None, dte = "now"):
 	if ticker in INDICES and strikes != None:
-		#*****************************************************************************************
-		# Needs to factor in DTE for more accurate pricing
-		#*****************************************************************************************
-		#putPrice = strikes[-1][GEX_STRIKE] - ((strikes[0][GEX_PUT_BID] + strikes[0][GEX_PUT_ASK]) / 2)
-		#print(f'Calcing price {strikes[0][GEX_STRIKE]} with {strikes[0][GEX_CALL_BID]} and {strikes[0][GEX_CALL_ASK]}')
+		#*************************************************************************************************************
+		# Needs to correctly factor in value from DTE
+		#**************************************************************************************************************
+		"""if 'now' in dte: dte = str(datetime.datetime.now()).split(' ')[0]
+		end_date = datetime.datetime.strptime(dte, '%Y-%m-%d')
+		num_days = (end_date - datetime.datetime.now()).days + 1
+		num_weekends = num_days // 7
+		dte = num_days - (num_weekends * 2)
+		"""
 		price = strikes[0][GEX_STRIKE] + ((strikes[0][GEX_CALL_BID] + strikes[0][GEX_CALL_ASK]) / 2)
+		"""
+		1dte = 1.40 over
+		23dte = 0.15 under
+		77dtee = 19.80 under
+		"""
+		#print( price, dte )
+		
 	else: price = getQuote(ticker)
 	return price
 

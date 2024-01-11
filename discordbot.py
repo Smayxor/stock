@@ -145,7 +145,11 @@ class NewsData():
 		for e in self.Events:
 			if len( e ) > 0 : text += '\n' + e
 		return text + '```'
-
+"""
+url = "https://www.financialjuice.com/home"
+data = requests.get(url=url).text.split('<div class="div-table" id="my-cal-data">')[1].split('<script type="text/javascript">')[0]
+print( data )
+"""
 def fetchNews():
 	global lastNewsDay, todaysNews
 	today = datetime.date.today()
@@ -329,7 +333,6 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 dailyTaskTime = datetime.time(hour=13, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime)
 async def dailyTask():
-	global tickers
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	if datetime.datetime.now().weekday() > 4 : 
 		await chnl.send( buildNews("WEEK")[0] )
@@ -348,7 +351,6 @@ async def dailyTask():
 dailyTaskTime2 = datetime.time(hour=14, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)
 async def dailyTask2():
-	global tickers
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	print("Daily Task Execution 2")
@@ -368,7 +370,6 @@ async def dailyTask2():
 dailyTaskTime3 = datetime.time(hour=14, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime3)
 async def dailyTask3():
-	global tickers
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(1193060258088759356)
 	print("Daily Task Execution 3")
@@ -377,6 +378,8 @@ async def dailyTask3():
 	else:
 		try: 
 			chnl = bot.get_channel(1193060258088759356)
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			chnl = bot.get_channel(UPDATE_CHANNEL)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
 
@@ -388,6 +391,7 @@ async def on_ready():
 		#channelUpdate.start()
 		dailyTask.start()
 		dailyTask2.start()
+		dailyTask3.start()
 		blnFirstTime = False
 	"""		
 	@bot.command(name="s")
@@ -454,7 +458,7 @@ async def heatmap(ctx, *args):
 	except: pass
 	
 @bot.command(name="ph")
-async def ph(ctx, *args):
+async def ph(ctx, *args):  #Grabs Morning GEX Chart for Xdte 
 	try:
 		ticker = 'SPX'
 		index = int( args[0] )

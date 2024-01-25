@@ -2,26 +2,10 @@ import datetime
 import ujson as json #usjon is json written in C
 import requests
 import os
-
+import heapq
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
-
-'''
-GITHUB_ACCESS_CODE = init['GITHUB']
-authorization = f'token {GITHUB_ACCESS_CODE}'
-headers = {
-    "Accept": "application/vnd.github.v3+json",
-    "Authorization" : authorization,
-    }
-r = requests.post(
-    url='https://api.github.com/tradingview-pine-seeds/seed_smayxor_gex/tree/master/data/GEX.csv',
-    data='my,data',
-    headers=headers
-    )
-print( r.status_code )
-print( r.content )
-'''
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -30,7 +14,32 @@ SPY2SPXRatio = 0 # No longer used
 INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
 #0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
-GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+
+def findKeyLevels(strikes, price, targets=False):
+	keyLevels = []
+	priceLower = price - (price % 65) - 10
+	priceUpper = priceLower + 100
+
+	nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
+	#print( [x[GEX_STRIKE] for x in nearStrikes] )
+	
+	def checkIfExists( strike ):
+		if strike not in keyLevels: keyLevels.append( strike )
+
+	VALS_TO_CHECK = [GEX_CALL_VOLUME, GEX_PUT_VOLUME] if targets else [GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_OI, GEX_PUT_OI]
+	n = 2 if targets else 3
+	for val in VALS_TO_CHECK:
+		#sorted(zip(score, name), reverse=True)[:3]
+		#heapq.nlargest(n, iterable, key=None)
+		most3 = heapq.nlargest(n, nearStrikes, key=lambda i: i[val])
+		for biggy in most3: checkIfExists( biggy[GEX_STRIKE] )
+		
+	if targets :
+		nearStrikes = [x for x in nearStrikes if x[GEX_STRIKE] in keyLevels]
+
+	
+	return keyLevels
 
 def getMarketHoursToday():
 	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
@@ -73,7 +82,7 @@ def getGEX(options, chartType = 0):  #New test code
 	strikes = []
 	def findIndex( strike ): #loop from end of list, confirm we are using correct index
 		index = len(strikes) - 1
-		while strikes[index][0] != strike: index -= 1
+		while strikes[index][GEX_STRIKE] != strike: index -= 1
 		return index
 	
 	for option in options:
@@ -86,7 +95,7 @@ def getGEX(options, chartType = 0):  #New test code
 			iv = option['greeks']['mid_iv']
 		volume = option['volume']
 		oi = option['open_interest'] 
-		
+
 		if chartType == 1: 
 			oi = volume #For Volume charts
 			gex = oi * call
@@ -97,20 +106,23 @@ def getGEX(options, chartType = 0):  #New test code
 		ask = option['ask']
 		bidSize = option['bidsize']
 		askSize = option['asksize']
+		symbol = option['symbol']
 		#if strike == 4350 : print( option )
 		if (len(strikes) == 0) or (strikes[index][0] != strike): #fast, assumes strikes are in order
-			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ) 
+			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None"] ) 
 			index = findIndex(strike) # always make sure we're on the right strike index
-		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE
+		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL
 		tmp = strikes[index]
 		if call == 1: 
 			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_CALL_BID], tmp[GEX_CALL_ASK], tmp[GEX_CALL_VOLUME], tmp[GEX_CALL_BID_SIZE], tmp[GEX_CALL_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
 			tmp[GEX_CALL_GEX] += gex  #We can have multiple root symbols SPX and SPXW
 			tmp[GEX_CALL_OI]+= oi
+			tmp[GEX_CALL_SYMBOL] = symbol
 		else: 
 			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_PUT_BID], tmp[GEX_PUT_ASK], tmp[GEX_PUT_VOLUME], tmp[GEX_PUT_BID_SIZE], tmp[GEX_PUT_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
 			tmp[GEX_PUT_GEX] += gex
 			tmp[GEX_PUT_OI]+= oi
+			tmp[GEX_PUT_SYMBOL] = symbol
 		#strikes[index] = tmp
 
 	for index in range( len(strikes) ):

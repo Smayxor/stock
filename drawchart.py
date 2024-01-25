@@ -97,6 +97,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	largeCall = maxCallGEX * 0.8
 	largePut = maxPutGEX * 0.8
 	
+	"""
 	def checkIfExists( strike ):
 		if strike not in keyLevels: keyLevels.append( strike )
 	for strike in strikes :
@@ -105,8 +106,15 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		#if strike[dp.GEX_CALL_OI] > largeCall : checkIfExists(strike[dp.GEX_STRIKE])
 		#if strike[dp.GEX_PUT_OI] > largePut : checkIfExists(strike[dp.GEX_STRIKE])
 		
-	keyLevels.append(zeroG)
-	keyLevels.append(maxPain)
+		
+	for i in range(1, len(strikes)-1):
+		strike = strikes[i]
+		#beforeAndAfterOI = strikes[i-1][dp.GEX_TOTAL_OI] + strikes[i+1][dp.GEX_TOTAL_OI]
+		if strike[dp.GEX_TOTAL_OI] > strikes[i-1][dp.GEX_TOTAL_OI] * 2: checkIfExists(strike[dp.GEX_STRIKE])
+		if strike[dp.GEX_TOTAL_OI] > strikes[i+1][dp.GEX_TOTAL_OI] * 2: checkIfExists(strike[dp.GEX_STRIKE])
+		if abs(strike[dp.GEX_CALL_OI] - strike[dp.GEX_PUT_OI]) < strike[dp.GEX_TOTAL_OI] * 0.1 : checkIfExists(strike[dp.GEX_STRIKE])
+	"""	
+	keyLevels = dp.findKeyLevels(strikes, price)
 	
 	"""for i in range(len(atrs)):  #Should be done in the getATR code
 		closestStrike = 0
@@ -177,8 +185,6 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	txt = fileName.replace('SPY-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
 
-	#print(1)
-
 	def strikeExists(strikeVal):
 		for x in gexData[next(iter(gexData))]['data']:
 			#print( x[0], strikeVal )
@@ -192,7 +198,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
 		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
 	if len(strikes) == 0: return 'error.png'
-	#print(3)
+
 	prices = [gexData[t]['price'] for t in gexData]
 	maxPrice = max( prices )
 	minPrice = min( prices )
@@ -203,6 +209,18 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 	#for i in range(1, len(prices)):
 	#	draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
 	firstTime = True
+	
+	"""
+	for strike in strikes:
+		cp = dp.GEX_CALL_ASK if strike[1] == 'call' else dp.GEX_PUT_ASK
+		prices = []
+		
+		for t in gexData:
+			myStrike = [x for x in gexData[t]['data'] if x[dp.GEX_STRIKE] == strike[0]][0]
+			prices.append( myStrike[cp] )
+
+	"""
+	
 	for strike in strikes:
 		index = 0
 		nex = gexData[next(iter(gexData))]['data']
@@ -212,6 +230,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 				break
 		element = dp.GEX_CALL_ASK if strike[1] == 'call' else dp.GEX_PUT_ASK
 		prices = [gexData[t]['data'][index][element] for t in gexData]
+		
 		if firstTime :
 			maxPrice = max( prices )
 			minPrice = min( prices )

@@ -113,10 +113,9 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if strike[dp.GEX_TOTAL_OI] != 0 : drawRect(draw, 0, x, ((strike[dp.GEX_TOTAL_OI] / maxTotalOI) * 65), x + 12, color="#00F", border='')
 		callVolume = strike[dp.GEX_CALL_VOLUME]
 		putVolume = strike[dp.GEX_PUT_VOLUME]
-		totalVolume = callVolume + putVolume
-		if callVolume > strike[dp.GEX_TOTAL_OI] : callVolume = strike[dp.GEX_TOTAL_OI]
+		if callVolume > maxTotalOI : callVolume = maxTotalOI
+		if putVolume > maxTotalOI : putVolume = maxTotalOI
 		if callVolume != 0 : drawRect(draw, 0, x, ((callVolume / maxTotalOI) * 65), x + 2, color="#0F0", border='')
-		if putVolume > strike[dp.GEX_TOTAL_OI] : putVolume = strike[dp.GEX_TOTAL_OI]
 		if putVolume != 0 : drawRect(draw, 0, x+3, ((putVolume / maxTotalOI) * 65), x + 5, color="#F00", border='')
 	
 		if strike[dp.GEX_TOTAL_GEX] != 0 : drawRect(draw, 215 - ((abs(strike[dp.GEX_TOTAL_GEX]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[dp.GEX_TOTAL_GEX] > -1) else "#f00"), border='')

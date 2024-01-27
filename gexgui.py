@@ -146,7 +146,7 @@ def refreshPriceChart():
 	global scanvas, lastPriceIndex, lastPriceRect, lastPriceLine
 	#lowestValue = 9999
 	if ticker == 'SPX':
-		candles = dp.getRecentCandles('SPY', 1)
+		candles = dp.getRecentCandles('SPX', 1)
 #		for x in candles:
 #			x['open'] *= dp.SPY2SPXRatio
 #			x['high'] *= dp.SPY2SPXRatio
@@ -261,7 +261,7 @@ e2.insert(0, '0')
 
 e3 = tk.Entry(win, width=8)
 e3.grid(row=0, column=0, sticky='E')
-e3.insert(0, '4700p')
+e3.insert(0, '4900c')
 
 tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=2, sticky='E')
 

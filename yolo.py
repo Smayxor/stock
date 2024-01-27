@@ -12,70 +12,52 @@ IMG_H = 500
 lastIndex = 0
 previousClose = 0
 averageRange = 0
+
 options = dp.getOptionsChain('SPX', 0)
 gexList = dp.getGEX(options[1])
 
 balance = dp.getAccountBalance()['cash']
 print(f'Account Balance {balance}')
-print(f'Open positions {dp.getPositions()}')
+myPosition = dp.getPositions()['position']
+print(f'Open positions {myPosition}')
 print(f'Open orders {dp.getOrders()}')
 
-def identifyKeyLevels(ticker, strikes):
-	global previousClose, averageRange
-	price = dp.getQuote(ticker)
-	atr = dp.getATR(ticker)
-	previousClose = atr[2]
-	averageRange = atr[0]
-	atrs = atr[1]
-	zeroG = dp.calcZeroGEX( strikes )
-	maxPain = dp.calcMaxPain( strikes )
-	strikes = dp.shrinkToCount(strikes, price, 100)
-	#maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
-	#minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
-	#maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
-	
-	maxTotalOI = max(strikes, key=lambda i: i[2])[2]
-	maxCallOI = max(strikes, key=lambda i: i[4])[4]
-	maxPutOI = abs(min(strikes, key=lambda i: i[6])[6])
-	
-	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
-	keyLevels = []
-	oiThreshold = maxTotalOI * 0.6
-	callOIThreshold = maxCallOI * 0.25
-	putOIThreshold = maxPutOI * 0.25
-	totalOIThreshold = callOIThreshold + putOIThreshold
-	def addKeyLevel(strike):
-		if strike not in keyLevels: keyLevels.append( strike )
-	
-	for i in range(1, len(strikes) - 1):
-		strike = strikes[i]
-		if strike[dp.GEX_TOTAL_OI] > oiThreshold: addKeyLevel( strike[dp.GEX_STRIKE] )
-		#cpRatio = (strike[4] / strike[6])
-		#if cpRatio > 0.9 and cpRatio < 0.1 : addKeyLevel( strike[0] )
-		if strike[dp.GEX_CALL_OI] > callOIThreshold and strike[dp.GEX_PUT_OI] > putOIThreshold : 
-			totalPrev = strikes[i-1][dp.GEX_CALL_OI] + strikes[i-1][dp.GEX_PUT_OI]
-			totalMe = strikes[i][dp.GEX_CALL_OI] + strikes[i][dp.GEX_PUT_OI]
-			totalNext = strikes[i+1][dp.GEX_CALL_OI] + strikes[i+1][dp.GEX_PUT_OI]
-			if (totalMe > totalPrev * 0.80) and (totalMe > totalNext * 0.80) and (totalMe > totalOIThreshold ):	addKeyLevel( strike[0] )
-
-	for x in range(len(keyLevels)):
-		keyLevels[x] = round(keyLevels[x] / dp.SPY2SPXRatio, 2)
-	
-	return keyLevels
-keyLevels = identifyKeyLevels('SPX', gexList)
 
 #************ Calced after identifyKeyLevels sets values
+dp.findSPY2SPXRatio()
+previousClose = dp.getPrice("SPX", strikes=gexList) #****************Just open it and center around current price
+
 previousClose = round(previousClose / dp.SPY2SPXRatio, 2)
-averageRange = round(averageRange / dp.SPY2SPXRatio, 2)
+averageRange = 5 # round(averageRange / dp.SPY2SPXRatio, 2)
 highPrice = previousClose + (averageRange * 1.5)
 lowPrice = previousClose - (averageRange * 1.5)
-keyLevels.append(previousClose + averageRange)
+
+keyLevels = dp.findKeyLevels( gexList, previousClose )
+"""keyLevels.append(previousClose + averageRange)
 keyLevels.append(previousClose)
-keyLevels.append(previousClose - averageRange)
+keyLevels.append(previousClose - averageRange)"""
+
 priceRange = highPrice - lowPrice
 scale = IMG_H / priceRange
 print(f'PC {previousClose} - ATR {averageRange} - Low {lowPrice} - High {highPrice}')
 #******************************************
+
+#**************** Place an order
+#options = dp.getOptionsChain('XSP', 0)
+#gexList = dp.getGEX(options[1])
+#putStrike = min(gexList, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 0.04))
+#print( putStrike )
+#myCon = dp.placeOptionOrder(putStrike[dp.GEX_PUT_SYMBOL], 0.04, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
+#{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
+#print(  myCon )
+#Open positions {'position': {'cost_basis': 4.0, 'date_acquired': '2024-01-25T15:52:41.633Z', 'id': 6170075, 'quantity': 1.0, 'symbol': 'XSP240125P00484000'}}
+
+#***************** Close an order
+#myPut = [x for x in gexList if x[dp.GEX_PUT_SYMBOL] == myPosition['symbol']][0]
+#print(f'Close order {myPut}')
+#myCon = dp.placeOptionOrder(myPosition['symbol'], myPut[dp.GEX_PUT_BID], ticker="XSP", side="sell_to_close", quantity='1')
+#print( myCon )
+#{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
 
 def clickButton():
 	global canvas, lastIndex
@@ -89,11 +71,15 @@ def on_closing():
 	win.destroy()
 
 class RepeatTimer(Timer):
-	def run(self):
-#		self.interval = 2
+	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
+		Timer.__init__(self, interval, callback, args, kwds)
+		self.daemon = daemon  #Solves runtime error using tkinter from another thread
+		
+	def run(self):#, daemon=True):
+		self.interval = 2
 		while not self.finished.wait(self.interval):
 			self.function(*self.args, **self.kwargs)
-
+			
 def timerThread():
 	global blnRun
 	if not blnRun : return
@@ -173,13 +159,15 @@ def drawAVGs(avgs, color, lastClose):
 	#print( len( canvas.find("all") ) )
 
 def drawPriceScale():
-
+	"""
 	for key in keyLevels:
 		y = convertY(key)
 		#print( f'{key} drawn at {y}')
 		canvas.create_line(0, y, 750, y, dash=(1,3), fill="white", width=1)
 		canvas.create_text(780, y, text=str(key), fill="white" )
 		print( key, y )
+	"""
+	pass
 """
 	canvas.create_line(0, 3, 750, 3, dash=(1,3), fill="green", width=3)
 	canvas.create_line(0, IMG_H / 2, 750, IMG_H / 2, dash=(1,3), fill="white", width=2)
@@ -234,7 +222,6 @@ checkCall.set(1)
 
 drawPriceScale()
 timer = RepeatTimer(1, timerThread)
-timer.setDaemon(True)  #Solves runtime error using tkinter from another thread
 timer.start()
 tk.mainloop()
 

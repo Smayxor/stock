@@ -441,7 +441,7 @@ async def pc(ctx, *args):
 		else : 
 			file = fileList[-1]
 			args = args[1:]
-
+		
 		gexData = dp.pullLogFile(file)
 		chart = dc.drawPriceChart( ticker, file, gexData, args )
 	

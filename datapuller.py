@@ -17,29 +17,32 @@ INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
 def findKeyLevels(strikes, price, targets=False):
-	keyLevels = []
-	priceLower = price - (price % 65) - 10
-	priceUpper = priceLower + 100
-
-	nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
-	#print( [x[GEX_STRIKE] for x in nearStrikes] )
-	
-	def checkIfExists( strike ):
-		if strike not in keyLevels: keyLevels.append( strike )
-
-	VALS_TO_CHECK = [GEX_CALL_VOLUME, GEX_PUT_VOLUME] if targets else [GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_OI, GEX_PUT_OI]
-	n = 2 if targets else 3
-	for val in VALS_TO_CHECK:
-		#sorted(zip(score, name), reverse=True)[:3]
-		#heapq.nlargest(n, iterable, key=None)
-		most3 = heapq.nlargest(n, nearStrikes, key=lambda i: i[val])
-		for biggy in most3: checkIfExists( biggy[GEX_STRIKE] )
-		
 	if targets :
-		nearStrikes = [x for x in nearStrikes if x[GEX_STRIKE] in keyLevels]
+		priceLower = price - (price % 50) - 70
+		priceUpper = priceLower + 160
 
+		nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
+		#print( [x[GEX_STRIKE] for x in nearStrikes] )
+		callSide = max( nearStrikes, key=lambda i: i[GEX_CALL_VOLUME] - i[GEX_PUT_VOLUME] )
+		putSide = max( nearStrikes, key=lambda i: i[GEX_PUT_VOLUME] - i[GEX_CALL_VOLUME] )
 	
-	return keyLevels
+		return (callSide, putSide)
+	else :
+		keyLevels = []
+		def checkIfExists( strike ):
+			if strike not in keyLevels: keyLevels.append( strike )
+		priceLower = price - (price % 65) - 10
+		priceUpper = priceLower + 100
+
+		nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
+		VALS_TO_CHECK = [GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_OI, GEX_PUT_OI]
+		n = 2 if targets else 3
+		for val in VALS_TO_CHECK:
+			#sorted(zip(score, name), reverse=True)[:3]
+			#heapq.nlargest(n, iterable, key=None)
+			most3 = heapq.nlargest(n, nearStrikes, key=lambda i: i[val])
+			for biggy in most3: checkIfExists( biggy[GEX_STRIKE] )
+		return keyLevels
 
 def getMarketHoursToday():
 	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
@@ -248,7 +251,9 @@ def getCandles(ticker, days, interval):
 	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
 def getRecentCandles(ticker, interval):
 	param = {'symbol': f'{ticker}', 'interval': f'{interval}min'}
-	return requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER ).json()['series']['data']
+	response = requests.get('https://api.tradier.com/v1/markets/timesales', params=param, headers=TRADIER_HEADER )
+	return response.json()['series']['data']
+	
 #{'date': '2023-10-30', 'open': 4139.39, 'high': 4177.47, 'low': 4132.94, 'close': 4166.82, 'volume': 0}
 def getHistory(ticker, days):
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
@@ -337,8 +342,10 @@ def modifyOrder(orderID, type, duration, price, stop):
 	param = {'type': type, 'duration': duration, 'price': price, 'stop': stop}
 	return requests.put(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', data=param, headers=TRADIER_HEADER)
 
-def placeOptionOrder(symbol, price, stop, ticker = 'SPY', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test'):
-	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'stop': stop, 'tag': tag}
-	return requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER).json()
+def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test'):
+	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'tag': tag}
+	response = requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER)
+	print(response.status_code)
+	return response.json()
 
-
+#def closeOptionOrder(symbol, price, ticker, side="sell_to_close"

@@ -53,7 +53,7 @@ def drawPointer(draw, y, color = 'yellow'):
 	draw.polygon( [290, y, 300, y-10, 300, y+10, 290, y], fill=color, outline='blue')
 
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0):
+def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, targets=False):
 	ticker = ticker.upper()
 	
 	if strikes == None:
@@ -71,10 +71,10 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		for i in range(strikeLen):
 			if strike[i] == None : print( strike )
 
-	callDollars = sum([strike[4] * strike[9] for strike in strikes])  # Calc BEFORE shrinking count!!!
-	putDollars = sum([strike[6] * strike[11] for strike in strikes])
-	totalCalls = sum([strike[4] for strike in strikes]) 
-	totalPuts = sum([strike[6] for strike in strikes]) 
+	callDollars = sum([strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_ASK] for strike in strikes])  # Calc BEFORE shrinking count!!!
+	putDollars = sum([strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_ASK] for strike in strikes])
+	totalCalls = sum([strike[dp.GEX_CALL_OI] for strike in strikes]) 
+	totalPuts = sum([strike[dp.GEX_PUT_OI] for strike in strikes]) 
 
 	if price == 0: price = dp.getPrice(ticker, strikes)  #Done BEFORE shrinkToCount
 
@@ -82,50 +82,19 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	count = len(strikes)
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 	
-	maxTotalGEX = max(strikes, key=lambda i: i[1])[1]
-	minTotalGEX = abs(min(strikes, key=lambda i: i[1])[1])
+	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
+	minTotalGEX = abs(min(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX])
 	maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
 	
-	maxTotalOI = max(strikes, key=lambda i: i[2])[2]
-	maxCallGEX = max(strikes, key=lambda i: i[3])[3]
-	maxPutGEX = abs(min(strikes, key=lambda i: i[5])[5])
+	maxTotalOI = max(strikes, key=lambda i: i[dp.GEX_TOTAL_OI])[dp.GEX_TOTAL_OI]
+	maxCallGEX = max(strikes, key=lambda i: i[dp.GEX_CALL_GEX])[dp.GEX_CALL_GEX]
+	maxPutGEX = abs(min(strikes, key=lambda i: i[dp.GEX_PUT_GEX])[dp.GEX_PUT_GEX])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
  
 	keyLevels = []
-	largeOI = maxTotalOI * 0.77
-	largeGEX = maxCallPutGEX * 0.87
-	largeCall = maxCallGEX * 0.8
-	largePut = maxPutGEX * 0.8
-	
-	"""
-	def checkIfExists( strike ):
-		if strike not in keyLevels: keyLevels.append( strike )
-	for strike in strikes :
-		if strike[dp.GEX_TOTAL_OI] > largeOI : checkIfExists(strike[dp.GEX_STRIKE])
-		if strike[dp.GEX_TOTAL_GEX] > largeGEX : checkIfExists(strike[dp.GEX_STRIKE])
-		#if strike[dp.GEX_CALL_OI] > largeCall : checkIfExists(strike[dp.GEX_STRIKE])
-		#if strike[dp.GEX_PUT_OI] > largePut : checkIfExists(strike[dp.GEX_STRIKE])
-		
-		
-	for i in range(1, len(strikes)-1):
-		strike = strikes[i]
-		#beforeAndAfterOI = strikes[i-1][dp.GEX_TOTAL_OI] + strikes[i+1][dp.GEX_TOTAL_OI]
-		if strike[dp.GEX_TOTAL_OI] > strikes[i-1][dp.GEX_TOTAL_OI] * 2: checkIfExists(strike[dp.GEX_STRIKE])
-		if strike[dp.GEX_TOTAL_OI] > strikes[i+1][dp.GEX_TOTAL_OI] * 2: checkIfExists(strike[dp.GEX_STRIKE])
-		if abs(strike[dp.GEX_CALL_OI] - strike[dp.GEX_PUT_OI]) < strike[dp.GEX_TOTAL_OI] * 0.1 : checkIfExists(strike[dp.GEX_STRIKE])
-	"""	
-	keyLevels = dp.findKeyLevels(strikes, price)
-	
-	"""for i in range(len(atrs)):  #Should be done in the getATR code
-		closestStrike = 0
-		distToClosest = 99999
-		for s in strikes:
-			tmpDist = abs(atrs[i][1] - s[0])
-			if distToClosest > tmpDist:
-				distToClosest = tmpDist
-				closestStrike = s[0]
-		atrs[i] = (closestStrike, atrs[i][1])
-	"""
+	keyLevels = dp.findKeyLevels(strikes, price, targets=targets)
+	if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels]
+
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500
 	IMG_W += 110
@@ -136,22 +105,23 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	for strike in strikes :
 		x -= FONT_SIZE - 3
 		strikeColor = "#CCC"
-		if strike[0] == maxPain : strikeColor = "#F00"
-		if strike[0] == zeroG : strikeColor = "orange"
-		strikeText = str(round((strike[0]), 2))	
-		"""
-		for i in range(len(atrs)):
-			if atrs[i][0] == strike[0]: 
-				strikeText = str(round(atrs[i][1], 1))
-		"""
-		#strikeText = str(f'{round((abs(strike[8] - strike[10])), 2)}')		 #Call side has 2/3 value of Puts!!!  Could be used to determine SPX Price
-		#strikeText = str(f'{round((strike[8]), 2)} - {round((strike[10]), 2)}')		
+		if strike[dp.GEX_STRIKE] == maxPain : strikeColor = "#F00"
+		if strike[dp.GEX_STRIKE] == zeroG : strikeColor = "orange"
+		strikeText = str(round((strike[dp.GEX_STRIKE]), 2))	
 		drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)
 		
-		if strike[2] != 0 : drawRect(draw, 0, x, ((strike[2] / maxTotalOI) * 65), x + 12, color="#00F", border='')
-		if strike[1] != 0 : drawRect(draw, 215 - ((abs(strike[1]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[1] > -1) else "#f00"), border='')
-		if (strike[3] != 0) : drawRect(draw, 399 - ((strike[3] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
-		if (strike[5] != 0) : drawRect(draw, 401, x, 401 - ((strike[5] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
+		if strike[dp.GEX_TOTAL_OI] != 0 : drawRect(draw, 0, x, ((strike[dp.GEX_TOTAL_OI] / maxTotalOI) * 65), x + 12, color="#00F", border='')
+		callVolume = strike[dp.GEX_CALL_VOLUME]
+		putVolume = strike[dp.GEX_PUT_VOLUME]
+		totalVolume = callVolume + putVolume
+		if callVolume > strike[dp.GEX_TOTAL_OI] : callVolume = strike[dp.GEX_TOTAL_OI]
+		if callVolume != 0 : drawRect(draw, 0, x, ((callVolume / maxTotalOI) * 65), x + 2, color="#0F0", border='')
+		if putVolume > strike[dp.GEX_TOTAL_OI] : putVolume = strike[dp.GEX_TOTAL_OI]
+		if putVolume != 0 : drawRect(draw, 0, x+3, ((putVolume / maxTotalOI) * 65), x + 5, color="#F00", border='')
+	
+		if strike[dp.GEX_TOTAL_GEX] != 0 : drawRect(draw, 215 - ((abs(strike[dp.GEX_TOTAL_GEX]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[dp.GEX_TOTAL_GEX] > -1) else "#f00"), border='')
+		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
+		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
 		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
 		

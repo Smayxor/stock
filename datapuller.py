@@ -1,5 +1,6 @@
 import datetime
 import ujson as json #usjon is json written in C
+from threading import Timer
 import requests
 import os
 import heapq
@@ -16,17 +17,27 @@ INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 #0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
+class RepeatTimer(Timer):
+	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
+		Timer.__init__(self, interval, callback, args, kwds)
+		self.daemon = daemon  #Solves runtime error using tkinter from another thread
+		
+	def run(self):#, daemon=True):
+		#self.interval = 60
+		while not self.finished.wait(self.interval):
+			self.function(*self.args, **self.kwargs)
+
 def findKeyLevels(strikes, price, targets=False):
 	if targets :
-		priceLower = price - (price % 50) - 70
-		priceUpper = priceLower + 160
 
-		nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
-		#print( [x[GEX_STRIKE] for x in nearStrikes] )
-		callSide = max( nearStrikes, key=lambda i: i[GEX_CALL_VOLUME] - i[GEX_PUT_VOLUME] )
-		putSide = max( nearStrikes, key=lambda i: i[GEX_PUT_VOLUME] - i[GEX_CALL_VOLUME] )
-	
-		return (callSide, putSide)
+		callContractList = [x for x in strikes if x[GEX_STRIKE] > price and x[GEX_CALL_BID] > 0.3]
+		putContractList = [x for x in strikes if x[GEX_STRIKE] < price and x[GEX_PUT_BID] > 0.3]
+		#for x in putContractList: print( x[GEX_STRIKE], " : ", x[GEX_PUT_OI], " - ", x[GEX_CALL_OI], " = ", x[GEX_PUT_OI] - x[GEX_CALL_OI] )		
+		#callSide = max( callContractList, key=lambda i: i[GEX_CALL_OI] - i[GEX_PUT_OI])
+		#putSide = max( putContractList, key=lambda i: i[GEX_PUT_OI] - i[GEX_CALL_OI])
+		
+		#print(callSide, putSide)
+		return (callContractList, putContractList)
 	else :
 		keyLevels = []
 		def checkIfExists( strike ):

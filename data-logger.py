@@ -37,13 +37,14 @@ def appendData():
 		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-		SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
-
+		#SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
+		SPX0DTEdayData[getStrTime()] = gex
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-			SPX1DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
+			SPX1DTEdayData[getStrTime()] = gex
+			#SPX1DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
 		skip1DTE = (skip1DTE + 1) % 15		
 		
 		save0dte()

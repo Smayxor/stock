@@ -30,28 +30,28 @@ def save0dte():
 		json.dump(SPX1DTEdayData, f)
 
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE
 	try:
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
 		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-		SPX0DTEdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+		SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
 
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-			SPX1DTEdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+			SPX1DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
 		skip1DTE = (skip1DTE + 1) % 15		
-
+		
 		save0dte()
 	except:
 		print('An error occoured')
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE
 	state = dp.getMarketHoursToday()
 	print( state )
 	if 'closed' in state['state'] : #Seems to not apply to sunday!!!
@@ -85,7 +85,9 @@ def endDay():
 	#savePriceChart('TLT')
 	#print('Ticker price charts saved.  EOD')
 
-def getStrTime(): return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
+def getStrTime(): 
+	now = datetime.datetime.now()
+	return (now.hour * 100) + now.minute + (now.second * 0.01) #return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
 
 def timerThread():
 	global blnRun
@@ -98,8 +100,8 @@ schedule.every().day.at("13:00").do(endDay)
 
 timer = dp.RepeatTimer(20, timerThread, daemon=True)
 timer.start()
-now = datetime.datetime.now()
-tmp = (now.hour * 100) + now.minute
+#now = datetime.datetime.now()
+tmp = getStrTime()#(now.hour * 100) + now.minute
 if (tmp > 430) and (tmp < 1300): 
 	print('Late start to the day')
 	startDay()

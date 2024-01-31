@@ -16,6 +16,7 @@ timer =  None
 SPX0DTEdayData = {}
 SPX1DTEdayData = {}
 SPXopenPrice = -1 #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
+skip1DTE = 0
 
 def save0dte():
 	global SPX0DTEdayData, SPX1DTEdayData
@@ -38,10 +39,12 @@ def appendData():
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		SPX0DTEdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
 
-		options = dp.getOptionsChain("SPX", 1)
-		gex = dp.getGEX( options[1] )
-		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-		SPX1DTEdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+		if skip1DTE == 0:
+			options = dp.getOptionsChain("SPX", 1)
+			gex = dp.getGEX( options[1] )
+			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
+			SPX1DTEdayData[f'{getStrTime()}'] = {**{'price': price, 'data': gex}}
+		skip1DTE = (skip1DTE + 1) % 15		
 
 		save0dte()
 	except:
@@ -61,6 +64,7 @@ def startDay():
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1
 	SPX1DTEdayData = {}
+	skip1DTE = 0
 	print( "Day started" )
 	
 def endDay():

@@ -99,6 +99,18 @@ def timerThread():
 	except:
 		print( 'Error ', dte )
 		
+		
+def on_strike_click(event):
+	global vcStrikes
+	if event.y < 73: 
+		e3Text.set('all')
+		return
+	index = (685 - event.y) // 20
+	endText = 'c' if event.x < 67 else 'p'
+	text = str(vcStrikes[index].Strike).split('.')[0] + endText
+	if endText == 'c' : e3Text.set(text)
+	else: e4Text.set(text)
+
 def initVChart(strikes, ticker):
 	global vPrice, vCallGEX, vPutGEX, vcStrikes
 	vcanvas.delete('all')
@@ -113,7 +125,9 @@ def initVChart(strikes, ticker):
 	#print('init 2')
 	y = 680
 	for strike in strikes:
-		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=str(round((strike[0]), 2)) )
+		txt = str(round((strike[0]), 2))
+		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=txt, tag=txt )
+		vcanvas.tag_bind(txt, '<Button-1>', on_strike_click)
 		canvasCall = vcanvas.create_rectangle(0, y-10, 50, y + 10, fill='green')
 		canvasCallVol = vcanvas.create_rectangle(0, y-10, 100, y, fill='blue')
 
@@ -125,6 +139,9 @@ def initVChart(strikes, ticker):
 		
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 20
+		
+	allTarget = vcanvas.create_text( 70, y, fill='white', text='Show-All', tag='Show-All' )
+	vcanvas.tag_bind('Show-All', '<Button-1>', on_strike_click)
 	#print('init 3')
 	refreshVCanvas(strikes = strikes)
 	#print('init done')
@@ -181,7 +198,7 @@ def on_closing():
 	win.destroy()
 
 win = tk.Tk()
-win.geometry(str(1900) + "x" + str(IMG_H + 45))
+win.geometry(str(2200) + "x" + str(IMG_H + 45))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
 e1 = tk.Entry(win, width=6)
@@ -198,13 +215,15 @@ e2 = tk.Entry(win, width=4)
 e2.place(x=100, y=0)
 e2.insert(0, '0')
 
-e3 = tk.Entry(win, width=8)
+e3Text = tk.StringVar() 
+e3Text.set("all") 
+e3 = tk.Entry(win, width=8, textvariable=e3Text)
 e3.place(x=500, y=0)
-e3.insert(0, 'all')
 
-e4 = tk.Entry(win, width=8)
+e4Text = tk.StringVar() 
+e4Text.set("4850p")
+e4 = tk.Entry(win, width=8, textvariable=e4Text)
 e4.place(x=555, y=0)
-e4.insert(0, '4850p')
 
 btnFetch = tk.Button(win, text="Fetch", command=clickButton, width=5)
 btnFetch.place(x=652, y=0)

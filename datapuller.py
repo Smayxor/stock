@@ -73,9 +73,13 @@ def getExpirationDate(ticker, dte):
 	return result
 
 def getOptionsChain(ticker, dte):
+	#print( f'Fetching {dte} on {ticker}')
 	expDate = getExpirationDate(ticker, dte)
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
-	options = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER ).json()['options']['option']
+	response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
+	#print( response.status_code )
+	options = response.json()['options']['option']
+	
 	return (expDate, options)
 
 def getMultipleDTEOptionChain(ticker, days):

@@ -7,7 +7,7 @@ import time
 import math
 
 blnRun = True
-IMG_H = 1000
+IMG_H = 700
 vPrice = 0
 vcStrikes = []
 lastPriceIndex = 0
@@ -18,7 +18,9 @@ lowPrice = 0
 priceRange = 0
 scale = 0
 ticker = 'SPX'
-SCANVAS_HEIGHT = 300
+blnReset = True
+fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
+fileToday = fileList[-1]
 
 class CanvasItem():
 	Strike = 0
@@ -40,7 +42,7 @@ class CanvasItem():
 		self.Y = y
 		self.Strike = strike
 		self.strikeText = strikeText
-blnReset = True
+
 def clickButton():
 	global blnReset
 	blnReset = True
@@ -50,47 +52,50 @@ def triggerReset():
 	blnReset = False
 	ticker = e1.get().upper()
 	
-	options = dp.getOptionsChain(ticker, 0)
-	gexList = dp.getGEX(options[1])
-
-	filename = dc.drawGEXChart(ticker, 30, dte=0, strikes=gexList, expDate=options[0]) #function needs optional parameter to pass gexdata in
-	image = Image.open("./" + filename)
-	tk_image = ImageTk.PhotoImage(image)
-	canvas.configure(image=tk_image)
-	canvas.image = tk_image
-
-	options = dp.getOptionsChain(ticker, 1)
-	gexList = dp.getGEX(options[1])
-
-	initVChart( gexList, ticker )
-	loadStrikeChart()
-	
-def loadStrikeChart():
 	try:
-		fileList = [x for x in dp.pullLogFileList() if ((ticker=='SPX') ^ ('SPY' in x))]
-		file = fileList[-1]
-		gexData = dp.pullLogFile(file)
-		filename = dc.drawPriceChart(ticker, file, gexData, [e3.get()])
+		gexData = dp.pullLogFile(fileToday)
+		gexList = list(gexData.values())[-1]
+		#print(1)
+		filename = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexList, expDate=0, targets=True) #function needs optional parameter to pass gexdata in
+		#print(2)
+		image = Image.open("./" + filename)
+		tk_image = ImageTk.PhotoImage(image)
+		canvas.configure(image=tk_image)
+		canvas.image = tk_image
+		#print(3)
+		initVChart( gexList, "SPX" )
+		#print(4)
+		filename = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()])
 		if 'error' in filename: return
 		image = Image.open("./" + filename)
 		tk_image = ImageTk.PhotoImage(image)
 		strikecanvas.configure(image=tk_image)
 		strikecanvas.image = tk_image
-	except:
-		pass
+	except Exception as error:
+		print("An exception occurred:", error)
 
 def timerThread():
 	if blnReset: triggerReset()
 	dte = e2.get()
 	if not dte.isnumeric(): dte = 0
 	try:
-		options = dp.getOptionsChain(ticker, int(dte))
-		gexList = dp.getGEX(options[1])
+		#options = dp.getOptionsChain(ticker, int(dte))
+		#gexList = dp.getGEX(options[1])
+		gexData = dp.pullLogFile(fileToday)
+		gexList = list(gexData.values())[-1]
+		#print('Timer Thread 1')
 		refreshVCanvas(strikes=gexList)
-		loadStrikeChart()	
+		#print('Timer Thread 2')
 
-		price = dp.getPrice( ticker, gexList, options[0] )
+		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
+
+		filename = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()])
+		if 'error' in filename: return
+		image = Image.open("./" + filename)
+		tk_image = ImageTk.PhotoImage(image)
+		strikecanvas.configure(image=tk_image)
+		strikecanvas.image = tk_image
 	except:
 		print( 'Error ', dte )
 		
@@ -100,9 +105,12 @@ def initVChart(strikes, ticker):
 	del vcStrikes
 	vcStrikes = []
 	firstStrike = strikes[0]
-	price = firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)  #dp.getQuote(ticker)
+	#print('init start')
+	price = dp.getPrice("SPX", strikes) #firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)  #dp.getQuote(ticker)
 	vPrice = price
+	#print('init 1')
 	strikes = dp.shrinkToCount(strikes, price, 30)
+	#print('init 2')
 	y = 680
 	for strike in strikes:
 		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=str(round((strike[0]), 2)) )
@@ -117,75 +125,12 @@ def initVChart(strikes, ticker):
 		
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 20
+	#print('init 3')
 	refreshVCanvas(strikes = strikes)
-
-	global previousClose, averageRange, highPrice, lowPrice, priceRange, scale, lastPriceIndex
-	price = dp.getQuote(ticker)
-	atr = dp.getATR(ticker)
-	previousClose = atr[2]
-	averageRange = atr[0]
-	atrs = atr[1]
-
-	previousClose = round(previousClose, 2)
-	averageRange = round(averageRange, 2)
-	highPrice = previousClose + (averageRange * 1.1)
-	lowPrice = previousClose - (averageRange * 1.1)
-	priceRange = highPrice - lowPrice
-	scale = SCANVAS_HEIGHT / priceRange
-
-	scanvas.delete('all')
-	#pcPoly = scanvas.create_polygon(fill="yellow", *spCoords, width=3)
-	lastPriceIndex = 0
-	refreshPriceChart()#	try:
-#	except: pass
+	#print('init done')
 	
 def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
 
-lastPriceRect, lastPriceLine = None, None
-def refreshPriceChart():
-	global scanvas, lastPriceIndex, lastPriceRect, lastPriceLine
-	#lowestValue = 9999
-	if ticker == 'SPX':
-		candles = dp.getRecentCandles('SPX', 1)
-#		for x in candles:
-#			x['open'] *= dp.SPY2SPXRatio
-#			x['high'] *= dp.SPY2SPXRatio
-#			x['low'] *= dp.SPY2SPXRatio
-#			x['close'] *=  dp.SPY2SPXRatio
-			#lowestValue = min([lowestValue, x['open'], x['high'], x['low'], x['close']])
-	else:
-		candles = dp.getRecentCandles(ticker, 1)
-	#print( lowestValue )
-	#print(f'{len(candles)} Candles Found')
-	def getCandleCoords(candle):
-		o = convertY(candle['open'])
-		c = convertY(candle['close'])
-		h = convertY(candle['high'])
-		l = convertY(candle['low'])
-		colr = 'green' if o >= c  else 'red'
-		if o > c :
-			tmp = c
-			c = o
-			o = tmp
-		o -= 1
-		c += 1
-		return (o, c, h, l, colr)
-	i = 0
-	for candle in candles:
-		if i > lastPriceIndex:
-			x = i * 5
-			coords = getCandleCoords(candle)
-			#print(f'Drawing Candle {coords}')
-			lastPriceRect = scanvas.create_rectangle([x,coords[0], x+5, coords[1]], fill=coords[4])
-			lastPriceLine = scanvas.create_line([x+3,coords[2]-1, x+3, coords[3]+1], fill=coords[4])
-			lastPriceIndex = i
-		i += 1
-
-	candle = candles[-1]
-	x = (i-1) * 5
-	coords = getCandleCoords(candle)
-	scanvas.coords(lastPriceRect, (x,coords[0], x+5, coords[1]))
-	scanvas.coords(lastPriceLine, (x+3,coords[2]-1, x+3, coords[3]+1))
 	
 def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	calcVals = []
@@ -235,51 +180,47 @@ def on_closing():
 	timer.cancel()
 	win.destroy()
 
-class RepeatTimer(Timer):
-	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
-		Timer.__init__(self, interval, callback, args, kwds)
-		self.daemon = daemon  #Solves runtime error using tkinter from another thread
-		
-	def run(self):#, daemon=True):
-		self.interval = 2
-		while not self.finished.wait(self.interval):
-			self.function(*self.args, **self.kwargs)
-	
 win = tk.Tk()
-win.geometry(str(1100) + "x" + str(IMG_H + 45))
+win.geometry(str(1900) + "x" + str(IMG_H + 45))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
-tk.Label(win, text="               Ticker", width=10).grid(row=0, column=0, sticky='W')
 e1 = tk.Entry(win, width=6)
-e1.grid(row=0, column=0, sticky='W')
 e1.insert(0, ticker)
+e1.place(x=2, y=0)
 
-tk.Label(win, text="                 Days", width=10).grid(row=0, column=0)#, sticky='E')
+lblTicker = tk.Label(win, text="Ticker", width=10)
+lblTicker.place(x=30, y=0)
+
+lblDays = tk.Label(win, text="Days", width=10)
+lblDays.place(x=130, y=0)
+
 e2 = tk.Entry(win, width=4)
-e2.grid(row=0, column=0)#, sticky='E')
+e2.place(x=100, y=0)
 e2.insert(0, '0')
 
 e3 = tk.Entry(win, width=8)
-e3.grid(row=0, column=0, sticky='E')
-e3.insert(0, '4900c')
+e3.place(x=500, y=0)
+e3.insert(0, 'all')
 
-tk.Button(win, text="Fetch", command=clickButton, width=5).grid(row=0, column=2, sticky='E')
+e4 = tk.Entry(win, width=8)
+e4.place(x=555, y=0)
+e4.insert(0, '4850p')
+
+btnFetch = tk.Button(win, text="Fetch", command=clickButton, width=5)
+btnFetch.place(x=652, y=0)
 
 canvas = tk.Label()
-canvas.grid(row=1, column=0)#, columnspan=20, rowspan=20)
+canvas.place(x=0, y=40)
 
 vcanvas = tk.Canvas()
-vcanvas.grid(row=1, column=1, columnspan=1)#, rowspan=20)
+vcanvas.place(x=500, y=40)
 vcanvas.configure(width=150, height=700, bg='black')
 
 strikecanvas = tk.Label()
-strikecanvas.grid(row=1, column=2, columnspan=1)
+strikecanvas.place(x=652, y=40)
 
-scanvas = tk.Canvas()
-scanvas.grid(row=2, column=0, columnspan=4)#, rowspan=40)
-scanvas.configure(width=1000, height=SCANVAS_HEIGHT, bg='black')
-
-timer = RepeatTimer(1, timerThread, daemon=True)
+timer = dp.RepeatTimer(20, timerThread, daemon=True)
 timer.start()
+timerThread()
 
 tk.mainloop()

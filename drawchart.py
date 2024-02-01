@@ -39,8 +39,8 @@ def drawRotatedPriceLine(draw, y, color):  #Draws a dashed line
 		draw.line([x, y, x + 4, y], fill=color, width=1)
 		x += 6
 
-def drawText(draw, x, y, txt, color):
-	draw.text((x,y), text=txt, fill=color, font=font)
+def drawText(draw, x, y, txt, color, anchor = "la"):
+	draw.text((x,y), text=txt, fill=color, font=font, anchor=anchor)
 
 def drawRotatedText(img, x, y, txt, color):
 	text_layer = PILImg.new('L', (120, FONT_SIZE))
@@ -55,27 +55,27 @@ def drawPointer(draw, y, color = 'yellow'):
 #function recieves a Tuple Array from datapuller.py
 def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, targets=False):
 	ticker = ticker.upper()
-	
+	#print('a')
 	if strikes == None:
 		optionsChains = dp.getOptionsChain(ticker, dte)
 		expDate = optionsChains[0]
 		strikes = dp.getGEX(optionsChains[1], chartType=chartType)
-	
+	#print('b')
 	#atr = dp.getATR(ticker)
 	#atrs = atr[1]
 	zeroG = dp.calcZeroGEX( strikes )
 	maxPain = dp.calcMaxPain( strikes )
-	
+	#print('c')
 	strikeLen = len( strikes[0] )
 	for strike in strikes:
 		for i in range(strikeLen):
 			if strike[i] == None : print( strike )
-
+	#print('d')
 	callDollars = sum([strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_ASK] for strike in strikes])  # Calc BEFORE shrinking count!!!
 	putDollars = sum([strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_ASK] for strike in strikes])
 	totalCalls = sum([strike[dp.GEX_CALL_OI] for strike in strikes]) 
 	totalPuts = sum([strike[dp.GEX_PUT_OI] for strike in strikes]) 
-
+	#print('e')
 	if price == 0: price = dp.getPrice(ticker, strikes)  #Done BEFORE shrinkToCount
 
 	strikes = dp.shrinkToCount(strikes, price, count)
@@ -90,17 +90,17 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxCallGEX = max(strikes, key=lambda i: i[dp.GEX_CALL_GEX])[dp.GEX_CALL_GEX]
 	maxPutGEX = abs(min(strikes, key=lambda i: i[dp.GEX_PUT_GEX])[dp.GEX_PUT_GEX])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
- 
+	#print('f')
 	keyLevels = []
 	keyLevels = dp.findKeyLevels(strikes, price, targets=targets)
-	if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels]
+	if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500
 	IMG_W += 110
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000")
 	draw = ImageDraw.Draw(img)
-	
+	#print('g')
 	x = IMG_W - 15
 	for strike in strikes :
 		x -= FONT_SIZE - 3
@@ -123,7 +123,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
 		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
-		
+	#print('h')
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")
 	drawText(draw, x=x, y=FONT_SIZE * 1, txt="Calls "+"${:,.2f}".format(callDollars), color="#0f0")
@@ -147,76 +147,116 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	return "stock-chart.png"
 
 def drawPriceChart(ticker, fileName, gexData, userArgs):
-	IMG_W = 400
-	IMG_H = 500 + FONT_SIZE + 5
+	IMG_W = 1200
+	IMG_H = 500 + FONT_SIZE + 15
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
-	txt = fileName.replace('SPY-','').replace('-datalog.json','')
+	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
+	maxPrice, minPrice, priceDif = 1, 1, 1
+	xPlus = 0
+	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5)
+	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
+	
+	if 'all' in userArgs:
+		
+		prices = []
+		firstStrike = gexData[next(iter(gexData))]
+		
+		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.30]
+		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.30]
+		x = 0
+		
+		for t in gexData:
+			minute = float(t)
+			strikes = gexData[t]
+			prices.append( dp.getPrice(ticker, strikes) )
+			for strike in strikes :
+				for c in callTimes:
+					if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= 0.20: c[1] = x
+				for p in putTimes:
+					if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= 0.20: p[1] = x
+			x += 1
+		
+		maxPrice = max( prices )
+		minPrice = min( prices )
+		priceDif = maxPrice - minPrice
+		
+		for x in range(1, len(prices)):
+			prevPrice = prices[x-1]
+			price = prices[x]
+			
+			y1 = spxY( prevPrice )
+			y2 = spxY( price )
+			
+			colr = 'yellow'
+			for c in callTimes:
+				if c[1] == x:
+					colr = 'green'
+					drawText( draw, x, y2, txt=str( c[0] ), color=colr, anchor="rt")
+			for p in putTimes:
+				if p[1] == x:
+					colr = 'red'
+					drawText( draw, x, y2, txt=str( p[0] ), color=colr, anchor="rt")
+
+			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+
+		img.save("price-chart.png")
+		return "price-chart.png"  #Below is normal Option Price Chart
 
 	def strikeExists(strikeVal):
-		for x in gexData[next(iter(gexData))]['data']:
+		for x in gexData[next(iter(gexData))]:
 			#print( x[0], strikeVal )
 			if x[0] == strikeVal: return True
 		return False
 	strikes = []
-
-	#print(2)
+	
 	for arg in userArgs:
 		strikeVal = int(arg[:-1])
 		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
 		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
 	if len(strikes) == 0: return 'error.png'
-
-	prices = [gexData[t]['price'] for t in gexData]
-	maxPrice = max( prices )
-	minPrice = min( prices )
-	priceDif = maxPrice - minPrice
-	if priceDif == 0: priceDif = 1
-	#print(4)
-	def convertY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 2
-	#for i in range(1, len(prices)):
-	#	draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill="yellow", width=1)
-	firstTime = True
 	
-	"""
 	for strike in strikes:
-		cp = dp.GEX_CALL_ASK if strike[1] == 'call' else dp.GEX_PUT_ASK
+		element = dp.GEX_CALL_BID if strike[1] == 'call' else dp.GEX_PUT_BID
 		prices = []
-		
 		for t in gexData:
-			myStrike = [x for x in gexData[t]['data'] if x[dp.GEX_STRIKE] == strike[0]][0]
-			prices.append( myStrike[cp] )
-
-	"""
-	
-	for strike in strikes:
-		index = 0
-		nex = gexData[next(iter(gexData))]['data']
-		for x in range(len(nex)):  #Find the index to the desired strike
-			if nex[x][0] == strike[0]: 
-				index = x
-				break
-		element = dp.GEX_CALL_ASK if strike[1] == 'call' else dp.GEX_PUT_ASK
-		prices = [gexData[t]['data'][index][element] for t in gexData]
+			minute = float(t)
+			for s in gexData[t]:
+				if s[dp.GEX_STRIKE] == strike[0]:
+					#if s[element] == 0 : print( t, strike[0], s )
+					if minute < 614 or minute > 630.5: prices.append( s[element] )
+					#if s[element] == 0: print( minute )
+					continue			
 		
-		if firstTime :
-			maxPrice = max( prices )
-			minPrice = min( prices )
-			priceDif = maxPrice - minPrice
-			if priceDif == 0: priceDif = 1
-			drawRotatedPriceLine(draw, convertY(maxPrice), "green")
-			drawText( draw, 50, 30, txt=str( maxPrice ), color="green")
-			midPrice = (maxPrice + minPrice) / 2
-			drawRotatedPriceLine(draw, convertY(midPrice), "yellow")
-			drawText( draw, 50, 250, txt=str( round((midPrice), 2)), color="yellow")
-			drawRotatedPriceLine(draw, convertY(minPrice), "red")
-			drawText( draw, 50, IMG_H - 30, txt=str( minPrice ), color="red")
-			firstTime = False
 		colr = "green" if strike[1] == 'call' else "red"
+		maxPrice = max( prices )
+		minPrice = min( prices )
+		
 		for i in range(1, len(prices)):
 			draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
 		
+		y = convertY(maxPrice)
+		drawRotatedPriceLine(draw, y, colr)
+		drawText( draw, 300 + xPlus, y, txt=str( maxPrice ), color=colr, anchor="rt")
+		
+		"""midPrice = maxPrice / 2
+		y = convertY( midPrice )
+		drawRotatedPriceLine(draw, y, colr)
+		drawText( draw, 300 + xPlus, y, txt=str( round((midPrice), 2)), color=colr, anchor="rt")"""
+		
+		#minPrice = prices[-1]
+		y = convertY( minPrice )
+		drawRotatedPriceLine(draw, y, colr)
+		drawText( draw, 300 + xPlus, y, txt=str( minPrice ), color=colr, anchor="rb")
+
+		"""y = convertY( 0.20 )
+		drawRotatedPriceLine(draw, y, colr)
+		drawText( draw, 300 + xPlus, y, txt="0.20", color=colr, anchor="rb")"""
+
+		xPlus += 50
+
+
 	img.save("price-chart.png")
 	return "price-chart.png"
 

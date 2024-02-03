@@ -21,6 +21,13 @@ ticker = 'SPX'
 blnReset = True
 fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
 fileToday = fileList[-1]
+pcData = []
+
+pcFloatingX = 0
+pcFloatingY = 0
+pcFloatingText = None
+pcFloatingDot = None
+strikeCanvasImage, pc_tk_image, pc_image = None, None, None
 
 class CanvasItem():
 	Strike = 0
@@ -48,68 +55,86 @@ def clickButton():
 	blnReset = True
 
 def triggerReset():
-	global canvas, ticker, blnReset
+	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
 	blnReset = False
 	ticker = e1.get().upper()
 	
 	try:
 		gexData = dp.pullLogFile(fileToday)
 		gexList = list(gexData.values())[-1]
-		#print(1)
+		
 		filename = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexList, expDate=0, targets=True) #function needs optional parameter to pass gexdata in
-		#print(2)
 		image = Image.open("./" + filename)
-		tk_image = ImageTk.PhotoImage(image)
+		resize_image = image.resize((400,605))
+		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)
 		canvas.image = tk_image
-		#print(3)
+		
 		initVChart( gexList, "SPX" )
-		#print(4)
-		filename = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()])
+	
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True)
+		pcData = tmp[1]
+		filename = tmp[0]
 		if 'error' in filename: return
-		image = Image.open("./" + filename)
-		tk_image = ImageTk.PhotoImage(image)
-		strikecanvas.configure(image=tk_image)
-		strikecanvas.image = tk_image
+		pc_image = Image.open("./" + filename)
+		pc_tk_image = ImageTk.PhotoImage(pc_image)
+		strikecanvas.delete(strikeCanvasImage)
+		strikeCanvasImage = strikecanvas.create_image(1600,800,image=pc_tk_image, anchor=tk.NW)
+		#strikecanvas.configure(width= 2600, height= 2800)
+		#strikecanvas.configure(image=pc_tk_image)
+		#strikecanvas.image = pc_tk_image
+		#pcFloatingText = strikecanvas.create_text( 1400, 0, fill='yellow', text=e3.get(), tag='float' )
+		#pcFloatingDot = strikecanvas.create_oval(1400, 0, 1405, 5, width = 3)
+		#setPCFloat(-1,-1)
 	except Exception as error:
 		print("An exception occurred:", error)
 
 def timerThread():
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, strikeCanvasImage, pc_tk_image, pc_image
 	if blnReset: triggerReset()
 	dte = e2.get()
 	if not dte.isnumeric(): dte = 0
 	try:
-		#options = dp.getOptionsChain(ticker, int(dte))
-		#gexList = dp.getGEX(options[1])
 		gexData = dp.pullLogFile(fileToday)
 		gexList = list(gexData.values())[-1]
-		#print('Timer Thread 1')
 		refreshVCanvas(strikes=gexList)
-		#print('Timer Thread 2')
 
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
 
-		filename = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()])
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True)
+		pcData = tmp[1]
+		filename = tmp[0]
 		if 'error' in filename: return
-		image = Image.open("./" + filename)
-		tk_image = ImageTk.PhotoImage(image)
-		strikecanvas.configure(image=tk_image)
-		strikecanvas.image = tk_image
-	except:
-		print( 'Error ', dte )
-		
-		
+		pc_image = Image.open("./" + filename)
+		pc_tk_image = ImageTk.PhotoImage(pc_image)
+		strikecanvas.delete(strikeCanvasImage)
+		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
+		#strikecanvas.configure(image=pc_tk_image)
+		#strikecanvas.image = pc_tk_image
+	except Exception as error:
+		print( 'Error ', error )
+	
+def setPCFloat(x, y):
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText
+	return
+	if pcFloatingText == None : return
+	if x == -1:
+		firstPCData = pcData[0]
+		x = len(firstPCData)
+
 def on_strike_click(event):
 	global vcStrikes
 	if event.y < 73: 
 		e3Text.set('all')
-		return
-	index = (685 - event.y) // 20
-	endText = 'c' if event.x < 67 else 'p'
-	text = str(vcStrikes[index].Strike).split('.')[0] + endText
-	if endText == 'c' : e3Text.set(text)
-	else: e4Text.set(text)
+	else :
+		index = (685 - event.y) // 20
+		endText = 'c' if event.x < 67 else 'p'
+		text = str(vcStrikes[index].Strike).split('.')[0] + endText
+		if endText == 'c' : e3Text.set(text)
+		else: e4Text.set(text)
+	timerThread()
 
 def initVChart(strikes, ticker):
 	global vPrice, vCallGEX, vPutGEX, vcStrikes
@@ -117,34 +142,29 @@ def initVChart(strikes, ticker):
 	del vcStrikes
 	vcStrikes = []
 	firstStrike = strikes[0]
-	#print('init start')
-	price = dp.getPrice("SPX", strikes) #firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)  #dp.getQuote(ticker)
+	price = dp.getPrice("SPX", strikes) 
 	vPrice = price
-	#print('init 1')
 	strikes = dp.shrinkToCount(strikes, price, 30)
-	#print('init 2')
 	y = 680
 	for strike in strikes:
 		txt = str(round((strike[0]), 2))
-		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=txt, tag=txt )
-		vcanvas.tag_bind(txt, '<Button-1>', on_strike_click)
-		canvasCall = vcanvas.create_rectangle(0, y-10, 50, y + 10, fill='green')
-		canvasCallVol = vcanvas.create_rectangle(0, y-10, 100, y, fill='blue')
+		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=txt, tag='widget' )
+		#vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
+		canvasCall = vcanvas.create_rectangle(0, y-10, 50, y + 10, fill='green', tag='widget')
+		canvasCallVol = vcanvas.create_rectangle(0, y-10, 100, y, fill='blue', tag='widget')
 
-		canvasPut = vcanvas.create_rectangle(90, y-10, 150, y + 10, fill='red')
-		canvasPutVol = vcanvas.create_rectangle(90, y-10, 150, y, fill='yellow')
+		canvasPut = vcanvas.create_rectangle(90, y-10, 150, y + 10, fill='red', tag='widget')
+		canvasPutVol = vcanvas.create_rectangle(90, y-10, 150, y, fill='yellow', tag='widget')
 		
-		canvasCallPrice = vcanvas.create_text(3, y, fill='red', anchor="w", text=str(round((strike[dp.GEX_CALL_BID]), 2)))
-		canvasPutPrice = vcanvas.create_text(130, y, fill='green', anchor="w", text=str(round((strike[dp.GEX_PUT_BID]), 2)))
+		canvasCallPrice = vcanvas.create_text(3, y, fill='red', anchor="w", text=str(round((strike[dp.GEX_CALL_BID]), 2)), tag='widget')
+		canvasPutPrice = vcanvas.create_text(130, y, fill='green', anchor="w", text=str(round((strike[dp.GEX_PUT_BID]), 2)), tag='widget')
 		
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 20
 		
-	allTarget = vcanvas.create_text( 70, y, fill='white', text='Show-All', tag='Show-All' )
-	vcanvas.tag_bind('Show-All', '<Button-1>', on_strike_click)
-	#print('init 3')
+	allTarget = vcanvas.create_text( 70, y, fill='white', text='Show-All', tag='widget' )
+	vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
 	refreshVCanvas(strikes = strikes)
-	#print('init done')
 	
 def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
 
@@ -232,11 +252,12 @@ canvas = tk.Label()
 canvas.place(x=0, y=40)
 
 vcanvas = tk.Canvas()
-vcanvas.place(x=500, y=40)
+vcanvas.place(x=400, y=40)
 vcanvas.configure(width=150, height=700, bg='black')
 
-strikecanvas = tk.Label()
-strikecanvas.place(x=652, y=40)
+strikecanvas = tk.Canvas(win,width= 1500, height=550, bg='black')
+strikecanvas.place(x=552, y=40)
+#strikecanvas.configure(width= 2600, height= 2800)
 
 timer = dp.RepeatTimer(20, timerThread, daemon=True)
 timer.start()

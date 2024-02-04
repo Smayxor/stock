@@ -63,12 +63,12 @@ def save0dte(bln1dte):
 	
 	def saveDataFile(bigData, appendData, myFile):
 		if not os.path.isfile(myFile):
-			print(f'Creating file {myFile} x {len(bigData}')
+			print(f'Creating file {myFile} x {len(bigData)}')
 			with open(myFile,'w') as f: 
 				json.dump(bigData, f)
 		else:
 			fileSize = os.stat(myFile).st_size
-			print(f'Appending file {myFile} x {len(fileSize}')
+			print(f'Appending file {myFile} x {len(fileSize)}')
 			with open(myFile,'r+') as f: 
 				f.seek(fileSize - 1)
 				appendData = "," + json.dumps(appendData)[1:]

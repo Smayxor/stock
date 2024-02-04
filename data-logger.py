@@ -46,29 +46,18 @@ while True:
 'a+' Both read and write to an existing file or create a new file. The file pointer will be at the end of the file.
 """
 
-"""
-fileName = f'./logs/test.json'
-with open(fileName,'w') as f: 
-	json.dump(myData, f)
-
-file_size = os.stat('./logs/test.json').st_size
-with open('./logs/test.json', 'r+') as f:
-	f.seek(file_size - 1)
-	new = "," + json.dumps(appendData)[1:]
-	f.write( new )
-"""
 def save0dte(bln1dte):
 	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData
 	today = str(datetime.date.today()).split(":")[0]
 	
 	def saveDataFile(bigData, appendData, myFile):
 		if not os.path.isfile(myFile):
-			print(f'Creating file {myFile} x {len(bigData)}')
+			#print(f'Creating file {myFile} x {len(bigData)}')
 			with open(myFile,'w') as f: 
 				json.dump(bigData, f)
 		else:
 			fileSize = os.stat(myFile).st_size
-			print(f'Appending file {myFile} x {len(fileSize)}')
+			#print(f'Appending file {myFile} x {fileSize}')
 			with open(myFile,'r+') as f: 
 				f.seek(fileSize - 1)
 				appendData = "," + json.dumps(appendData)[1:]
@@ -76,28 +65,12 @@ def save0dte(bln1dte):
 	
 	fileName = f'./logs/{today}-0dte-datalog.json'
 	saveDataFile( SPX0DTEdayData, SPXLastData, fileName )
-	
-	"""if not os.path.isfile(fileName):
-		with open(fileName,'w') as f: 
-			json.dump(SPX0DTEdayData, f)
-			#    f.seek(1024 * 1024 * 1024) # One GB
-			#	f.write('0')
-	else:
-		fileSize = os.stat(fileName).st_size
-		with open(fileName,'r+') as f: 
-			f.seek(fileSize - 1)
-			appendData = "," + json.dumps(SPXLastData)[1:]
-			f.write( appendData )"""
-	
+
 	if bln1dte :
 		fileName = f'./logs/{today}-1dte-datalog.json'
 		with open(fileName,'w') as f: 
 			json.dump(SPX1DTEdayData, f)
 
-	#with open('text.txt', 'r+') as f:
-	#	f.seek(0, os.SEEK_END)
-	#	f.write("text to add")
-	
 	fileName = f'./logs/last-datalog.json'  #cheating on networking client-server.   the last update is always here
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
@@ -134,8 +107,8 @@ def startDay():
 	if 'closed' in state['state'] : #Seems to not apply to sunday!!!
 		#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
 		print( 'Market Closed Today')
-		#return
-	#if datetime.datetime.now().weekday() > 4 : return
+		return
+	if datetime.datetime.now().weekday() > 4 : return
 	
 	blnRun = True
 	SPX0DTEdayData = {}

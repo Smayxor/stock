@@ -63,10 +63,12 @@ def save0dte(bln1dte):
 	
 	def saveDataFile(bigData, appendData, myFile):
 		if not os.path.isfile(myFile):
+			print(f'Creating file {myFile} x {len(bigData}')
 			with open(myFile,'w') as f: 
 				json.dump(bigData, f)
 		else:
 			fileSize = os.stat(myFile).st_size
+			print(f'Appending file {myFile} x {len(fileSize}')
 			with open(myFile,'r+') as f: 
 				f.seek(fileSize - 1)
 				appendData = "," + json.dumps(appendData)[1:]
@@ -99,7 +101,7 @@ def save0dte(bln1dte):
 	fileName = f'./logs/last-datalog.json'  #cheating on networking client-server.   the last update is always here
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
-save0dte(False)
+
 def appendData():
 	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData
 	try:
@@ -132,8 +134,8 @@ def startDay():
 	if 'closed' in state['state'] : #Seems to not apply to sunday!!!
 		#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
 		print( 'Market Closed Today')
-		return
-	if datetime.datetime.now().weekday() > 4 : return
+		#return
+	#if datetime.datetime.now().weekday() > 4 : return
 	
 	blnRun = True
 	SPX0DTEdayData = {}
@@ -147,7 +149,7 @@ def endDay():
 	if not blnRun : return
 	blnRun = False
 	today = str(datetime.date.today()).split(":")[0]
-	save0dte()
+	#save0dte()
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
 		fileName = f'./pricelogs/{ticker}-{today}-pricelog.json'

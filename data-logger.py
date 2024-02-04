@@ -4,6 +4,7 @@ import requests
 import time
 import schedule
 import datapuller as dp
+import os
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -45,14 +46,47 @@ while True:
 'a+' Both read and write to an existing file or create a new file. The file pointer will be at the end of the file.
 """
 
+"""
+fileName = f'./logs/test.json'
+with open(fileName,'w') as f: 
+	json.dump(myData, f)
 
+file_size = os.stat('./logs/test.json').st_size
+with open('./logs/test.json', 'r+') as f:
+	f.seek(file_size - 1)
+	new = "," + json.dumps(appendData)[1:]
+	f.write( new )
+"""
 def save0dte(bln1dte):
 	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData
 	today = str(datetime.date.today()).split(":")[0]
+	
+	def saveDataFile(bigData, appendData, myFile):
+		if not os.path.isfile(myFile):
+			with open(myFile,'w') as f: 
+				json.dump(bigData, f)
+		else:
+			fileSize = os.stat(myFile).st_size
+			with open(myFile,'r+') as f: 
+				f.seek(fileSize - 1)
+				appendData = "," + json.dumps(appendData)[1:]
+				f.write( appendData )
+	
 	fileName = f'./logs/{today}-0dte-datalog.json'
-	with open(fileName,'w') as f: 
-		json.dump(SPX0DTEdayData, f)
-
+	saveDataFile( SPX0DTEdayData, SPXLastData, fileName )
+	
+	"""if not os.path.isfile(fileName):
+		with open(fileName,'w') as f: 
+			json.dump(SPX0DTEdayData, f)
+			#    f.seek(1024 * 1024 * 1024) # One GB
+			#	f.write('0')
+	else:
+		fileSize = os.stat(fileName).st_size
+		with open(fileName,'r+') as f: 
+			f.seek(fileSize - 1)
+			appendData = "," + json.dumps(SPXLastData)[1:]
+			f.write( appendData )"""
+	
 	if bln1dte :
 		fileName = f'./logs/{today}-1dte-datalog.json'
 		with open(fileName,'w') as f: 
@@ -65,7 +99,7 @@ def save0dte(bln1dte):
 	fileName = f'./logs/last-datalog.json'  #cheating on networking client-server.   the last update is always here
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
-
+save0dte(False)
 def appendData():
 	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData
 	try:

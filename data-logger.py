@@ -15,41 +15,81 @@ timer =  None
 
 SPX0DTEdayData = {}
 SPX1DTEdayData = {}
+SPXLastData = {}
 SPXopenPrice = -1 #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 skip1DTE = 0
 
-def save0dte():
-	global SPX0DTEdayData, SPX1DTEdayData
+
+"""# start of the script   ***** How to cache local file
+# load the current value
+import ast
+status, status_file = False, "state.txt"
+with open(status_file) as stat_file:
+    status = ast.literal_eval(next(stat_file()))
+
+# keep on looping, check against *known value*
+while True:
+    current_status = get_door_status()
+    if current_status != status:  # only update on changes
+        status = current_status  # update internal variable
+        # open for writing overwrites previous value
+        with open(status_file, 'w') as stat_file:
+            stat_file.write(status)"""
+
+"""
+'r' Read only: the default
+'w' Write: Create a new file or overwrite the contents of an existing file.
+'a' Append: Write data to the end of an existing file.
+'r+' Both read and write to an existing file. The file pointer will be at the beginning of the file.
+'w+' Both read and write to a new file or overwrite the contents of an existing file.
+'a+' Both read and write to an existing file or create a new file. The file pointer will be at the end of the file.
+"""
+
+
+def save0dte(bln1dte):
+	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData
 	today = str(datetime.date.today()).split(":")[0]
 	fileName = f'./logs/{today}-0dte-datalog.json'
 	with open(fileName,'w') as f: 
 		json.dump(SPX0DTEdayData, f)
 
-	fileName = f'./logs/{today}-1dte-datalog.json'
+	if bln1dte :
+		fileName = f'./logs/{today}-1dte-datalog.json'
+		with open(fileName,'w') as f: 
+			json.dump(SPX1DTEdayData, f)
+
+	#with open('text.txt', 'r+') as f:
+	#	f.seek(0, os.SEEK_END)
+	#	f.write("text to add")
+	
+	fileName = f'./logs/last-datalog.json'  #cheating on networking client-server.   the last update is always here
 	with open(fileName,'w') as f: 
-		json.dump(SPX1DTEdayData, f)
+		json.dump(SPXLastData, f)
 
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData
 	try:
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
+		strTime = getStrTime()
+		
 		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		#SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
-		SPX0DTEdayData[getStrTime()] = gex
+		SPX0DTEdayData[strTime] = gex
+		SPXLastData = {}
+		SPXLastData[strTime] = gex
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-			SPX1DTEdayData[getStrTime()] = gex
-			#SPX1DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
+			SPX1DTEdayData[strTime] = gex
 		skip1DTE = (skip1DTE + 1) % 15		
 		
-		save0dte()
-	except:
-		print('An error occoured')
+		save0dte(skip1DTE == 0)
+	except Exception as error:
+		print(f'An error occoured: {error}')
 
 def startDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE

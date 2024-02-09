@@ -23,6 +23,13 @@ fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
 fileToday = fileList[-1]
 pcData = []
 
+accountBalance = 0
+unsettledFunds = 0
+openOrders = 'null'
+myPositions = 'null'
+lblBalance = None
+lblOpenOrders = None
+
 pcFloatingX = 0
 pcFloatingY = 0
 pcFloatingText = None
@@ -50,9 +57,73 @@ class CanvasItem():
 		self.Strike = strike
 		self.strikeText = strikeText
 
+def getAccountData(newCon = ""):
+	global accountBalance, unsettledFunds, openOrders, myPositions
+	balance = dp.getAccountBalance()['cash']
+	#{'cash_available': 115.3, 'sweep': 0, 'unsettled_funds': 0}
+	accountBalance = balance['cash_available']
+	unsettledFunds = balance['unsettled_funds']
+	lblBalance.config(text = f'Account Balance ${accountBalance}')
+	
+	openOrders = dp.getOrders() if newCon == "" else newCon
+	if newCon == "" : myPositions = dp.getPositions()
+	#openOrders = dp.getOrders()
+	lblOpenOrders.configure(text=f'Open orders - {openOrders} - Positions - {myPositions}')
+
 def clickButton():
-	global blnReset
-	blnReset = True
+	global accountBalance, unsettledFunds, openOrders, myPositions
+	cp = checkCall.get()
+	strike = e3Text.get()[:3] if cp == 1 else e4Text.get()[:3]
+	strike = float( strike )
+	tradePrice = float(optionPrice.get())
+
+	if myPositions == "null" and openOrders == "null" :
+		options = dp.getOptionsChain('XSP', 0)
+		strikes = dp.getGEX(options[1])
+		element = dp.GEX_CALL_ASK if cp == 1 else dp.GEX_PUT_ASK
+		symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
+		strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - strike))
+		if tradePrice == 0 : tradePrice = strike[element]
+		myCon = dp.placeOptionOrder(strike[symbol], tradePrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui')#, preview="true"
+		print( myCon )
+		getAccountData(myCon)
+	else :
+		#getAccountData()
+		options = dp.getOptionsChain('XSP', 0)
+		strikes = dp.getGEX(options[1])
+		element = dp.GEX_CALL_BID if cp == 1 else dp.GEX_PUT_BID
+		symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
+
+		myCon = [x for x in strikes if x[symbol] == myPositions['position']['symbol']][0]
+		if tradePrice == 0 : tradePrice = myCon[element]
+		#myCon = dp.placeOptionOrder(myPositions['symbol'], myCon[element], ticker="XSP", side="sell_to_close", quantity='1')
+		myCon = dp.placeOptionOrder(myPositions['position']['symbol'], tradePrice, ticker="XSP", side="sell_to_close", quantity='1', type='limit')#, preview="true"
+		print( myCon )	
+		getAccountData(myCon)
+	
+#Buying Order    {'order': {'status': 'ok', 'commission': 0.39, 'cost': 6.39, 'fees': 0, 'symbol': 'XSP', 'quantity': 1, 'side': 'buy_to_open', 'type': 'limit', 'duration': 'day', 'result': True, 'price': 0.06, 'order_cost': 6.0, 'margin_change': 0.0, 'option_requirement': 0.0, 'request_date': '2024-02-06T17:49:21.748', 'extended_hours': False, 'option_symbol': 'XSP240206C00497000', 'class': 'option', 'strategy': 'option', 'day_trades': 1}}
+
+
+#{'errors': {'error': 'Sell order is for more shares than your current long position, please review current position quantity along with open orders for security. '}}
+
+#Closing Order    {'order': {'status': 'ok', 'commission': 0.39, 'cost': -1.61, 'fees': 0, 'symbol': 'XSP', 'quantity': 1, 'side': 'sell_to_close', 'type': 'limit', 'duration': 'day', 'result': True, 'price': 0.02, 'order_cost': -2.0, 'margin_change': 0.0, 'option_requirement': 0.0, 'request_date': '2024-02-06T18:20:58.3', 'extended_hours': False, 'option_symbol': 'XSP240206C00497000', 'class': 'option', 'strategy': 'option', 'day_trades': 1}}
+
+#**************** Place an order
+#options = dp.getOptionsChain('XSP', 0)
+#gexList = dp.getGEX(options[1])
+#putStrike = min(gexList, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 0.04))
+#print( putStrike )
+#myCon = dp.placeOptionOrder(putStrike[dp.GEX_PUT_SYMBOL], 0.04, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
+#{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
+#print(  myCon )
+#Open positions {'position': {'cost_basis': 4.0, 'date_acquired': '2024-01-25T15:52:41.633Z', 'id': xxxx, 'quantity': 1.0, 'symbol': 'XSP240125P00484000'}}
+
+#***************** Close an order
+#myPut = [x for x in gexList if x[dp.GEX_PUT_SYMBOL] == myPosition['symbol']][0]
+#print(f'Close order {myPut}')
+#myCon = dp.placeOptionOrder(myPosition['symbol'], myPut[dp.GEX_PUT_BID], ticker="XSP", side="sell_to_close", quantity='1')
+#print( myCon )
+#{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
 
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
@@ -79,25 +150,25 @@ def triggerReset():
 		if 'error' in filename: return
 		pc_image = Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
-		strikecanvas.delete(strikeCanvasImage)
-		strikeCanvasImage = strikecanvas.create_image(1600,800,image=pc_tk_image, anchor=tk.NW)
-		#strikecanvas.configure(width= 2600, height= 2800)
-		#strikecanvas.configure(image=pc_tk_image)
-		#strikecanvas.image = pc_tk_image
-		#pcFloatingText = strikecanvas.create_text( 1400, 0, fill='yellow', text=e3.get(), tag='float' )
-		#pcFloatingDot = strikecanvas.create_oval(1400, 0, 1405, 5, width = 3)
-		#setPCFloat(-1,-1)
+		strikecanvas.delete('all')
+		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
+		pcFloatingText = strikecanvas.create_text( 515, 100, fill='blue', text=e3.get(), anchor="w", tag='float', font=("Helvetica", 16) )
+		pcFloatingDot = strikecanvas.create_oval(500, 100, 515, 115, fill='blue', width = 3)
+		strikecanvas.bind("<Motion>", strikecanvas_on_mouse_move)
+		setPCFloat(-1,-1)
 	except Exception as error:
 		print("An exception occurred:", error)
 
 def timerThread():
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, strikeCanvasImage, pc_tk_image, pc_image
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image
 	if blnReset: triggerReset()
 	dte = e2.get()
 	if not dte.isnumeric(): dte = 0
 	try:
 		gexData = dp.pullLogFile(fileToday)
 		gexList = list(gexData.values())[-1]
+		#print( gexList ) #***********************************************************
+		
 		refreshVCanvas(strikes=gexList)
 
 		price = dp.getPrice( "SPX", gexList, 0 )
@@ -109,20 +180,41 @@ def timerThread():
 		if 'error' in filename: return
 		pc_image = Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
-		strikecanvas.delete(strikeCanvasImage)
-		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
-		#strikecanvas.configure(image=pc_tk_image)
-		#strikecanvas.image = pc_tk_image
+		strikecanvas.itemconfig(strikeCanvasImage, image=pc_tk_image)
+
 	except Exception as error:
 		print( 'Error ', error )
-	
+
+def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
+		
 def setPCFloat(x, y):
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText
-	return
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
+	
 	if pcFloatingText == None : return
-	if x == -1:
-		firstPCData = pcData[0]
-		x = len(firstPCData)
+	minPrice, maxPrice, difPrice = 0, 0, 0
+
+	all = 'all' in e3Text.get()
+	tops = 0 if (all) or (y < 300) else 1
+
+	def spxY( val ): return 537 - (((val - minPrice) / difPrice) * 500)
+	def convertY( val ): return 537 - ((val / maxPrice) * 250) - 252 + (tops * 250)
+		
+	if x > -1:
+		firstPCData = pcData[tops]
+		mostX = len(firstPCData) - 1
+		if x > mostX : x = mostX
+		maxPrice = max( firstPCData )
+		minPrice = min( firstPCData )
+		difPrice = maxPrice - minPrice
+		
+		if all : y = spxY( firstPCData[x] )
+		else : y = convertY( firstPCData[x] )
+		
+		strikecanvas.coords(pcFloatingText, x, y)
+		strikecanvas.itemconfig(pcFloatingText, text=f'  ${round((firstPCData[x]), 2)}')
+		strikecanvas.coords(pcFloatingDot, x-3, y-3, x+3, y+3)
+		
+	strikecanvas.itemconfig(pcFloatingText, anchor="e" if x > 1200 else "w")
 
 def on_strike_click(event):
 	global vcStrikes
@@ -132,8 +224,14 @@ def on_strike_click(event):
 		index = (685 - event.y) // 20
 		endText = 'c' if event.x < 67 else 'p'
 		text = str(vcStrikes[index].Strike).split('.')[0] + endText
-		if endText == 'c' : e3Text.set(text)
-		else: e4Text.set(text)
+		if endText == 'c' : 
+			e3Text.set(text)
+			checkCall.set(1)
+		else: 
+			e4Text.set(text)
+			checkCall.set(0)
+			if e3Text.get() == 'all' :
+				e3Text.set( str(vcStrikes[index].Strike).split('.')[0] + 'c' )
 	timerThread()
 
 def initVChart(strikes, ticker):
@@ -238,15 +336,35 @@ e2.insert(0, '0')
 e3Text = tk.StringVar() 
 e3Text.set("all") 
 e3 = tk.Entry(win, width=8, textvariable=e3Text)
-e3.place(x=500, y=0)
+e3.place(x=300, y=0)
 
 e4Text = tk.StringVar() 
 e4Text.set("4850p")
 e4 = tk.Entry(win, width=8, textvariable=e4Text)
-e4.place(x=555, y=0)
+e4.place(x=355, y=0)
 
-btnFetch = tk.Button(win, text="Fetch", command=clickButton, width=5)
-btnFetch.place(x=652, y=0)
+btnFetch = tk.Button(win, text="Buy/Sell", command=clickButton, width=8)
+btnFetch.place(x=550, y=0)
+
+checkCall = tk.IntVar()
+cbCall = tk.Checkbutton(win, text='Call',variable=checkCall, onvalue=1, offvalue=0)#, command=print_selection)
+cbCall.place(x=620, y=0)
+checkCall.set(1)
+
+lblBalance = tk.Label(win, text="Account Balance $", width=30, anchor="w")
+lblBalance.place(x = 670, y = 0)
+
+lblOpenOrders = tk.Label(win, text=f'Open orders - {openOrders}', width=300, anchor="w")
+lblOpenOrders.place(x = 820, y = 0)
+
+lblOptionPrice = tk.Label(win, text=f'Trade Price $', width=12, anchor="w")
+lblOptionPrice.place(x = 400, y = 0)
+optionPrice = tk.StringVar() 
+optionPrice.set("0.10")
+e5 = tk.Entry(win, width=4, textvariable=optionPrice)
+e5.place(x=475, y=0)
+
+getAccountData()
 
 canvas = tk.Label()
 canvas.place(x=0, y=40)
@@ -259,8 +377,22 @@ strikecanvas = tk.Canvas(win,width= 1500, height=550, bg='black')
 strikecanvas.place(x=552, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
 
-timer = dp.RepeatTimer(20, timerThread, daemon=True)
+timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
 timerThread()
 
 tk.mainloop()
+"""
+rectLayer = Image.new("RGBA", self.backgroundImage.size)
+rectDraw = ImageDraw.Draw(rectLayer)
+rectDraw.rectangle([start, end], fill="#00000080")
+rectDraw.line((x0, y0, x1, y0, x1, y1, x0, y1, x0, y0), fill="#ffffff", width=1)
+print("drawing: ", time() - t)
+t = time()
+
+displayImage = Image.alpha_composite(self.backgroundImage, self.linesLayer)
+displayImage.alpha_composite(rectLayer, (0, 0), (0, 0))
+print("image blend: ", time() - t)
+t = time()
+
+self.photoImage = ImageTk.PhotoImage(displayImage)"""

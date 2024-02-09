@@ -233,6 +233,11 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	if chartType == CHART_HEATMAP:
 		fn = dc.drawHeatMap(ticker, count, dte)
 	else:
+		fn = ""
+		#if ticker == "SPX" and dte == 0 and chart == "R" : # Pull the data from PC Server,  needs to check if server is even available
+		#	gexData = dp.pullLogFile("SPX")
+		#	fn = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexData, expDate=0, targets=True)
+		#else:
 		fn = dc.drawGEXChart(ticker, count, dte, getChartType(chart))
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
@@ -432,15 +437,9 @@ async def pc(ctx, *args):
 		if 'help' in args[0] :#or len(args) < 3: 
 			await ctx.send( '}pc Options Price Chart.\rSimply type =pc SPY/SPX day strikec or strikep.\r=pc SPX 11-06 4450c 4425p 4500c\rYou can also type =list to get a list of available days' )
 			return
-		ticker = 'SPX' if args[0].upper() == 'SPX' else 'SPY'
-		fileList = [x for x in dp.pullLogFileList() if ((ticker=='SPX') ^ ('SPY' in x))]
-		
-		if args[1].replace('-', '').isnumeric() : 
-			file = [x for x in fileList if args[1] in x][0]
-			args = args[2:]
-		else : 
-			file = fileList[-1]
-			args = args[1:]
+		ticker = 'SPX' #if args[0].upper() == 'SPX' else 'SPY'
+		fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
+		file = fileList[-1]
 		
 		gexData = dp.pullLogFile(file)
 		chart = dc.drawPriceChart( ticker, file, gexData, args )

@@ -146,21 +146,23 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPriceChart(ticker, fileName, gexData, userArgs):
-	IMG_W = 1200
+def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
+	IMG_W = 1500
 	IMG_H = 500 + FONT_SIZE + 15
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
 	maxPrice, minPrice, priceDif = 1, 1, 1
+	openTimeIndex = 0
 	xPlus = 0
+	allPrices = []
 	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5)
 	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
 	
 	if 'all' in userArgs:
-		
 		prices = []
+		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
 		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.30]
@@ -170,13 +172,15 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 		for t in gexData:
 			minute = float(t)
 			strikes = gexData[t]
-			prices.append( dp.getPrice(ticker, strikes) )
-			for strike in strikes :
-				for c in callTimes:
-					if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= 0.20: c[1] = x
-				for p in putTimes:
-					if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= 0.20: p[1] = x
-			x += 1
+			if minute < 614 or minute > 630.5: 
+				prices.append( dp.getPrice(ticker, strikes) )
+				for strike in strikes :
+					for c in callTimes:
+						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= 0.25: c[1] = x
+					for p in putTimes:
+						if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= 0.25: p[1] = x
+				x += 1
+			else : openTimeIndex = len(prices)
 		
 		maxPrice = max( prices )
 		minPrice = min( prices )
@@ -193,16 +197,31 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 			for c in callTimes:
 				if c[1] == x:
 					colr = 'green'
+					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
 					drawText( draw, x, y2, txt=str( c[0] ), color=colr, anchor="rt")
 			for p in putTimes:
 				if p[1] == x:
 					colr = 'red'
+					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
 					drawText( draw, x, y2, txt=str( p[0] ), color=colr, anchor="rt")
 
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+			
+			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
+
+		x = 0
+		y = FONT_SIZE + 15
+		y2 = IMG_H - 2
+		while x < 1500:
+			draw.line( [x, y, x+2, y], fill="green", width=1)
+			draw.line( [x, y2, x+2, y2], fill="red", width=1)
+			x += 5
+		drawText( draw, 1300, y, txt=str( maxPrice ), color="green", anchor="rt")
+		drawText( draw, 1300, y2, txt=str( minPrice ), color="red", anchor="rb")
 
 		img.save("price-chart.png")
-		return "price-chart.png"  #Below is normal Option Price Chart
+		if includePrices : return ("price-chart.png", allPrices)
+		else : return "price-chart.png"  #Below is normal Option Price Chart
 
 	def strikeExists(strikeVal):
 		for x in gexData[next(iter(gexData))]:
@@ -216,16 +235,18 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
 		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
 	if len(strikes) == 0: return 'error.png'
-	
+
 	for strike in strikes:
 		element = dp.GEX_CALL_BID if strike[1] == 'call' else dp.GEX_PUT_BID
 		prices = []
+		allPrices.append( prices )
 		for t in gexData:
 			minute = float(t)
 			for s in gexData[t]:
 				if s[dp.GEX_STRIKE] == strike[0]:
 					#if s[element] == 0 : print( t, strike[0], s )
 					if minute < 614 or minute > 630.5: prices.append( s[element] )
+					else : openTimeIndex = len(prices)
 					#if s[element] == 0: print( minute )
 					continue			
 		
@@ -235,17 +256,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 		
 		for i in range(1, len(prices)):
 			draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
+			if i == openTimeIndex : draw.line([i, 50, i, 500], fill="purple", width=1)
 		
 		y = convertY(maxPrice)
 		drawRotatedPriceLine(draw, y, colr)
 		drawText( draw, 300 + xPlus, y, txt=str( maxPrice ), color=colr, anchor="rt")
 		
-		"""midPrice = maxPrice / 2
-		y = convertY( midPrice )
-		drawRotatedPriceLine(draw, y, colr)
-		drawText( draw, 300 + xPlus, y, txt=str( round((midPrice), 2)), color=colr, anchor="rt")"""
-		
-		#minPrice = prices[-1]
 		y = convertY( minPrice )
 		drawRotatedPriceLine(draw, y, colr)
 		drawText( draw, 300 + xPlus, y, txt=str( minPrice ), color=colr, anchor="rb")
@@ -256,9 +272,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs):
 
 		xPlus += 50
 
-
 	img.save("price-chart.png")
-	return "price-chart.png"
+	if includePrices : return ("price-chart.png", allPrices)
+	else : return "price-chart.png"
 
 def drawHeatMap(ticker, strikeCount, dayTotal): #Works on any ticker, doesnt use historical data
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)

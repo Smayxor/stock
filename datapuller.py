@@ -330,12 +330,48 @@ def loadPastDTE(daysAhead):
 
 #Running on data-logger.py machine --> python3 -m http.server 8080
 #Using a Windows Shortcut  C:\Windows\System32\cmd.com /c "PATH\python3 -m http.server 8080"
+#Switched to using HFS File Server
 def pullLogFileList():
-	response = str(requests.get('http://192.168.1.254:8080').content).split('<a href="', 1)[1].split('<a href="')
-	return [tmp.split('">')[0] for tmp in response]
+	""" # For HFS File Server
+	response = str(requests.get('http://192.168.1.254:8080/logs/').content)
+	response = response.split('<a href="')
+	result = []
+	for r in response:
+		if 'datalog.json"><img src="/' in r: 
+			tmp = r.split('datalog.json')[0] + "datalog.json"
+			result.append(tmp)
+	return result#[tmp.split('">')[0] for tmp in response]
+	"""
+	# For python3 -m http.server
+	response = str(requests.get('http://192.168.1.254:8080').content).split('-datalog.json">')
+	del response[0]
+	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
+	#print( result )
+	return result
 	
+lastFileName = ""
+lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
 def pullLogFile(fileName):
-	return requests.get(f'http://192.168.1.254:8080/{fileName}').json()
+	global lastFileName, lastFileContents
+	url = f'http://192.168.1.254:8080/{fileName}'
+	urlLast = f'http://192.168.1.254:8080/last-datalog.json'
+	#url = f'http://192.168.1.254:8080/logs/{fileName}'
+	try:
+		if lastFileName == fileName or fileName == "SPX":
+			tmp = requests.get(urlLast)
+			if tmp.status_code == 404 : return lastFileContents
+			tmp = tmp.json()
+			if fileName == "SPX" : return tmp[next(iter(tmp))]
+			lastFileContents.update( tmp )
+			return lastFileContents
+		else :
+			lastFileName = fileName
+			tmp = requests.get(url)
+			tmp = tmp.json()
+			lastFileContents = tmp
+	except Exception as error:
+		print(f'pullLogFile Error : {error}')
+	return lastFileContents
 
 #************************************* Placing orders ************************************************
 def getAccountBalance():
@@ -357,8 +393,8 @@ def modifyOrder(orderID, type, duration, price, stop):
 	param = {'type': type, 'duration': duration, 'price': price, 'stop': stop}
 	return requests.put(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', data=param, headers=TRADIER_HEADER)
 
-def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test'):
-	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'tag': tag}
+def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test', preview='false'):
+	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'tag': tag, 'preview': preview}
 	response = requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER)
 	print(response.status_code)
 	return response.json()

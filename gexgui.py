@@ -133,7 +133,7 @@ def triggerReset():
 	
 	try:
 		gexData = dp.pullLogFile(fileToday)
-		gexList = list(gexData.values())[-1]
+		gexList = list(gexData.values())[0]#[-1]
 		
 		filename = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexList, expDate=0, targets=True) #function needs optional parameter to pass gexdata in
 		image = Image.open("./" + filename)
@@ -153,7 +153,7 @@ def triggerReset():
 		strikecanvas.delete('all')
 		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
 		pcFloatingText = strikecanvas.create_text( 515, 100, fill='blue', text=e3.get(), anchor="w", tag='float', font=("Helvetica", 16) )
-		pcFloatingDot = strikecanvas.create_oval(500, 100, 515, 115, fill='blue', width = 3)
+		pcFloatingDot = strikecanvas.create_line(500, 100, 515, 115, fill='blue', width = 3, dash=(1,3))
 		strikecanvas.bind("<Motion>", strikecanvas_on_mouse_move)
 		setPCFloat(-1,-1)
 	except Exception as error:
@@ -194,25 +194,38 @@ def setPCFloat(x, y):
 	minPrice, maxPrice, difPrice = 0, 0, 0
 
 	all = 'all' in e3Text.get()
-	tops = 0 if (all) or (y < 300) else 1
+	tops = 0 #if (all) or (y < 300) else 1
 
 	def spxY( val ): return 537 - (((val - minPrice) / difPrice) * 500)
 	def convertY( val ): return 537 - ((val / maxPrice) * 250) - 252 + (tops * 250)
 		
 	if x > -1:
-		firstPCData = pcData[tops]
+		firstPCData = pcData[0]#pcData[tops]
 		mostX = len(firstPCData) - 1
 		if x > mostX : x = mostX
 		maxPrice = max( firstPCData )
 		minPrice = min( firstPCData )
 		difPrice = maxPrice - minPrice
+		y2 = 0
+		txt = f'  ${round((firstPCData[x]), 2)} '
+		if all : 
+			y = spxY( firstPCData[x] ) - 5
+			y2 = y + 10
+		else : 
+			#y = convertY( firstPCData[x] )
+			y = convertY( firstPCData[x] )
+			tops = 1
+			firstPCData = pcData[1]
+			maxPrice = max( firstPCData )
+			minPrice = min( firstPCData )
+			difPrice = maxPrice - minPrice
+			y2 = convertY( firstPCData[x] )
+			txt += f'\n  ${round((firstPCData[x]), 2)} '
 		
-		if all : y = spxY( firstPCData[x] )
-		else : y = convertY( firstPCData[x] )
-		
+		strikecanvas.coords(pcFloatingDot, x, y, x, y2)
+		if not all : y = 280
 		strikecanvas.coords(pcFloatingText, x, y)
-		strikecanvas.itemconfig(pcFloatingText, text=f'  ${round((firstPCData[x]), 2)}')
-		strikecanvas.coords(pcFloatingDot, x-3, y-3, x+3, y+3)
+		strikecanvas.itemconfig(pcFloatingText, text=txt)
 		
 	strikecanvas.itemconfig(pcFloatingText, anchor="e" if x > 1200 else "w")
 

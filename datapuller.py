@@ -29,14 +29,31 @@ class RepeatTimer(Timer):
 
 def findKeyLevels(strikes, price, targets=False):
 	if targets :
-
+		"""
 		callContractList = [x for x in strikes if x[GEX_STRIKE] > price and x[GEX_CALL_BID] > 0.3]
 		putContractList = [x for x in strikes if x[GEX_STRIKE] < price and x[GEX_PUT_BID] > 0.3]
-		#for x in putContractList: print( x[GEX_STRIKE], " : ", x[GEX_PUT_OI], " - ", x[GEX_CALL_OI], " = ", x[GEX_PUT_OI] - x[GEX_CALL_OI] )		
-		#callSide = max( callContractList, key=lambda i: i[GEX_CALL_OI] - i[GEX_PUT_OI])
-		#putSide = max( putContractList, key=lambda i: i[GEX_PUT_OI] - i[GEX_CALL_OI])
-		
-		#print(callSide, putSide)
+
+		mostCallGEX = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_GEX])
+		mostCallOI = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_OI])
+		mostCallVolume = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_VOLUME])
+
+		mostPutGEX = heapq.nlargest( 3, putContractList, key = lambda i: -i[GEX_PUT_GEX])
+		mostPutOI = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_OI])
+		mostPutVolume = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_VOLUME])
+
+		#callContractList = mostCallOI + [i for i in mostCallVolume if i not in mostCallOI]
+		#putContractList = mostPutOI + [i for i in mostPutVolume if i not in mostPutOI]
+		"""
+		callContractList = heapq.nlargest( 5, strikes, key = lambda i: i[GEX_CALL_GEX])
+		putContractList = heapq.nlargest( 5, strikes, key = lambda i: -i[GEX_PUT_GEX])
+
+		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])
+		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])
+
+
+		#print(f'Calls {[x[GEX_STRIKE] for x in callContractList]}')
+		#print(f'Puts {[x[GEX_STRIKE] for x in putContractList]}')
+
 		return (callContractList, putContractList)
 	else :
 		keyLevels = []

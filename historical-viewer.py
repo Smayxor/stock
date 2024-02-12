@@ -9,7 +9,7 @@ import ujson as json #usjon is json written in C
 
 ticker = "SPX"
 allFiles = dp.pullLogFileList()
-fileList = [x for x in allFiles if ((ticker=='SPX') ^ ('SPY' in x))]
+fileList = [x for x in allFiles if '0dte' in x]
 fileList.sort()
 
 lastFileIndex = len( fileList ) -1
@@ -38,31 +38,38 @@ def loadDaysData(setTarget=False):
 	day = fileList[fileIndex].replace('-datalog.json','').replace('SPY-','')
 
 	openTime = next(iter(gexData))
-	firstStrike = gexData[openTime]['data']
+	firstStrike = gexData[openTime]
 	openPrice = dp.getPrice(ticker, firstStrike)
-	strikes = gexData[openTime]['data']
+	strikes = gexData[openTime]
 
 	fileName = dc.drawGEXChart(ticker=ticker, count=40, dte=0, strikes=strikes, price=openPrice, expDate=day, targets=True) 
 	gex_image = ImageTk.PhotoImage(Image.open("./" + fileName))
 	lGEX.configure(image=gex_image)
 	
 	targets = dp.findKeyLevels(firstStrike, openPrice, targets=True)
-	if setTarget : entry_text.set( f'{targets[0][dp.GEX_STRIKE]}c' )
-		
+	if setTarget : entry_text.set( f'{targets[0][0][dp.GEX_STRIKE]}c' )
+	
+	#callContractList = [[x[dp.GEX_STRIKE], 0] for x in firstStrike if x[dp.GEX_STRIKE] == targets[0][dp.GEX_STRIKE]]
+	#putContractList = [[x[dp.GEX_STRIKE], 0] for x in firstStrike if x[dp.GEX_STRIKE] == targets[1][dp.GEX_STRIKE]]
+	callContractList = [[x[dp.GEX_STRIKE], 0] for x in targets[0]]
+	putContractList = [[x[dp.GEX_STRIKE], 0] for x in targets[1]]
+	contractTime = [t for t in gexData] # so i can have a simple index instead of timestamp
+
 	def findStrike( myStrike, strikeList ):
 		return min(strikeList, key=lambda i: abs(i[dp.GEX_STRIKE] - myStrike))
-		
+
 	args = entry_text.get().split(' ')[0]
-	pcStrike = findStrike( float(args[:-1]), gexData[ next(iter(gexData)) ]['data'] )[dp.GEX_STRIKE]
+	pcStrike = findStrike( float(args[:-1]), gexData[ next(iter(gexData)) ] )[dp.GEX_STRIKE]
 	pcStrikeCP = dp.GEX_CALL_BID if args[-1] == 'c' else dp.GEX_PUT_BID
 	pcStrikeCPVol = dp.GEX_CALL_VOLUME if args[-1] == 'c' else dp.GEX_PUT_VOLUME
 	entry_text.set( str(pcStrike) + args[-1] )
 	
 	candles = []
 	lastVolume = 0
+	pcStrike = max(targets[0], key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_STRIKE]
 	for t in gexData :
 		#timeStamp = t.split(":")
-		strikes = gexData[t]['data']
+		strikes = gexData[t]
 		strike = findStrike( pcStrike, strikes )
 		if pcStrike != strike[dp.GEX_STRIKE]: print('Boom')
 		price = dp.getPrice("SPX", strikes)
@@ -72,9 +79,9 @@ def loadDaysData(setTarget=False):
 	candles2 = []
 	lastVolume2 = 0
 	if targets :
-		pcStrike2 = targets[1][dp.GEX_STRIKE]
+		pcStrike2 = max(targets[1], key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_STRIKE]
 		for t in gexData :
-			strikes = gexData[t]['data']
+			strikes = gexData[t]
 			strike = findStrike( pcStrike2, strikes )
 			if pcStrike2 != strike[dp.GEX_STRIKE]: print('Boom')
 			price = dp.getPrice("SPX", strikes)
@@ -95,8 +102,8 @@ def loadDaysData(setTarget=False):
 	def calcPriceY( y, maxY ): return 450 - (((y - minPrice) / maxY) * 450)
 	
 	for x in range(0, len(candles)):
-		x1 = (x-1) * 2
-		x2 = x * 2
+		x1 = (x-1)
+		x2 = x
 		y1 = calcOptionY(candles[x-1][0], mostOptionPrice)
 		y2 = calcOptionY(candles[x][0], mostOptionPrice)
 		canvas.create_line(x1, y1, x2, y2, fill="green", width=2)
@@ -112,13 +119,50 @@ def loadDaysData(setTarget=False):
 
 		y1 = calcPriceY(candles[x-1][2], priceDif)
 		y2 = calcPriceY(candles[x][2], priceDif)
+		color = 'yellow'
+		txtCall = ''
+		txtPut = ''
+		for con in callContractList:  #Displays times a contract first reaches target price
+			if con[1] == 2:
+				strikes = gexData[contractTime[x]]
+				strike = findStrike( con[0], strikes )
+				if strike[dp.GEX_CALL_BID] >= 1 :
+					con[1] = 3
+			if con[1] == 1:
+				con[1] = 2
+				color = 'green'
+				txtCall = con[0]
+			if con[1] == 0:
+				strikes = gexData[contractTime[x]]
+				strike = findStrike( con[0], strikes )
+				if strike[dp.GEX_CALL_BID] <= 0.20 :
+					con[1] = 1
+		for con in putContractList:
+			if con[1] == 2:
+				strikes = gexData[contractTime[x]]
+				strike = findStrike( con[0], strikes )
+				if strike[dp.GEX_PUT_BID] >= 1 :
+					con[1] = 3
+			if con[1] == 1:
+				con[1] = 2
+				color = 'red'
+				txtPut = con[0]
+			if con[1] == 0:
+				strikes = gexData[contractTime[x]]
+				strike = findStrike( con[0], strikes )
+				if strike[dp.GEX_PUT_BID] <= 0.20 :
+					con[1] = 1 #***************  end of display contract targets *********************
 		#print( priceDif, y1, y2)
-		canvas.create_line(x1, y1, x2, y2, fill="yellow", width=2)
+		canvas.create_line(x1, y1, x2, y2, fill=color, width=2)
+		if color == 'green' : canvas.create_text(x2, y2, text=txtCall, fill=color, anchor='nw')
+		if color == 'red' : canvas.create_text(x2, y2, text=txtPut, fill=color, anchor='ne')
 
 	#canvas.create_line(10, 10, 100, 100, dash=(4, 4))
 	x = len(candles) * 2
 	y = calcPriceY( mostPrice, priceDif )
 	canvas.create_text(x, y, text=str(mostPrice), fill="green", anchor="ne" )
+	
+	
 	
 	y = calcPriceY( minPrice, priceDif )
 	canvas.create_text(x, y, text=f'SPX {minPrice}', fill="yellow", anchor="sw" )

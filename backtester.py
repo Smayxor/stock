@@ -8,30 +8,25 @@ ticker = 'SPX'
 pnl = 0
 mostDown = 0
 allFiles = dp.pullLogFileList()
-#print( allFiles )
-fileList = [x for x in allFiles if ((ticker=='SPX') ^ ('SPY' in x))]
-fileList.sort()
-#fileList = [x for x in allFiles if 'SPY' in x]
 
+fileList = [x for x in allFiles if '0dte' in x]
+fileList.sort()
+#print( fileList )
 #Grab price history for all days in range, and previous 30 so we can figure out ATR
 firstFile = fileList[0]
-firstDay = str(datetime.datetime.strptime(firstFile.replace('-datalog.json','').replace('SPY-',''), '%Y-%m-%d') - datetime.timedelta(days=30)).split(' ')[0]
 lastFile = fileList[-1]
-lastDay = lastFile.replace('-datalog.json','').replace('SPY-','')
-candles = dp.getHistoryRange(ticker, firstDay, lastDay)
+lastDay = lastFile.replace('-0dte-datalog.json','')
 
 #for candle in candles: print( candle['date'] )
 
 for file in fileList:
 	gexData = dp.pullLogFile(file)
-	end = file.replace('-datalog.json','').replace('SPY-','')
+	end = file.replace('-0dte-datalog.json','')
 	#start = str(datetime.datetime.strptime(end, '%Y-%m-%d') - datetime.timedelta(days=30)).split(' ')[0]
 	#print( start, " - ", end )
 	
-	openTime = next(iter(gexData))
-	firstStrike = gexData[openTime]['data'][0]
-	openPrice = firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)
-	strikes = gexData[openTime]['data']
+	strikes = gexData[ next(iter(gexData)) ]
+	openPrice = dp.getPrice("SPX", strikes)#firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)
 
 	callEntered = 0
 	putEntered = 0
@@ -39,8 +34,8 @@ for file in fileList:
 	putStrike = 0
 	callEntryPrice = 0
 	putEntryPrice = 0
-	callLowestPrice = 0
-	putLowestPrice = 0
+	callLowestPrice = 990
+	putLowestPrice = 990
 	callExitPrice = 0
 	putExitPrice = 0
 	callLowTime = 0
@@ -49,56 +44,54 @@ for file in fileList:
 	#******************
 	targets = dp.findKeyLevels( strikes, openPrice, targets=True )
 	
-	print( f'{end} OpenPrice ${openPrice} strikes {targets[0][dp.GEX_STRIKE]} and {targets[1][dp.GEX_STRIKE]}' )
+	callStrike = max( [x for x in targets[0] if x[dp.GEX_STRIKE] > openPrice], key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_STRIKE]
+	putStrike = max([x for x in targets[1] if x[dp.GEX_STRIKE] < openPrice], key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_STRIKE]
+	#callStrike = max(targets[0], key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_STRIKE]
+	#putStrike = max(targets[1], key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_STRIKE]
+	print( f'{end} - Call ${callStrike}, Put ${putStrike}')
+	lowestPrice = openPrice
+	highestPrice = openPrice
 	
 	x = -1
 	lenData = len(gexData) - 2
 	for time in gexData:
-		x += 1
-		minute = time[:5]
-		strikes = gexData[time]['data']
-		firstStrike = strikes[0]
-		price = firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)
+		minute = float( time )
+		strikes = gexData[time]
+		price = dp.getPrice('SPX', strikes=strikes)
 		
-		tmpCall = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - targets[0][dp.GEX_STRIKE]))
-		callSideAsk = tmpCall[dp.GEX_CALL_ASK]
-		tmpPut = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - targets[1][dp.GEX_STRIKE]))
-		putSideAsk = tmpPut[dp.GEX_PUT_ASK]
-	
+		if price > highestPrice : highestPrice = price
+		if price < lowestPrice : lowestPrice = price
+		
+		if minute < 630 :
+			if minute > 614 : continue 
+			tmp = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)[dp.GEX_CALL_BID]
+			if callLowestPrice > tmp : callLowestPrice = tmp + 0.05
+			tmp = next(x for x in strikes if x[dp.GEX_STRIKE] == putStrike)[dp.GEX_PUT_BID]
+			if putLowestPrice > tmp : putLowestPrice = tmp + 0.05
+			continue
+		
 		if callEntered == 1:
-			strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - callStrike))
+			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)
 			bid = strike[dp.GEX_CALL_BID]
-			if putSideAsk < 0.30 or x == lenData :#or bid >= callExitPrice:
+			if bid >= callExitPrice or minute >= 1259:# or bid <= callLowestPrice :
 				callEntered = -1
 				pnl += bid
+				if minute >= 1259 : print( 'EOD HODL!!!!' )
 				print(f'Sold {callStrike} Call for {bid}')
+				
 		if callEntered == 0:
-			if x < lenData - 120 and callSideAsk <= 0.25 :
-				strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 3))
+			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)
+			ask = strike[dp.GEX_CALL_ASK]
+			if minute > 700 and highestPrice - lowestPrice > 10 : #ask <= 0.30 and :
+				strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )
+				callStrike = strike[dp.GEX_STRIKE]
 				callEntered = 1
 				callEntryPrice = strike[dp.GEX_CALL_ASK]
-				callExitPrice = 1
-				callStrike = strike[dp.GEX_STRIKE]
+				callExitPrice = callEntryPrice + 1
+				callLowestPrice = callEntryPrice * 0.5
 				pnl -= callEntryPrice
 				print(f'{end} Entered {callStrike} Call for ${callEntryPrice}')
-		
-		if putEntered == 1:
-			strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - putStrike))
-			bid = strike[dp.GEX_PUT_BID]
-			if callSideAsk < 0.30 or x == lenData :#or bid >= putExitPrice :
-				putEntered = -1
-				pnl += bid
-				print(f'Sold {putStrike} put for {bid}')
-		if putEntered == 0:
-			if x < lenData - 120 and putSideAsk <= 0.25 :
-				strike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 3))
-				putEntered = 1
-				putEntryPrice = strike[dp.GEX_PUT_ASK]
-				putExitPrice = 0.5
-				putStrike = strike[dp.GEX_STRIKE]
-				pnl -= putEntryPrice
-				print(f'{end} Entered {putStrike} Put for ${putEntryPrice}')
-		
+			
 
 	if pnl < mostDown: mostDown = pnl
 print(f'Total PnL ${round(pnl * 100, 2)},  most negative ${round(mostDown * 100, 2)}')

@@ -18,10 +18,11 @@ gexList = dp.getGEX(options[1])
 
 balance = dp.getAccountBalance()['cash']
 print(f'Account Balance {balance}')
-myPosition = dp.getPositions()['position']
+myPosition = dp.getPositions()
+if myPosition == 'null' : print('No active orders')
+#['position']
 print(f'Open positions {myPosition}')
 print(f'Open orders {dp.getOrders()}')
-
 
 #************ Calced after identifyKeyLevels sets values
 dp.findSPY2SPXRatio()
@@ -50,7 +51,7 @@ print(f'PC {previousClose} - ATR {averageRange} - Low {lowPrice} - High {highPri
 #myCon = dp.placeOptionOrder(putStrike[dp.GEX_PUT_SYMBOL], 0.04, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
 #{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
 #print(  myCon )
-#Open positions {'position': {'cost_basis': 4.0, 'date_acquired': '2024-01-25T15:52:41.633Z', 'id': 6170075, 'quantity': 1.0, 'symbol': 'XSP240125P00484000'}}
+#Open positions {'position': {'cost_basis': 4.0, 'date_acquired': '2024-01-25T15:52:41.633Z', 'id': xxxx, 'quantity': 1.0, 'symbol': 'XSP240125P00484000'}}
 
 #***************** Close an order
 #myPut = [x for x in gexList if x[dp.GEX_PUT_SYMBOL] == myPosition['symbol']][0]

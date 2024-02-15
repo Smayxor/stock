@@ -151,7 +151,7 @@ def triggerReset():
 					break
 		initVChart( gexList, "SPX" )
 	
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True)
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
 		pcData = tmp[1]
 		filename = tmp[0]
 		#if 'error' in filename: return
@@ -191,7 +191,7 @@ def timerThread():
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
 
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True)
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
 		pcData = tmp[1]
 		filename = tmp[0]
 		#if 'error' in filename: return
@@ -390,6 +390,9 @@ lblDays.place(x=100, y=0)
 
 tk.Button(win, text="<", command=clickLeftButton, width=1).place(x=130, y=0)
 tk.Button(win, text=">", command=clickRightButton, width=1).place(x=150, y=0)
+
+deadPrice = tk.Spinbox(win, width=4, wrap=True, values=(0.30, 0.25, 0.20, 0.15, 0.45, 0.40))#from_=10, to=50)
+deadPrice.place(x=200, y=0)
 
 e3Text = tk.StringVar() 
 e3Text.set("all") 

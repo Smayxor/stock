@@ -147,7 +147,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False):
+def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25):
 	IMG_W = 1500
 	IMG_H = 500 + FONT_SIZE + 15
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
@@ -168,8 +168,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
-		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.20]
-		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.20]
+		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.25]
+		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.25]
 		x = 0
 		
 		for t in gexData:
@@ -191,9 +191,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				"""
 				for strike in strikes :
 					for c in callTimes:
-						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= 0.25: c[1] = x
+						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= deadprice: c[1] = x
 					for p in putTimes:
-						if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= 0.25: p[1] = x
+						if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= deadprice: p[1] = x
 				x += 1
 			else : openTimeIndex = len(prices)
 		

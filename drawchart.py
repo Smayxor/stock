@@ -1,4 +1,4 @@
-from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont
+from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image, ImageTk
 import PIL.Image as PILImg
 import datapuller as dp
 
@@ -53,7 +53,7 @@ def drawPointer(draw, y, color = 'yellow'):
 	draw.polygon( [290, y, 300, y-10, 300, y+10, 290, y], fill=color, outline='blue')
 
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, targets=False):
+def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, targets=False, RAM=False):
 	ticker = ticker.upper()
 	#print('a')
 	if strikes == None:
@@ -143,10 +143,11 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
 	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
 	
+	if RAM : return img
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
+def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False):
 	IMG_W = 1500
 	IMG_H = 500 + FONT_SIZE + 15
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
@@ -162,18 +163,32 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
 	
 	if 'all' in userArgs:
 		prices = []
+		callVolumes = []
+		putVolumes = []
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
-		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.30]
-		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.30]
+		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > 0.20]
+		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.20]
 		x = 0
 		
 		for t in gexData:
 			minute = float(t)
 			strikes = gexData[t]
+			callLastTotalVolume = 0
+			putLastTotalVolume = 0
+			#skip = True
 			if minute < 614 or minute > 630.5: 
 				prices.append( dp.getPrice(ticker, strikes) )
+				"""
+				callTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
+				putTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
+				
+				callVolumes.append( callTotalVolume - callLastTotalVolume )
+				putVolumes.append( putTotalVolume - putLastTotalVolume )
+				callLastTotalVolume = callTotalVolume
+				putLastTotalVolume = putTotalVolume
+				"""
 				for strike in strikes :
 					for c in callTimes:
 						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= 0.25: c[1] = x
@@ -185,6 +200,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
 		maxPrice = max( prices )
 		minPrice = min( prices )
 		priceDif = maxPrice - minPrice
+		
+		"""mostCallVolume = max( callVolumes )
+		mostPutVolume = max( putVolumes )
+		mostCallPutVolume = max((mostCallVolume, mostPutVolume))"""
 		
 		for x in range(1, len(prices)):
 			prevPrice = prices[x-1]
@@ -208,7 +227,13 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
-
+			"""
+			y1 = 550 - ((callVolumes[x] / mostCallPutVolume) * 25)
+			draw.line([x, y1, x, 550], fill="green", width=1)
+			
+			y1 = 550 + ((putVolumes[x] / mostCallPutVolume) * 25)
+			draw.line([x, 550, x, y1], fill="red", width=1)
+			"""
 		x = 0
 		y = FONT_SIZE + 15
 		y2 = IMG_H - 2
@@ -219,6 +244,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
 		drawText( draw, 1300, y, txt=str( maxPrice ), color="green", anchor="rt")
 		drawText( draw, 1300, y2, txt=str( minPrice ), color="red", anchor="rb")
 
+		if RAM : return (img, allPrices)
 		img.save("price-chart.png")
 		if includePrices : return ("price-chart.png", allPrices)
 		else : return "price-chart.png"  #Below is normal Option Price Chart
@@ -272,6 +298,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False):
 
 		xPlus += 50
 
+	if RAM : return (img, allPrices)
 	img.save("price-chart.png")
 	if includePrices : return ("price-chart.png", allPrices)
 	else : return "price-chart.png"

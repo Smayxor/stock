@@ -368,13 +368,14 @@ def pullLogFileList():
 	
 lastFileName = ""
 lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
-def pullLogFile(fileName):
+def pullLogFile(fileName, cachedData=False):
 	global lastFileName, lastFileContents
 	url = f'http://192.168.1.254:8080/{fileName}'
 	urlLast = f'http://192.168.1.254:8080/last-datalog.json'
 	#url = f'http://192.168.1.254:8080/logs/{fileName}'
 	try:
 		if lastFileName == fileName or fileName == "SPX":
+			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = requests.get(urlLast)
 			if tmp.status_code == 404 : return lastFileContents
 			tmp = tmp.json()

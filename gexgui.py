@@ -20,7 +20,9 @@ scale = 0
 ticker = 'SPX'
 blnReset = True
 fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
-fileToday = fileList[-1]
+lastFileIndex = len(fileList) - 1
+fileIndex = lastFileIndex
+fileToday = fileList[fileIndex]
 pcData = []
 
 accountBalance = 0
@@ -73,23 +75,24 @@ def getAccountData(newCon = ""):
 def clickButton():
 	global accountBalance, unsettledFunds, openOrders, myPositions
 	cp = checkCall.get()
-	strike = e3Text.get()[:3] if cp == 1 else e4Text.get()[:3]
+	strike = e3Text.get()[:4] if cp == 1 else e4Text.get()[:4]
 	strike = float( strike )
+	print( strike )
 	tradePrice = float(optionPrice.get())
-
+	
 	if myPositions == "null" and openOrders == "null" :
-		options = dp.getOptionsChain('XSP', 0)
+		options = dp.getOptionsChain('SPX', 0)
 		strikes = dp.getGEX(options[1])
 		element = dp.GEX_CALL_ASK if cp == 1 else dp.GEX_PUT_ASK
 		symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
 		strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - strike))
 		if tradePrice == 0 : tradePrice = strike[element]
-		myCon = dp.placeOptionOrder(strike[symbol], tradePrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui')#, preview="true"
+		myCon = dp.placeOptionOrder(strike[symbol], tradePrice, ticker = 'SPX', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui')#, preview="true"
 		print( myCon )
 		getAccountData(myCon)
 	else :
 		#getAccountData()
-		options = dp.getOptionsChain('XSP', 0)
+		options = dp.getOptionsChain('SPX', 0)
 		strikes = dp.getGEX(options[1])
 		element = dp.GEX_CALL_BID if cp == 1 else dp.GEX_PUT_BID
 		symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
@@ -97,7 +100,7 @@ def clickButton():
 		myCon = [x for x in strikes if x[symbol] == myPositions['position']['symbol']][0]
 		if tradePrice == 0 : tradePrice = myCon[element]
 		#myCon = dp.placeOptionOrder(myPositions['symbol'], myCon[element], ticker="XSP", side="sell_to_close", quantity='1')
-		myCon = dp.placeOptionOrder(myPositions['position']['symbol'], tradePrice, ticker="XSP", side="sell_to_close", quantity='1', type='limit')#, preview="true"
+		myCon = dp.placeOptionOrder(myPositions['position']['symbol'], tradePrice, ticker="SPX", side="sell_to_close", quantity='1', type='limit')#, preview="true"
 		print( myCon )	
 		getAccountData(myCon)
 	
@@ -132,23 +135,27 @@ def triggerReset():
 	ticker = e1.get().upper()
 	
 	try:
-		gexData = dp.pullLogFile(fileToday)
+		gexData = dp.pullLogFile(fileToday, cachedData=False)
 		gexList = list(gexData.values())[0]#[-1]
-		
-		filename = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexList, expDate=0, targets=True) #function needs optional parameter to pass gexdata in
-		image = Image.open("./" + filename)
-		resize_image = image.resize((400,605))
+		exp = fileToday.replace("-0dte-datalog.json", "")
+		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp, targets=True, RAM=True) #function needs optional parameter to pass gexdata in
+		#image = Image.open("./" + filename)
+		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)
 		canvas.image = tk_image
-		
+		if fileIndex != lastFileIndex :
+			for minute in gexData:
+				if float(minute) >= 640 :
+					gexList = gexData[minute]
+					break
 		initVChart( gexList, "SPX" )
 	
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True)
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True)
 		pcData = tmp[1]
 		filename = tmp[0]
-		if 'error' in filename: return
-		pc_image = Image.open("./" + filename)
+		#if 'error' in filename: return
+		pc_image = filename#Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
 		strikecanvas.delete('all')
 		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
@@ -165,20 +172,30 @@ def timerThread():
 	dte = e2.get()
 	if not dte.isnumeric(): dte = 0
 	try:
-		gexData = dp.pullLogFile(fileToday)
-		gexList = list(gexData.values())[-1]
-		#print( gexList ) #***********************************************************
-		
+		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
+		minute = 0 # float( next(reversed(gexData.keys())) )
+		for t in reversed(gexData) :
+			minute = float( t )
+			if minute < 614 or minute > 630 : break
+		#print( minute )
+		minute = str( minute )
+		gexList = gexData[minute]  #list(gexData.values())[-1] #set to last value, for most recent volume/gex data
+		if fileIndex != lastFileIndex : # lock historical data to market open
+			for minute in gexData:
+				if float(minute) >= 630 :
+					gexList = gexData[minute]
+					break
+				
 		refreshVCanvas(strikes=gexList)
 
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
 
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True)
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True)
 		pcData = tmp[1]
 		filename = tmp[0]
-		if 'error' in filename: return
-		pc_image = Image.open("./" + filename)
+		#if 'error' in filename: return
+		pc_image = filename# Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
 		strikecanvas.itemconfig(strikeCanvasImage, image=pc_tk_image)
 
@@ -214,16 +231,21 @@ def setPCFloat(x, y):
 		else : 
 			#y = convertY( firstPCData[x] )
 			y = convertY( firstPCData[x] )
+			y2 = y + 1
 			tops = 1
-			firstPCData = pcData[1]
-			maxPrice = max( firstPCData )
-			minPrice = min( firstPCData )
-			difPrice = maxPrice - minPrice
-			y2 = convertY( firstPCData[x] )
-			txt += f'\n  ${round((firstPCData[x]), 2)} '
+			if len(pcData) == 2:
+				firstPCData = pcData[1]
+				maxPrice = max( firstPCData )
+				minPrice = min( firstPCData )
+				difPrice = maxPrice - minPrice
+				y2 = convertY( firstPCData[x] )
+				txt += f'\n  ${round((firstPCData[x]), 2)} '
 		
 		strikecanvas.coords(pcFloatingDot, x, y, x, y2)
-		if not all : y = 280
+		if all : 
+			if y < 250 : y += 50
+			else : y -= 50
+		else : y = 260
 		strikecanvas.coords(pcFloatingText, x, y)
 		strikecanvas.itemconfig(pcFloatingText, text=txt)
 		
@@ -234,7 +256,7 @@ def on_strike_click(event):
 	if event.y < 73: 
 		e3Text.set('all')
 	else :
-		index = (685 - event.y) // 20
+		index = (605 - event.y) // 14
 		endText = 'c' if event.x < 67 else 'p'
 		text = str(vcStrikes[index].Strike).split('.')[0] + endText
 		if endText == 'c' : 
@@ -255,29 +277,30 @@ def initVChart(strikes, ticker):
 	firstStrike = strikes[0]
 	price = dp.getPrice("SPX", strikes) 
 	vPrice = price
-	strikes = dp.shrinkToCount(strikes, price, 30)
-	y = 680
+	strikes = dp.shrinkToCount(strikes, price, 40)
+	y = 590
+	half_size = 6
 	for strike in strikes:
 		txt = str(round((strike[0]), 2))
-		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=txt, tag='widget' )
+		canvasStrikeText = vcanvas.create_text( 70, y, fill='white', text=txt, tag='widget', anchor="n" )
 		#vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
-		canvasCall = vcanvas.create_rectangle(0, y-10, 50, y + 10, fill='green', tag='widget')
-		canvasCallVol = vcanvas.create_rectangle(0, y-10, 100, y, fill='blue', tag='widget')
+		canvasCall = vcanvas.create_rectangle(0, y, 50, y +half_size+half_size, fill='green', tag='widget')
+		canvasCallVol = vcanvas.create_rectangle(0, y, 100, y+half_size, fill='blue', tag='widget')
 
-		canvasPut = vcanvas.create_rectangle(90, y-10, 150, y + 10, fill='red', tag='widget')
-		canvasPutVol = vcanvas.create_rectangle(90, y-10, 150, y, fill='yellow', tag='widget')
+		canvasPut = vcanvas.create_rectangle(90, y, 150, y + half_size + half_size, fill='red', tag='widget')
+		canvasPutVol = vcanvas.create_rectangle(90, y, 150, y + half_size, fill='yellow', tag='widget')
 		
-		canvasCallPrice = vcanvas.create_text(3, y, fill='red', anchor="w", text=str(round((strike[dp.GEX_CALL_BID]), 2)), tag='widget')
-		canvasPutPrice = vcanvas.create_text(130, y, fill='green', anchor="w", text=str(round((strike[dp.GEX_PUT_BID]), 2)), tag='widget')
+		canvasCallPrice = vcanvas.create_text(3, y, fill='red', text=str(round((strike[dp.GEX_CALL_BID]), 2)), tag='widget', anchor="nw")
+		canvasPutPrice = vcanvas.create_text(130, y, fill='green', text=str(round((strike[dp.GEX_PUT_BID]), 2)), tag='widget', anchor="nw")
 		
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
-		y -= 20
+		y -= 14
 		
 	allTarget = vcanvas.create_text( 70, y, fill='white', text='Show-All', tag='widget' )
 	vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
 	refreshVCanvas(strikes = strikes)
 	
-def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
+#def convertY( val ):	return SCANVAS_HEIGHT - ((val - lowPrice) * scale)
 
 	
 def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
@@ -290,6 +313,7 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 		cb = strike[dp.GEX_CALL_BID]
 		pb = strike[dp.GEX_PUT_BID]
 		calcVals.append( (strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, pb) )
+		#if strike[dp.GEX_STRIKE] == 4995 : print(strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, strike[dp.GEX_PUT_BID] )
 		
 	maxCallOI = max(calcVals, key=lambda i: i[1])[1]
 	maxPutOI = abs( min(calcVals, key=lambda i: i[2])[2] )
@@ -303,25 +327,42 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	
 	maxSize = 50
 	#print(calcVals)
+	half_size = 6
 	for vcItem in vcStrikes:
 		#print( vcItem.Strike )
 		strike = next(x for x in calcVals if x[0] == vcItem.Strike)
 		
 		callSize = (strike[1] / maxCallPutOI) * maxSize
 		putSize = (strike[2] / maxCallPutOI) * maxSize
-		vcanvas.coords(vcItem.callCanvas, 50-callSize, vcItem.Y - 10, 50, vcItem.Y + 10)
-		vcanvas.coords(vcItem.putCanvas, 90, vcItem.Y - 10, 90 + putSize, vcItem.Y + 10)
+		vcanvas.coords(vcItem.callCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size + half_size)
+		vcanvas.coords(vcItem.putCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size + half_size)
 		
 		callSize = (strike[3] / maxCallPutOI) * maxSize
 		putSize = (strike[4] / maxCallPutOI) * maxSize
-		vcanvas.coords(vcItem.callVolCanvas, 50-callSize, vcItem.Y - 10, 50, vcItem.Y)
-		vcanvas.coords(vcItem.putVolCanvas, 90, vcItem.Y - 10, 90 + putSize, vcItem.Y)
+		vcanvas.coords(vcItem.callVolCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size)
+		vcanvas.coords(vcItem.putVolCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size)
 		
 		vcanvas.itemconfig(vcItem.callPriceText, text=str(round((strike[5]), 2)))
 		vcanvas.itemconfig(vcItem.putPriceText, text=str(round((strike[6]), 2)))
 
 		vcanvas.itemconfig(vcItem.strikeText, text=str(round((strike[0]), 2)))
 
+def clickLeftButton():
+	global fileIndex, fileList, fileToday
+	fileIndex -= 1
+	if fileIndex == -1: fileIndex = lastFileIndex
+	dteText.set( str(fileIndex) )
+	fileToday = fileList[fileIndex]
+	triggerReset()
+
+def clickRightButton():
+	global fileIndex, fileList, fileToday, lastFileIndex
+	fileIndex += 1
+	if fileIndex > lastFileIndex: fileIndex = 0
+	dteText.set( str(fileIndex) )
+	fileToday = fileList[fileIndex]
+	triggerReset()
+	
 def on_closing():
 	global blnRun, timer
 	blnRun = False
@@ -336,15 +377,19 @@ e1 = tk.Entry(win, width=6)
 e1.insert(0, ticker)
 e1.place(x=2, y=0)
 
-lblTicker = tk.Label(win, text="Ticker", width=10)
+lblTicker = tk.Label(win, text="Ticker", width=10, anchor="w")
 lblTicker.place(x=30, y=0)
 
-lblDays = tk.Label(win, text="Days", width=10)
-lblDays.place(x=130, y=0)
+dteText = tk.StringVar() 
+e2 = tk.Entry(win, width=8, textvariable=dteText)
+e2.place(x=80, y=0)
+e2.insert(0, str(fileIndex))
 
-e2 = tk.Entry(win, width=4)
-e2.place(x=100, y=0)
-e2.insert(0, '0')
+lblDays = tk.Label(win, text="Days", width=10, anchor="w")
+lblDays.place(x=100, y=0)
+
+tk.Button(win, text="<", command=clickLeftButton, width=1).place(x=130, y=0)
+tk.Button(win, text=">", command=clickRightButton, width=1).place(x=150, y=0)
 
 e3Text = tk.StringVar() 
 e3Text.set("all") 
@@ -383,11 +428,11 @@ canvas = tk.Label()
 canvas.place(x=0, y=40)
 
 vcanvas = tk.Canvas()
-vcanvas.place(x=400, y=40)
-vcanvas.configure(width=150, height=700, bg='black')
+vcanvas.place(x=340, y=40)
+vcanvas.configure(width=150, height=605, bg='black')
 
-strikecanvas = tk.Canvas(win,width= 1500, height=550, bg='black')
-strikecanvas.place(x=552, y=40)
+strikecanvas = tk.Canvas(win,width= 1400, height=605, bg='black')
+strikecanvas.place(x=492, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
 
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
@@ -395,17 +440,3 @@ timer.start()
 timerThread()
 
 tk.mainloop()
-"""
-rectLayer = Image.new("RGBA", self.backgroundImage.size)
-rectDraw = ImageDraw.Draw(rectLayer)
-rectDraw.rectangle([start, end], fill="#00000080")
-rectDraw.line((x0, y0, x1, y0, x1, y1, x0, y1, x0, y0), fill="#ffffff", width=1)
-print("drawing: ", time() - t)
-t = time()
-
-displayImage = Image.alpha_composite(self.backgroundImage, self.linesLayer)
-displayImage.alpha_composite(rectLayer, (0, 0), (0, 0))
-print("image blend: ", time() - t)
-t = time()
-
-self.photoImage = ImageTk.PhotoImage(displayImage)"""

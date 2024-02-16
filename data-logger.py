@@ -77,23 +77,23 @@ def save0dte(bln1dte):
 
 def appendData():
 	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData
+	minute = getStrTime()
+	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
 	try:
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
-		strTime = getStrTime()
-		
 		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
-		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
+		gex = dp.shrinkToCount(gex, SPXopenPrice, 50, first=0)  #Must be centered around same price all day long!!!
 		#SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
-		SPX0DTEdayData[strTime] = gex
+		SPX0DTEdayData[minute] = gex
 		SPXLastData = {}
-		SPXLastData[strTime] = gex
+		SPXLastData[minute] = gex
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-			SPX1DTEdayData[strTime] = gex
+			SPX1DTEdayData[minute] = gex
 		skip1DTE = (skip1DTE + 1) % 15		
 		
 		save0dte(skip1DTE == 0)

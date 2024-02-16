@@ -14,7 +14,6 @@ RANGE_FIBS = range(len(FIBS))
 SPY2SPXRatio = 0 # No longer used
 INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
-#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk, 12-CallVolume, 13-CallBidSize, 14-CallAskSize, 15-PutVolume, 16-PutBidSize, 17-PutAskSize
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
 class RepeatTimer(Timer):
@@ -112,6 +111,8 @@ def getMultipleDTEOptionChain(ticker, days):
 	return days
 
 #{'symbol': 'SPY231030C00499000', 'description': 'SPY Oct 30 2023 $499.00 Call', 'exch': 'Z', 'type': 'option', 'last': 0.01, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.01, 'underlying': 'SPY', 'strike': 499.0, 'greeks': {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 2e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.716638, 'ask_iv': 0.716638, 'smv_vol': 0.16, 'updated_at': '2023-10-27 20:00:01'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 11, 'trade_date': 1697812231388, 'prevclose': 0.01, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'Q', 'bid_date': 1698437676000, 'asksize': 5608, 'askexch': 'X', 'ask_date': 1698437691000, 'open_interest': 36, 'contract_size': 100, 'expiration_date': '2023-10-30', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPY'}
+#{'symbol': 'SPXW240216P00200000', 'description': 'SPXW Feb 16 2024 $200.00 Put', 'exch': 'C', 'type': 'option', 'last': None, 'change': None, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.05, 'underlying': 'SPX', 'strike': 200.0, 'greeks': {'delta': -2.25e-14, 'gamma': -3.2575160249757252e-15, 'theta': 2.236129405855236e-11, 'vega': 2.0000060368178682e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 0.42, 'updated_at': '2024-02-15 20:59:59'}, 'change_percentage': None, 'average_volume': 0, 'last_volume': 0, 'trade_date': 0, 'prevclose': None, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'C', 'bid_date': 1708093802000, 'asksize': 1067, 'askexch': 'C', 'ask_date': 1708095327000, 'open_interest': 9, 'contract_size': 100, 'expiration_date': '2024-02-16', 'expiration_type': 'standard', 'option_type': 'put', 'root_symbol': 'SPXW'}
+#{'symbol': 'SPX240216P00400000', 'description': 'SPX Feb 16 2024 $400.00 Put', 'exch': 'C', 'type': 'option', 'last': 0.05, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.15, 'underlying': 'SPX', 'strike': 400.0, 'greeks': {'delta': -1.338e-13, 'gamma': -1.9037189917344295e-14, 'theta': -0.19774195063757755, 'vega': 2.0000113384843898e-05, 'rho': 0.0005479309221920519, 'phi': -0.006882528396090493, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 1.134, 'updated_at': '2024-02-15 20:59:59'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 1, 'trade_date': 1705501802447, 'prevclose': 0.05, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'C', 'bid_date': 1708032417000, 'asksize': 0, 'askexch': 'C', 'ask_date': 1708045200000, 'open_interest': 1080, 'contract_size': 100, 'expiration_date': '2024-02-16', 'expiration_type': 'standard', 'option_type': 'put', 'root_symbol': 'SPX'}
 def getGEX(options, chartType = 0):  #New test code
 	index = 0
 	strikes = []
@@ -121,6 +122,8 @@ def getGEX(options, chartType = 0):  #New test code
 		return index
 	
 	for option in options:
+		if option['root_symbol'] == 'SPX' : continue  #get rid of monthlies
+		#if index == 0: print( option )#['root_symbol'] )
 		strike = option['strike'] 
 		call = 1 if option['option_type'] == 'call' else -1
 		gamma = 0 
@@ -158,15 +161,16 @@ def getGEX(options, chartType = 0):  #New test code
 			tmp[GEX_PUT_GEX] += gex
 			tmp[GEX_PUT_OI]+= oi
 			tmp[GEX_PUT_SYMBOL] = symbol
-		#strikes[index] = tmp
 
 	for index in range( len(strikes) ):
 		strikes[index][GEX_TOTAL_GEX] = strikes[index][GEX_CALL_GEX] + strikes[index][GEX_PUT_GEX]
 		strikes[index][GEX_TOTAL_OI] = strikes[index][GEX_CALL_OI] + strikes[index][GEX_PUT_OI]
-		#for i in range( 17 ): 		#	if tmp[i] == None: tmp[i] = 0
 		strikes[index] = [0 if i is None else i for i in strikes[index]]#filter out any suprises
-#		for i in strikes[index]:
-#			if i == None: print(f'Failed at {strikes[index]}')		
+		strikes[index] = [round(i, 10) if isinstance(i, float) else i for i in strikes[index]]
+		#if index == 90: print( strikes[index] )
+		#[3810.0, 2.0440077796170993e-11, 570, -2.227444375223762e-12, 51, 2.2667522171394755e-11, 519, 0.0, 1221.3, 1222.0, 0.0, 0.05, 0, 1, 1, 0, 0, 1831, 'SPXW240216C03810000', 'SPXW240216P03810000']
+		#[3810.0, 0.0, 570, -0.0, 51, 0.0, 519, 0.0, 1222.8, 1223.3, 0.0, 0.05, 0, 1, 1, 0, 0, 1831, 'SPXW240216C03810000', 'SPXW240216P03810000']
+
 	return strikes
 
 def calcZeroGEX(data): #def add(a, b): return (b[0], a[1] + b[1]) #cumsum = list(accumulate(data, add)) #return min(cumsum, key=lambda i: i[1])[0]
@@ -191,7 +195,8 @@ def calcMaxPain(strikes):
 	
 	return maxPain
 
-def shrinkToCount(strikes, price, count):
+def shrinkToCount(strikes, price, count, first=-1):
+	#return [x for x in strikes if abs(x[GEX_STRIKE] - price) < count]
 	atmStrike = 0.0
 	dist = 99999
 	for x in strikes:  #Locate the most ATM Strike
@@ -200,7 +205,7 @@ def shrinkToCount(strikes, price, count):
 			atmStrike = x[0]
 			dist = thisDist
 	i = len(strikes) -1
-	while (len(strikes) > count) and i > -1:
+	while (len(strikes) > count) and i > first:# -1:  #Saving first strike for the purpose of detecting Price later
 		matches = 0
 		dist = abs(atmStrike - strikes[i][0])
 		for j in strikes: 

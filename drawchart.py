@@ -165,6 +165,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		prices = []
 		callVolumes = []
 		putVolumes = []
+		callLastTotalVolume = 0
+		putLastTotalVolume = 0
+		dollarRatios = []
+		#lastRatio = 1
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
@@ -175,20 +179,28 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		for t in gexData:
 			minute = float(t)
 			strikes = gexData[t]
-			callLastTotalVolume = 0
-			putLastTotalVolume = 0
+
 			#skip = True
-			if minute < 614 or minute > 630.5: 
+			
+			if minute < 614 or minute > 630.5:
+			
+				#callDollars = sum([strike[dp.GEX_CALL_VOLUME] * strike[dp.GEX_CALL_ASK] for strike in strikes])
+				#putDollars = sum([strike[dp.GEX_PUT_VOLUME] * strike[dp.GEX_PUT_ASK] for strike in strikes])
+				#totalDollarRatio = putDollars / callDollars
+				#dollarRatios.append( totalDollarRatio )
+				#lastRatio = totalDollarRatio
+			
 				prices.append( dp.getPrice(ticker, strikes) )
-				"""
+				
 				callTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
-				putTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
+				putTotalVolume = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
 				
 				callVolumes.append( callTotalVolume - callLastTotalVolume )
 				putVolumes.append( putTotalVolume - putLastTotalVolume )
 				callLastTotalVolume = callTotalVolume
 				putLastTotalVolume = putTotalVolume
-				"""
+				#dollarRatios.append( 
+				
 				for strike in strikes :
 					for c in callTimes:
 						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= deadprice: c[1] = x
@@ -225,6 +237,13 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					drawText( draw, x, y2, txt=str( p[0] ), color=colr, anchor="rt")
 
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+			
+			#************************************************************
+			volumeShift = (callVolumes[x] + 1) / (putVolumes[x] + 1)
+			if volumeShift > 1.5 : colr = 'green'
+			elif volumeShift < 1.5 : colr = 'red'
+			else : colr = 'yellow'
+			draw.line([x, y2, x, IMG_H], fill=colr, width=1)
 			
 			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
 			"""

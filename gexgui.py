@@ -185,7 +185,7 @@ def timerThread():
 				if float(minute) >= 630 :
 					gexList = gexData[minute]
 					break
-				
+		
 		refreshVCanvas(strikes=gexList)
 
 		price = dp.getPrice( "SPX", gexList, 0 )

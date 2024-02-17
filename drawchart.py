@@ -163,11 +163,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	
 	if 'all' in userArgs:
 		prices = []
-		callVolumes = []
-		putVolumes = []
-		callLastTotalVolume = 0
-		putLastTotalVolume = 0
-		dollarRatios = []
+		#callVolumes = []
+		#putVolumes = []
+		#callLastTotalVolume = 0
+		#putLastTotalVolume = 0
+		#dollarRatios = []
 		#lastRatio = 1
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
@@ -176,9 +176,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > 0.25]
 		x = 0
 		
-		for t in gexData:
-			minute = float(t)
-			strikes = gexData[t]
+		for time, strikes in gexData.items(): #for key, value in numbers.items():
+			minute = float(time)
+			#strikes = gexData[t]
 
 			#skip = True
 			
@@ -191,15 +191,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				#lastRatio = totalDollarRatio
 			
 				prices.append( dp.getPrice(ticker, strikes) )
-				
+				"""
 				callTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
 				putTotalVolume = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
 				
 				callVolumes.append( callTotalVolume - callLastTotalVolume )
 				putVolumes.append( putTotalVolume - putLastTotalVolume )
 				callLastTotalVolume = callTotalVolume
-				putLastTotalVolume = putTotalVolume
-				#dollarRatios.append( 
+				putLastTotalVolume = putTotalVolume"""
 				
 				for strike in strikes :
 					for c in callTimes:
@@ -239,11 +238,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 			#************************************************************
-			volumeShift = (callVolumes[x] + 1) / (putVolumes[x] + 1)
+			"""volumeShift = (callVolumes[x] + 1) / (putVolumes[x] + 1)
 			if volumeShift > 1.5 : colr = 'green'
 			elif volumeShift < 1.5 : colr = 'red'
 			else : colr = 'yellow'
-			draw.line([x, y2, x, IMG_H], fill=colr, width=1)
+			draw.line([x, y2, x, IMG_H], fill=colr, width=1)"""
 			
 			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
 			"""

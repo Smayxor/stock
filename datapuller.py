@@ -195,8 +195,13 @@ def calcMaxPain(strikes):
 	
 	return maxPain
 
-def shrinkToCount(strikes, price, count, first=-1):
-	#return [x for x in strikes if abs(x[GEX_STRIKE] - price) < count]
+def shrinkToCount(strikes, price, count):
+	firstStrike, lastStrike = strikes[0], strikes[-1]
+	result = sorted( sorted( strikes, key=lambda strike: abs(strike[GEX_STRIKE] - price) )[:count], key=lambda strike: strike[GEX_STRIKE] )
+	if firstStrike[GEX_STRIKE] != result[0][GEX_STRIKE] : result.insert( 0, firstStrike )
+	if lastStrike[GEX_STRIKE] != result[-1][GEX_STRIKE] : result.append( lastStrike )
+	return result
+	""" Old code
 	atmStrike = 0.0
 	dist = 99999
 	for x in strikes:  #Locate the most ATM Strike
@@ -212,7 +217,7 @@ def shrinkToCount(strikes, price, count, first=-1):
 			if abs(atmStrike - j[0]) < dist : matches += 1 
 		if matches > count: strikes.pop(i) 
 		i -= 1
-	return strikes
+	return strikes """
 
 def getQuote(ticker):
 	ticker = ticker.upper()

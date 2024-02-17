@@ -1,4 +1,4 @@
-from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image, ImageTk
+from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image
 import PIL.Image as PILImg
 import datapuller as dp
 

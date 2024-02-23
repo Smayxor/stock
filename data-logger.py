@@ -98,18 +98,21 @@ def appendData():
 		
 		save0dte(skip1DTE == 0)
 	except Exception as error:
-		print(f'An error occoured: {error}')
+		print(f'AppendData - An error occoured: {error}')
 
 def startDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE
-	state = dp.getMarketHoursToday()
-	print( state )
-	if 'closed' in state['state'] : #Seems to not apply to sunday!!!
-		#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
-		print( 'Market Closed Today')
-		return
+	try:  # In the event of an error, just start the day anyways......
+		state = dp.getMarketHoursToday()
+		print( state )
+		if 'closed' in state['state'] : #Seems to not apply to sunday!!!
+			#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
+			print( 'Market Closed Today')
+			return
+	except Exception as error:
+		print(f'StartDay - An error occoured: {error}')
+		
 	if datetime.datetime.now().weekday() > 4 : return
-	
 	blnRun = True
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1

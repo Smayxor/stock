@@ -63,7 +63,7 @@ def save0dte(bln1dte):
 				print( 'Empty String')
 				return
 				
-			with open("./logs/test.json", 'rb+') as f:
+			with open(myFile, 'rb+') as f:
 				f.seek(-1,os.SEEK_END)	
 				f.truncate()
 				f.write( json.dumps(appendData).replace('{', ',').encode() )	

@@ -56,12 +56,24 @@ def save0dte(bln1dte):
 			with open(myFile,'w') as f: 
 				json.dump(bigData, f)
 		else:
-			fileSize = os.stat(myFile).st_size
+			#fileSize = os.stat(myFile).st_size
 			#print(f'Appending file {myFile} x {fileSize}')
+			#appendData = "," + json.dumps(appendData)[1:]
+			if appendData == "" : 
+				print( 'Empty String')
+				return
+				
+			with open("./logs/test.json", 'rb+') as f:
+				f.seek(-1,os.SEEK_END)	
+				f.truncate()
+				f.write( json.dumps(appendData).replace('{', ',').encode() )	
+			"""
 			with open(myFile,'r+') as f: 
 				f.seek(fileSize - 1)
-				appendData = "," + json.dumps(appendData)[1:]
-				f.write( appendData )
+				#f.seek(-1, os.SEEK_END)
+				#f.seek(-1,2)
+				#f.truncate()
+				f.write( appendData )"""
 	
 	fileName = f'./logs/{today}-0dte-datalog.json'
 	saveDataFile( SPX0DTEdayData, SPXLastData, fileName )
@@ -89,6 +101,7 @@ def appendData():
 		SPX0DTEdayData[minute] = gex
 		SPXLastData = {}
 		SPXLastData[minute] = gex
+		if gex == "": print('GEX Empty String')
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )

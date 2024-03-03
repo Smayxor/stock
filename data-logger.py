@@ -64,8 +64,7 @@ def save0dte(bln1dte):
 				return
 				
 			with open(myFile, 'rb+') as f:
-				f.seek(-1,os.SEEK_END)	
-				f.truncate()
+				f.seek(-1,os.SEEK_END)	#f.truncate()
 				f.write( json.dumps(appendData).replace('{', ',').encode() )	
 			"""
 			with open(myFile,'r+') as f: 

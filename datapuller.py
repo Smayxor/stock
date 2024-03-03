@@ -16,6 +16,28 @@ INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
+"""
+firstData = {}
+firstData[1] = "aaa"
+
+appendData = {}
+appendData[123] = "abc"
+
+with open("./logs/test.json", 'a+') as f:
+	f.seek(0,2)
+	f.write( json.dumps(firstData) )
+	
+with open("./logs/test.json", 'rb+') as f:
+	f.seek(-1,os.SEEK_END)	#f.truncate()
+	f.write( json.dumps(appendData).replace('{', ',').encode() )
+
+appendData[123] = "ddd"
+appendData[456] = "eee"
+with open("./logs/test.json", 'rb+') as f:
+	f.seek(-1,os.SEEK_END)	#f.truncate()
+	f.write( json.dumps(appendData).replace('{', ',').encode() )
+"""
+
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
@@ -43,8 +65,12 @@ def findKeyLevels(strikes, price, targets=False):
 		#callContractList = mostCallOI + [i for i in mostCallVolume if i not in mostCallOI]
 		#putContractList = mostPutOI + [i for i in mostPutVolume if i not in mostPutOI]
 		"""
-		callContractList = heapq.nlargest( 5, strikes, key = lambda i: i[GEX_CALL_GEX])
-		putContractList = heapq.nlargest( 5, strikes, key = lambda i: -i[GEX_PUT_GEX])
+		
+		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])[GEX_CALL_OI] * 0.6
+		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])[GEX_PUT_OI] * 0.6
+		
+		callContractList = heapq.nlargest( 5, strikes, key = lambda i: i[GEX_CALL_GEX])# if i[GEX_CALL_OI] > mostCallOI else 0)
+		putContractList = heapq.nlargest( 5, strikes, key = lambda i: -i[GEX_PUT_GEX])# if i[GEX_PUT_OI] > mostPutOI else 0)
 
 		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])
 		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])
@@ -70,6 +96,42 @@ def findKeyLevels(strikes, price, targets=False):
 			most3 = heapq.nlargest(n, nearStrikes, key=lambda i: i[val])
 			for biggy in most3: checkIfExists( biggy[GEX_STRIKE] )
 		return keyLevels
+
+def findPeaksAndValleys( prices ):
+	lenavgs = len( prices )
+	highs = []
+	lows = []
+	last = prices[0]
+	high = 0
+	low = 0
+	def checkNextHigh(index):
+		#last = index + 30 if index + 30 < lenavgs else lenavgs
+		last = index + 30
+		if last > lenavgs : return False
+		for i in range(index, last):
+			if prices[i] > prices[index] : return False
+		return True
+	def checkNextLow(index):
+		#last = index + 30 if index + 30 < lenavgs else lenavgs
+		last = index + 30
+		if last > lenavgs : return False
+		for i in range(index, last):
+			if prices[i] < prices[index] : return False
+		return True
+
+	for i in range( 1, lenavgs ) :
+		if prices[i] > prices[high] and checkNextHigh(i):
+			highs.append(i)
+			high = i
+			low = i
+		elif prices[i] < prices[low] and checkNextLow(i):
+			lows.append(i)
+			low = i
+			high = i
+		else:
+			pass
+	return (lows, highs)
+	
 
 def getMarketHoursToday():
 	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
@@ -385,18 +447,42 @@ def pullLogFile(fileName, cachedData=False):
 	#url = f'http://192.168.1.254:8080/logs/{fileName}'
 	try:
 		if lastFileName == fileName or fileName == "SPX":
+			#print(1)
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
+			#print(2)
 			tmp = requests.get(urlLast)
+			#print(3)
 			if tmp.status_code == 404 : return lastFileContents
+			#print(4)
 			tmp = tmp.json()
+			#print(5)
 			if fileName == "SPX" : return tmp[next(iter(tmp))]
+			#print(6)
 			lastFileContents.update( tmp )
+			#print(7)
 			return lastFileContents
 		else :
 			lastFileName = fileName
-			tmp = requests.get(url)
-			tmp = tmp.json()
+			#print(10)
+			#print( url )
+			tmp = requests.get(url).content
+			#print( tmp.content )
+			#print(tmp[:10], " - ", tmp[-10:])  # 93 93 44
+			#blnAppend = False
+			if tmp[-1] == 44 : 
+				tmp = tmp.decode("utf-8")[:-1] + "}"
+				#print( tmp[:10] , tmp[-10:] )
+				#with open("./logs/test.json", 'a+') as f:
+				#	f.seek(0,2)
+				#	f.write( tmp )
+				#blnAppend = True
+			tmp = json.loads(tmp)
+			#print(12)
 			lastFileContents = tmp
+			#if blnAppend :
+			#	tmp = requests.get(urlLast).json()
+			#	lastFileContents.update( tmp )
+			#print(13)
 	except Exception as error:
 		print(f'pullLogFile Error : {error}')
 	return lastFileContents

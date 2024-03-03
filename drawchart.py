@@ -147,28 +147,37 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25):
+def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, minute='630'):
 	IMG_W = 1500
-	IMG_H = 500 + FONT_SIZE + 15
+	IMG_H = 500 + FONT_SIZE + 15 + 20
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
+	drawText(draw, x=1400,y=2,txt=minute, color="yellow", anchor="rt")
 	maxPrice, minPrice, priceDif = 1, 1, 1
 	openTimeIndex = 0
 	xPlus = 0
 	allPrices = []
-	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5)
-	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500)
+	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5) - 20
+	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 20
 	
 	if 'all' in userArgs:
+		strikes = gexData[ next(iter(gexData)) ]
+		openPrice = dp.getPrice("SPX", strikes)
+		targets = dp.findKeyLevels( strikes, openPrice, targets=True )
+		callTargets = [[x[dp.GEX_STRIKE], 0] for x in targets[0]]
+		putTargets = [[x[dp.GEX_STRIKE], 0] for x in targets[1]]
+		targets = callTargets + [[x[dp.GEX_STRIKE], 0] for x in putTargets if x not in callTargets]
 		prices = []
-		#callVolumes = []
-		#putVolumes = []
-		#callLastTotalVolume = 0
-		#putLastTotalVolume = 0
-		#dollarRatios = []
-		#lastRatio = 1
+		#*******************
+		callVolumes = []
+		putVolumes = []
+		callLastTotalVolume = 0
+		putLastTotalVolume = 0
+		dollarRatios = []
+		lastRatio = 1
+		#****************
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
@@ -183,22 +192,24 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			#skip = True
 			
 			if minute < 614 or minute > 630.5:
-			
+				#**********
 				#callDollars = sum([strike[dp.GEX_CALL_VOLUME] * strike[dp.GEX_CALL_ASK] for strike in strikes])
 				#putDollars = sum([strike[dp.GEX_PUT_VOLUME] * strike[dp.GEX_PUT_ASK] for strike in strikes])
 				#totalDollarRatio = putDollars / callDollars
 				#dollarRatios.append( totalDollarRatio )
 				#lastRatio = totalDollarRatio
-			
+				#***********
 				prices.append( dp.getPrice(ticker, strikes) )
-				"""
-				callTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
-				putTotalVolume = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
 				
-				callVolumes.append( callTotalVolume - callLastTotalVolume )
-				putVolumes.append( putTotalVolume - putLastTotalVolume )
-				callLastTotalVolume = callTotalVolume
-				putLastTotalVolume = putTotalVolume"""
+				#callTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] + x[dp.GEX_PUT_VOLUME] for x in strikes if x[dp.GEX_STRIKE] > prices[-1]] )
+				#putTotalVolume = sum( [x[dp.GEX_CALL_VOLUME] + x[dp.GEX_PUT_VOLUME] for x in strikes if x[dp.GEX_STRIKE] < prices[-1]] )
+				#totalVolume = callTotalVolume - putTotalVolume
+				#dollarRatios.append( totalVolume - callLastTotalVolume )
+				#callLastTotalVolume = totalVolume
+				#callVolumes.append( callTotalVolume - callLastTotalVolume )
+				#putVolumes.append( putTotalVolume - putLastTotalVolume )
+				#callLastTotalVolume = callTotalVolume
+				#putLastTotalVolume = putTotalVolume
 				
 				for strike in strikes :
 					for c in callTimes:
@@ -208,13 +219,17 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				x += 1
 			else : openTimeIndex = len(prices)
 		
-		maxPrice = max( prices )
-		minPrice = min( prices )
+		maxPrice = max( prices ) + 5
+		minPrice = min( prices ) - 5
 		priceDif = maxPrice - minPrice
 		
 		"""mostCallVolume = max( callVolumes )
 		mostPutVolume = max( putVolumes )
 		mostCallPutVolume = max((mostCallVolume, mostPutVolume))"""
+		
+		peaksValleys = dp.findPeaksAndValleys( prices )
+		lows = peaksValleys[0]
+		highs = peaksValleys[1]
 		
 		for x in range(1, len(prices)):
 			prevPrice = prices[x-1]
@@ -237,12 +252,15 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
+			if x in lows : draw.line((x-20, y2, x+20, y2), fill='red', width=2)
+			if x in highs : draw.line((x-20, y2, x+20, y2), fill='green', width=2)
+			
 			#************************************************************
-			"""volumeShift = (callVolumes[x] + 1) / (putVolumes[x] + 1)
-			if volumeShift > 1.5 : colr = 'green'
-			elif volumeShift < 1.5 : colr = 'red'
-			else : colr = 'yellow'
-			draw.line([x, y2, x, IMG_H], fill=colr, width=1)"""
+			#volumeShift = (callVolumes[x] + 1) / (putVolumes[x] + 1)
+			#if dollarRatios[x] > 100 : colr = 'green'
+			#elif dollarRatios[x] < 100 : colr = 'red'
+			#else : colr = 'yellow'
+			#draw.line([x, y2, x, IMG_H], fill=colr, width=1)
 			
 			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
 			"""
@@ -252,6 +270,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y1 = 550 + ((putVolumes[x] / mostCallPutVolume) * 25)
 			draw.line([x, 550, x, y1], fill="red", width=1)
 			"""
+			
 		x = 0
 		y = FONT_SIZE + 15
 		y2 = IMG_H - 2
@@ -261,6 +280,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			x += 5
 		drawText( draw, 1300, y, txt=str( maxPrice ), color="green", anchor="rt")
 		drawText( draw, 1300, y2, txt=str( minPrice ), color="red", anchor="rb")
+
+
+		for tar in targets:
+			if minPrice < tar[0] < maxPrice :
+				y = spxY( tar[0] )
+				draw.line( [0, y, 1500, y], fill="green", width=1)
+				drawText( draw, 1400, y, txt=str(tar[0]), color="yellow", anchor="rb")
+
 
 		if RAM : return (img, allPrices)
 		img.save("price-chart.png")

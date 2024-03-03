@@ -24,6 +24,7 @@ lastFileIndex = len(fileList) - 1
 fileIndex = lastFileIndex
 fileToday = fileList[fileIndex]
 pcData = []
+dataIndex = -1
 
 accountBalance = 0
 unsettledFunds = 0
@@ -136,7 +137,14 @@ def triggerReset():
 	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=False)
-		gexList = list(gexData.values())[0]#[-1]
+		gexList = list(gexData.values())[-1]
+		for t in gexData: 
+			if float(t) // 1 > 630 :
+				gexList = gexData[t]
+				#strike = next(x for x in gexList if x[dp.GEX_STRIKE] == 5050)
+				#print( f'Call {strike[dp.GEX_CALL_BID]}-{strike[dp.GEX_CALL_ASK]} - Put {strike[dp.GEX_PUT_BID]}-{strike[dp.GEX_PUT_ASK]}' )
+				break
+			#if float(t) // 1 > 650 : break
 		exp = fileToday.replace("-0dte-datalog.json", "")
 		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp, targets=True, RAM=True) #function needs optional parameter to pass gexdata in
 		#image = Image.open("./" + filename)
@@ -166,32 +174,73 @@ def triggerReset():
 	except Exception as error:
 		print("An exception occurred:", error)
 
+
+'''Call 11.4-15.8 - Put 8.6-12.9   #Faulty Data Example
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 8.6-12.9
+Call 11.4-15.8 - Put 15.5-15.7
+Call 7.7-7.9 - Put 15.6-15.8
+Call 7.4-7.6 - Put 16.2-16.4
+Call 7.4-7.5 - Put 16.0-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 7.4-7.6 - Put 16.1-16.3
+Call 12.1-12.3 - Put 9.9-10.1
+Call 13.5-13.6 - Put 9.2-9.3
+Call 15.5-15.9 - Put 7.8-8.2
+Call 16.1-16.3 - Put 7.9-8.1
+Call 16.4-16.6 - Put 7.7-7.9
+Call 16.5-16.6 - Put 7.9-8.0
+Call 16.8-17.0 - Put 7.7-7.9
+Call 17.6-17.8 - Put 7.4-7.6
+Call 18.3-18.5 - Put 7.2-7.3
+Call 19.7-19.8 - Put 6.6-6.8
+Call 20.0-20.1 - Put 7.0-7.1'''
 def timerThread():
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex
 	if blnReset: triggerReset()
-	dte = e2.get()
+	dte = dteText.get()
 	if not dte.isnumeric(): dte = 0
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
 		minute = 0 # float( next(reversed(gexData.keys())) )
+		
+		"""
 		for t in reversed(gexData) :
 			minute = float( t )
-			if minute < 614 or minute > 630 : break
-		#print( minute )
+			if minute < 614 or minute > 630 : break #Sets time to market open
+		"""
+		
+		times = list(gexData.keys())
+		lastTimes = len(times) - 1
+		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
+		minute = times[dataIndex]
 		minute = str( minute )
 		gexList = gexData[minute]  #list(gexData.values())[-1] #set to last value, for most recent volume/gex data
-		if fileIndex != lastFileIndex : # lock historical data to market open
-			for minute in gexData:
-				if float(minute) >= 630 :
-					gexList = gexData[minute]
-					break
+		#if fileIndex != lastFileIndex : # lock historical data to market open
+		#	for minute in gexData:
+		#		if float(minute) >= 630 :
+		#			gexList = gexData[minute]
+		#			break
 		
 		refreshVCanvas(strikes=gexList)
 
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
 
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), minute=minute)
 		pcData = tmp[1]
 		filename = tmp[0]
 		#if 'error' in filename: return
@@ -205,7 +254,7 @@ def timerThread():
 def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
 		
 def setPCFloat(x, y):
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, dataIndex
 	
 	if pcFloatingText == None : return
 	minPrice, maxPrice, difPrice = 0, 0, 0
@@ -250,6 +299,7 @@ def setPCFloat(x, y):
 		strikecanvas.itemconfig(pcFloatingText, text=txt)
 		
 	strikecanvas.itemconfig(pcFloatingText, anchor="e" if x > 1200 else "w")
+	dataIndex = x#len(pcData)
 
 def on_strike_click(event):
 	global vcStrikes
@@ -267,6 +317,8 @@ def on_strike_click(event):
 			checkCall.set(0)
 			if e3Text.get() == 'all' :
 				e3Text.set( str(vcStrikes[index].Strike).split('.')[0] + 'c' )
+				
+		cbCall.configure(text=text)
 	timerThread()
 
 def initVChart(strikes, ticker):
@@ -404,26 +456,30 @@ e4Text.set("4850p")
 e4 = tk.Entry(win, width=8, textvariable=e4Text)
 e4.place(x=355, y=0)
 
+timeOfDay = tk.DoubleVar() 
+s1 = tk.Scale( win, variable = timeOfDay, from_ = 0, to = 100, orient = tk.HORIZONTAL, length=500)
+s1.place(x=650, y=0)
+
 btnFetch = tk.Button(win, text="Buy/Sell", command=clickButton, width=8)
-btnFetch.place(x=550, y=0)
+btnFetch.place(x=0, y=700)
 
 checkCall = tk.IntVar()
-cbCall = tk.Checkbutton(win, text='Call',variable=checkCall, onvalue=1, offvalue=0)#, command=print_selection)
-cbCall.place(x=620, y=0)
+cbCall = tk.Checkbutton(win, text='Call', variable=checkCall, onvalue=1, offvalue=0)#, command=print_selection)
+cbCall.place(x=0, y=670)
 checkCall.set(1)
 
 lblBalance = tk.Label(win, text="Account Balance $", width=30, anchor="w")
-lblBalance.place(x = 670, y = 0)
+lblBalance.place(x = 150, y = 650)
 
 lblOpenOrders = tk.Label(win, text=f'Open orders - {openOrders}', width=300, anchor="w")
-lblOpenOrders.place(x = 820, y = 0)
+lblOpenOrders.place(x = 150, y = 670)
 
 lblOptionPrice = tk.Label(win, text=f'Trade Price $', width=12, anchor="w")
-lblOptionPrice.place(x = 400, y = 0)
+lblOptionPrice.place(x = 0, y =650)
 optionPrice = tk.StringVar() 
 optionPrice.set("0.10")
 e5 = tk.Entry(win, width=4, textvariable=optionPrice)
-e5.place(x=475, y=0)
+e5.place(x=75, y=650)
 
 getAccountData()
 

@@ -93,6 +93,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	#print('f')
 	keyLevels = []
 	keyLevels = dp.findKeyLevels(strikes, price, targets=True)[2]
+	
 	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 	
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
@@ -122,7 +123,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
-		if strike in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
+		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
 	#print('h')
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")

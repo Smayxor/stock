@@ -74,12 +74,24 @@ def findKeyLevels(strikes, price, targets=False):
 
 		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])
 		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])
+		callTargets = [x[GEX_STRIKE] for x in callContractList]
+		putTargets = [x[GEX_STRIKE] for x in putContractList]
+		targets = sorted(callTargets + [x for x in putTargets if x not in callTargets])
+		
+		x = 0
+		lastTarget = len(targets)
+		while x < lastTarget:
+			y = x+1
+			while y < lastTarget:
+				#print( f'Testing {targets[x]} - {targets[y]}' )
+				if abs(targets[x] - targets[y]) == 5:
+					#print( f'Removing {targets[y]}' )
+					del targets[y]
+					lastTarget -= 1
+				else: y += 1	
+			x += 1
 
-
-		#print(f'Calls {[x[GEX_STRIKE] for x in callContractList]}')
-		#print(f'Puts {[x[GEX_STRIKE] for x in putContractList]}')
-
-		return (callContractList, putContractList)
+		return (callContractList, putContractList, targets)
 	else :
 		keyLevels = []
 		def checkIfExists( strike ):

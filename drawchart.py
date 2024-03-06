@@ -92,9 +92,9 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
 	#print('f')
 	keyLevels = []
-	keyLevels = dp.findKeyLevels(strikes, price, targets=targets)[2]
+	keyLevels = dp.findKeyLevels(strikes, price, targets=True)[2]
 	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
-
+	
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500
 	IMG_W += 110
@@ -122,7 +122,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
-		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
+		if strike in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
 	#print('h')
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")
@@ -138,12 +138,9 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
 	try:
 		pcr = totalPuts / totalCalls
+		color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
+		drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
 	except: pass
-#	color = 'white'
-#	if pcr < 0.5 : color = 'green'
-#	if pcr > 1.3 : color = 'red'
-	color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
-	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
 	
 	if RAM : return img
 	img.save("stock-chart.png")

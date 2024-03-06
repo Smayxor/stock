@@ -90,7 +90,7 @@ def findKeyLevels(strikes, price, targets=False):
 					lastTarget -= 1
 				else: y += 1	
 			x += 1
-
+		
 		return (callContractList, putContractList, targets)
 	else :
 		keyLevels = []

@@ -150,6 +150,46 @@ url = "https://www.financialjuice.com/home"
 data = requests.get(url=url).text.split('<div class="div-table" id="my-cal-data">')[1].split('<script type="text/javascript">')[0]
 print( data )
 """
+
+
+"""
+from requests_html import HTMLSession
+
+session = HTMLSession()
+
+def fetch(url, params):
+    headers = params['headers']
+    return session.get(url, headers=headers)
+
+current_page = 1
+
+req = fetch(
+    f"https://5ka.ru/api/v2/special_offers/?records_per_page=15&page={current_page}&store=31Z6&ordering=&price_promo__gte=&price_promo__lte=&categories=&search=",
+    {
+        "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3",
+        },
+    })
+
+for pp in req.json()['results']:
+    print(f'\nname = {pp["name"]}')
+    print(f'price = {pp["current_prices"]["price_promo__min"]}')
+    print(f'url = {pp["img_link"]}')
+	
+	
+from requests_html import HTMLSession
+
+session = HTMLSession()
+
+r = session.get('http://www.yourjspage.com')
+
+r.html.render()  # this call executes the js in the page
+As a bonus this wraps BeautifulSoup, I think, so you can do things like
+
+r.html.find('#myElementID').text
+"""
 def fetchNews():
 	global lastNewsDay, todaysNews
 	today = datetime.date.today()
@@ -170,7 +210,7 @@ def fetchNews():
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
 		for t in txt:
-			print(t)
+			#print(t)
 			t = t.replace('<td>', '').split('</tr>', 1)
 			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
 			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')

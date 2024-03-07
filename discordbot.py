@@ -160,12 +160,17 @@ def fetchNews():
 	url = "https://www.marketwatch.com/economy-politics/calendar"
 	news = []
 	try :
-		data = requests.get(url=url)
+		header = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
+            "Accept": "application/json, text/plain, */*", "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3" }
+		data = requests.get(url=url, headers=header)
+		
 		text = ""
 		tables = data.text.split( "<tbody>" )
+		#print( tables )
 		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
 		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
 		for t in txt:
+			print(t)
 			t = t.replace('<td>', '').split('</tr>', 1)
 			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
 			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
@@ -183,8 +188,8 @@ def fetchNews():
 					counter += 1
 				newsD.addEvent( event )
 			news.append( newsD )
-	except:
-		print("BOOM")
+	except Exception as er:
+		print(f'BOOM {er}')
 		#for x in news: print( x.toString() )
 		#news.append( NewsData(today) )
 	todaysNews = news

@@ -182,8 +182,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		
 		for time, strikes in gexData.items():
 			minute = float(time)
+			callPutPrice = gexData[time][0][dp.GEX_CALL_BID] + gexData[time][0][dp.GEX_PUT_BID]
+			if callPutPrice == 0 : continue
 			
-			if minute < 614 or minute > 630.5:
+			if minute < 614 or minute > 631:
+				
 				currentPrice = dp.getPrice(ticker, strikes)
 				prices.append( currentPrice )
 				
@@ -304,11 +307,16 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		allPrices.append( prices )
 		for t in gexData:
 			minute = float(t)
+			if minute >= 614 and minute <= 631: 
+				openTimeIndex = len(prices)
+				continue
+			callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID]
+			if callPutPrice == 0 : continue
 			for s in gexData[t]:
 				if s[dp.GEX_STRIKE] == strike[0]:
 					#if s[element] == 0 : print( t, strike[0], s )
-					if minute < 614 or minute > 630.5: prices.append( s[element] )
-					else : openTimeIndex = len(prices)
+					#if s[element] == 0: print( f'Bad Data {minute}' )
+					prices.append( s[element] )
 					#if s[element] == 0: print( minute )
 					continue			
 		

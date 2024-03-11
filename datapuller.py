@@ -305,7 +305,9 @@ def getQuote(ticker):
 	if ticker == 'SPX' : result *= SPY2SPXRatio
 	return result
 
+lastPrice = 0
 def getPrice(ticker, strikes = None, dte = "now"):
+	global lastPrice
 	if ticker in INDICES and strikes != None:
 		#*************************************************************************************************************
 		# Needs to correctly factor in value from DTE
@@ -316,7 +318,15 @@ def getPrice(ticker, strikes = None, dte = "now"):
 		num_weekends = num_days // 7
 		dte = num_days - (num_weekends * 2)
 		"""
-		price = strikes[0][GEX_STRIKE] + ((strikes[0][GEX_CALL_BID] + strikes[0][GEX_CALL_ASK]) / 2)
+		firstStrike = strikes[0]
+		lastStrike = strikes[-1]
+		price = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
+		
+		if firstStrike[GEX_CALL_BID] == 0 : price = lastPrice
+		lastPrice = price
+#			if lastStrike[GEX_PUT_BID] == 0: raise Exception("No PRICE!!!")
+#			price = ((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2) - lastStrike[GEX_STRIKE]
+			
 		"""
 		1dte = 1.40 over
 		23dte = 0.15 under

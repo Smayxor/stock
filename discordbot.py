@@ -380,7 +380,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await bot.logout()
 	print("Finished SUDO")
 
-dailyTaskTime = datetime.time(hour=13, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime)
 async def dailyTask():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
@@ -398,7 +398,7 @@ async def dailyTask():
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
 
-dailyTaskTime2 = datetime.time(hour=14, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)
 async def dailyTask2():
 	if datetime.datetime.now().weekday() > 4 : return
@@ -417,7 +417,7 @@ async def dailyTask2():
 		except: await intr.followup.send("No image permissions")
 	logFutureDTEs() #For Heatmap
 
-dailyTaskTime3 = datetime.time(hour=14, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
+dailyTaskTime3 = datetime.time(hour=13, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime3)
 async def dailyTask3():
 	if datetime.datetime.now().weekday() > 4 : return

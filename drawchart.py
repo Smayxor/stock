@@ -87,6 +87,11 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
 	
 	maxTotalOI = max(strikes, key=lambda i: i[dp.GEX_TOTAL_OI])[dp.GEX_TOTAL_OI]
+	maxCallVolume = max(strikes, key=lambda i: i[dp.GEX_CALL_VOLUME])[dp.GEX_CALL_VOLUME]
+	maxPutVolume = max(strikes, key=lambda i: i[dp.GEX_PUT_VOLUME])[dp.GEX_PUT_VOLUME]
+	maxTotalVolume = max( (maxCallVolume, maxPutVolume) )
+	maxOIVol = max( (maxTotalOI, maxTotalVolume) )
+	
 	maxCallGEX = max(strikes, key=lambda i: i[dp.GEX_CALL_GEX])[dp.GEX_CALL_GEX]
 	maxPutGEX = abs(min(strikes, key=lambda i: i[dp.GEX_PUT_GEX])[dp.GEX_PUT_GEX])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
@@ -97,7 +102,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 	
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
-	IMG_H = 500
+	IMG_H = 500 + 65
 	IMG_W += 110
 	img = PILImg.new("RGB", (IMG_H, IMG_W), "#000")
 	draw = ImageDraw.Draw(img)
@@ -110,15 +115,21 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if strike[dp.GEX_STRIKE] == zeroG : strikeColor = "orange"
 		strikeText = str(round((strike[dp.GEX_STRIKE]), 2))	
 		drawText(draw, y=x - 5, x=218, txt=strikeText, color=strikeColor)
-		
-		if strike[dp.GEX_TOTAL_OI] != 0 : drawRect(draw, 0, x, ((strike[dp.GEX_TOTAL_OI] / maxTotalOI) * 65), x + 12, color="#00F", border='')
+		#****************
 		callVolume = strike[dp.GEX_CALL_VOLUME]
 		putVolume = strike[dp.GEX_PUT_VOLUME]
-		if callVolume > maxTotalOI : callVolume = maxTotalOI
-		if putVolume > maxTotalOI : putVolume = maxTotalOI
-		if callVolume != 0 : drawRect(draw, 0, x, ((callVolume / maxTotalOI) * 65), x + 2, color="#0F0", border='')
-		if putVolume != 0 : drawRect(draw, 0, x+3, ((putVolume / maxTotalOI) * 65), x + 5, color="#F00", border='')
-	
+		callOI = strike[dp.GEX_CALL_OI]
+		putOI = strike[dp.GEX_PUT_OI]
+		#if strike[dp.GEX_TOTAL_OI] != 0 : drawRect(draw, 0, x, ((strike[dp.GEX_TOTAL_OI] / maxTotalOI) * 65), x + 12, color="#00F", border='')
+		#if callVolume > maxTotalOI : callVolume = maxTotalOI
+		#if putVolume > maxTotalOI : putVolume = maxTotalOI
+		#if callVolume != 0 : drawRect(draw, 0, x, ((callVolume / maxTotalOI) * 65), x + 2, color="#0F0", border='')
+		#if putVolume != 0 : drawRect(draw, 0, x+3, ((putVolume / maxTotalOI) * 65), x + 5, color="#F00", border='')
+		if callOI > 0: drawRect(draw, 0, x, ((callOI / maxOIVol) * 65), x + 12, color="#0F0", border='')
+		if callVolume > 0: drawRect(draw, 0, x, ((callVolume / maxOIVol) * 65), x + 6, color="#00F", border='')
+		if putOI > 0: drawRect(draw, IMG_H - ((putOI / maxOIVol) * 65), x, IMG_H, x + 12, color="#F00", border='')
+		if putVolume > 0: drawRect(draw, IMG_H - ((putVolume / maxOIVol) * 65), x, IMG_H, x + 6, color="yellow", border='')
+		#***************
 		if strike[dp.GEX_TOTAL_GEX] != 0 : drawRect(draw, 215 - ((abs(strike[dp.GEX_TOTAL_GEX]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[dp.GEX_TOTAL_GEX] > -1) else "#f00"), border='')
 		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')

@@ -152,9 +152,21 @@ print( data )
 """
 
 
-"""
-from requests_html import HTMLSession
 
+"""from requests_html import HTMLSession
+def pullFJNews():
+	session = HTMLSession()
+	header = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3",
+        }
+	url = 'https://www.financialjuice.com/home'
+	req = session.get(url, headers=header)
+	req.html.render()"""
+
+	
+"""
 session = HTMLSession()
 
 def fetch(url, params):
@@ -234,10 +246,6 @@ def fetchNews():
 		#news.append( NewsData(today) )
 	todaysNews = news
 	return news
-
-
-
-
 
 class MyNewHelp(commands.MinimalHelpCommand):
 	async def send_pages(self):
@@ -423,7 +431,7 @@ async def dailyTask3():
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(1193060258088759356)
 	print("Daily Task Execution 3")
-	fn = dc.drawGEXChart("SPX", 40, 0, chartType=CHART_VOLUME)
+	fn = dc.drawGEXChart("SPX", 40, 0)#, chartType=CHART_VOLUME)
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: 

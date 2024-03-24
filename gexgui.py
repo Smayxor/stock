@@ -128,6 +128,25 @@ def clickButton():
 #myCon = dp.placeOptionOrder(myPosition['symbol'], myPut[dp.GEX_PUT_BID], ticker="XSP", side="sell_to_close", quantity='1')
 #print( myCon )
 #{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
+CALLORPUTA = [dp.GEX_CALL_ASK, dp.GEX_PUT_ASK]
+CALLORPUTB = [dp.GEX_CALL_BID, dp.GEX_PUT_BID]
+CALLORPUTS = [dp.GEX_CALL_SYMBOL, dp.GEX_PUT_SYMBOL]
+def placeOrder(callput):
+	options = dp.getOptionsChain('XSP', 0)
+	gexList = dp.getGEX(options[1])
+	element = CALLORPUTA[callput]
+	strike = min(gexList, key=lambda i: abs(i[element] - 0.40))
+	bid = strike[CALLORPUTB[callput]]
+	ask = strike[CALLORPUTA[callput]]
+	symbol = strike[CALLORPUTS[callput]]
+	midPrice = (bid + ask) / 2
+
+	print( "Call" if callput==0 else "Put", strike[dp.GEX_STRIKE], " $", midPrice )
+	
+	return
+	myCon = dp.placeOptionOrder(symbol, midPrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
+	
+	myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')
 
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
@@ -215,25 +234,25 @@ def timerThread():
 	if not dte.isnumeric(): dte = 0
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
-		minute = 0 # float( next(reversed(gexData.keys())) )
-		
-		"""
-		for t in reversed(gexData) :
-			minute = float( t )
-			if minute < 614 or minute > 630 : break #Sets time to market open
-		"""
-		
+		minute = 0
 		times = list(gexData.keys())
 		lastTimes = len(times) - 1
+
+		if fileIndex==lastFileIndex :
+			minute = times[-1]
+			gexList = gexData[minute]
+			price = dp.getPrice("SPX", gexList, 0)
+			cPrice = float(callPrice.get())
+			pPrice = float(putPrice.get())
+			if price < cPrice :
+				placeOrder(0)
+			if price > pPrice :
+				placeOrder(1)
+
 		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
 		minute = times[dataIndex]
 		minute = str( minute )
-		gexList = gexData[minute]  #list(gexData.values())[-1] #set to last value, for most recent volume/gex data
-		#if fileIndex != lastFileIndex : # lock historical data to market open
-		#	for minute in gexData:
-		#		if float(minute) >= 630 :
-		#			gexList = gexData[minute]
-		#			break
+		gexList = gexData[minute]
 		
 		refreshVCanvas(strikes=gexList)
 
@@ -493,6 +512,22 @@ vcanvas.configure(width=150, height=605, bg='black')
 strikecanvas = tk.Canvas(win,width= 1400, height=605, bg='black')
 strikecanvas.place(x=492, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
+
+lblCallPrice = tk.Label(win, text=f'Buy Call @ $', width=12, anchor="w")
+lblCallPrice.place(x = 150, y =690)
+callPrice = tk.StringVar() 
+callPrice.set("0000")
+e6 = tk.Entry(win, width=6, textvariable=callPrice)
+e6.place(x=225, y=690)
+
+lblPutPrice = tk.Label(win, text=f'Buy Put  @ $', width=12, anchor="w")
+lblPutPrice.place(x = 150, y =710)
+putPrice = tk.StringVar() 
+putPrice.set("9999")
+e7 = tk.Entry(win, width=6, textvariable=putPrice)
+e7.place(x=225, y=710)
+
+
 
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()

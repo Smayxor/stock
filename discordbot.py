@@ -284,7 +284,7 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	ticker = ticker.upper()
 	chartType = getChartType( chart )
 	if chartType == CHART_HEATMAP:
-		fn = dc.drawHeatMap(ticker, count, dte)
+		fn = dc.drawWeeklyChart()
 	else:
 		fn = ""
 		#if ticker == "SPX" and dte == 0 and chart == "R" : # Pull the data from PC Server,  needs to check if server is even available
@@ -451,16 +451,13 @@ async def on_ready():
 		dailyTask2.start()
 		dailyTask3.start()
 		blnFirstTime = False
-	"""		
-	@bot.command(name="s")
-	async def get_gex(ctx, *args):
-		global tickers, updateRunning
-		clearStoredStrikes()
-		chnl = bot.get_channel(UPDATE_CHANNEL)
-		await chnl.send("Fethcing Morning Charts")
-		tickers.append( ("SPX", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-		tickers.append( ("SPY", 0, 40, CHART_ROTATE, UPDATE_CHANNEL, chnl) )
-	"""	
+	
+@bot.command(name="s")
+async def get_gex(ctx, *args):
+	chnl = bot.get_channel(UPDATE_CHANNEL)
+	await chnl.send("Fethcing Weekly Charts")
+	#*********************************************************************************************************************
+	
 @bot.command(name="leaveg")
 @commands.is_owner()
 async def leaveg(ctx, *, guild_name):

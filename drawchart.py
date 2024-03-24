@@ -571,7 +571,5 @@ def drawWeeklyChart():
 	for i in range(5):
 		dteImage = drawGEXChart(ticker, count, dte=i, RAM = True)
 		img.paste(dteImage, (i * IMG_H, 0))
-		
-		print(f'DTE Image {i} saved')
 	img.save("stock-chart.png")
 	return "stock-chart.png"

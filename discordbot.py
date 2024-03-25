@@ -296,7 +296,7 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	else:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
-		
+
 @bot.command(name="pump")
 async def command_pump(ctx, *args): await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
 @bot.command(name="dump")
@@ -405,6 +405,11 @@ async def dailyTask():
 			chnl = bot.get_channel(UPDATE_CHANNEL)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
+		
+	if datetime.datetime.now().weekday() == 0 : 
+		fn = dc.drawWeeklyChart()
+		chnl = bot.get_channel(1221522301787570256)
+		await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
 dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)

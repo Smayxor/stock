@@ -564,12 +564,21 @@ def drawWeeklyChart():
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500 + 65
 	IMG_W += 110
-	img = PILImg.new("RGB", (IMG_H * 5, IMG_W), "#000")
+	img = PILImg.new("RGB", ((IMG_H + 5) * 5, IMG_W), "#000")
 	draw = ImageDraw.Draw(img)
 	
 	images = []
-	for i in range(5):
-		dteImage = drawGEXChart(ticker, count, dte=i, RAM = True)
-		img.paste(dteImage, (i * IMG_H, 0))
+	days = dp.getMultipleDTEOptionChain(ticker, 5)
+	days = sorted(days, key=lambda x: x[0])
+	i = 0
+	price = dp.getPrice(ticker, next(iter(days))[1])
+	for day in days:
+		dteImage = drawGEXChart(ticker, count, dte=i, expDate=day[0], strikes=day[1], RAM = True)
+	#	dteImage = drawGEXChart(ticker, count, dte=i, RAM = True)
+		x = i * (IMG_H + 5)
+		img.paste(dteImage, (x, 0))
+		x += IMG_H
+		drawRect(draw, x + 1, 0, x + 3, IMG_W, color="#00f", border="yellow")
+		i += 1
 	img.save("stock-chart.png")
 	return "stock-chart.png"

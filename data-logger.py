@@ -19,6 +19,7 @@ SPX1DTEdayData = {}
 SPXLastData = {}
 SPXopenPrice = -1 #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 skip1DTE = 0
+skipPreMarket = 0
 
 
 """# start of the script   ***** How to cache local file
@@ -87,9 +88,13 @@ def save0dte(bln1dte):
 		json.dump(SPXLastData, f)
 
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket
 	minute = getStrTime()
 	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
+	if minute < 630 :
+		skipPreMarket = (skipPreMarket + 1) % 15
+		if skipPreMarket != 1 : return
+
 	try:
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
@@ -106,8 +111,8 @@ def appendData():
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 			SPX1DTEdayData[minute] = gex
-		skip1DTE = (skip1DTE + 1) % 15		
 		
+		skip1DTE = (skip1DTE + 1) % 15
 		save0dte(skip1DTE == 0)
 	except Exception as error:
 		print(f'AppendData - An error occoured: {error}')
@@ -160,14 +165,14 @@ def timerThread():
 	appendData()
 
 print("Running Version 2.0 ArrayOfTuples - NoPandas")
-schedule.every().day.at("04:30").do(startDay)  #Currently set to PST
+schedule.every().day.at("0:00").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 
 timer = dp.RepeatTimer(20, timerThread, daemon=True)
 timer.start()
 #now = datetime.datetime.now()
 tmp = getStrTime()#(now.hour * 100) + now.minute
-if (tmp > 430) and (tmp < 1300): 
+if (tmp > 0) and (tmp < 1300): 
 	print('Late start to the day')
 	startDay()
 #startDay()

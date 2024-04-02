@@ -164,8 +164,8 @@ def timerThread():
 	if not blnRun : return
 	appendData()
 
-print("Running Version 2.0 ArrayOfTuples - NoPandas")
-schedule.every().day.at("0:00").do(startDay)  #Currently set to PST
+print("Running Version 3.0 More OVN Data")
+schedule.every().day.at("00:00").do(startDay)  #Currently set to PST
 schedule.every().day.at("13:00").do(endDay)
 
 timer = dp.RepeatTimer(20, timerThread, daemon=True)

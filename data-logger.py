@@ -47,9 +47,9 @@ while True:
 'a+' Both read and write to an existing file or create a new file. The file pointer will be at the end of the file.
 """
 
-def save0dte(bln1dte):
+def save0dte(bln1dte, thisDate):
 	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData
-	today = str(datetime.date.today()).split(":")[0]
+	#today = getToday()[0] #str(datetime.date.today()).split(":")[0]
 	
 	def saveDataFile(bigData, appendData, myFile):
 		if not os.path.isfile(myFile):
@@ -75,11 +75,11 @@ def save0dte(bln1dte):
 				#f.truncate()
 				f.write( appendData )"""
 	
-	fileName = f'./logs/{today}-0dte-datalog.json'
+	fileName = f'./logs/{thisDate}-0dte-datalog.json'
 	saveDataFile( SPX0DTEdayData, SPXLastData, fileName )
 
 	if bln1dte :
-		fileName = f'./logs/{today}-1dte-datalog.json'
+		fileName = f'./logs/{thisDate}-1dte-datalog.json'
 		with open(fileName,'w') as f: 
 			json.dump(SPX1DTEdayData, f)
 
@@ -89,16 +89,17 @@ def save0dte(bln1dte):
 
 def appendData():
 	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket
-	minute = getStrTime()
+	myTime = getToday()
+	minute = myTime[1] #getStrTime()
 	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
 	if minute < 630 :
-		skipPreMarket = (skipPreMarket + 1) % 15
+		skipPreMarket = (skipPreMarket + 1) % 6
 		if skipPreMarket != 1 : return
 
 	try:
 		options = dp.getOptionsChain("SPX", 0)
 		gex = dp.getGEX( options[1] )
-		price = gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
+		price = dp.getPrice('SPX', gex) #gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		#SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
@@ -113,19 +114,21 @@ def appendData():
 			SPX1DTEdayData[minute] = gex
 		
 		skip1DTE = (skip1DTE + 1) % 15
-		save0dte(skip1DTE == 0)
+		save0dte(skip1DTE == 0, thisDate = myTime[0])
 	except Exception as error:
-		print(f'AppendData - An error occoured: {error}')
+		print(f'{blnRun} AppendData - An error occoured: {error}')
+		state = dp.getMarketHoursToday()
+		print( f'During Error State - {state}' )
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket
 	try:  # In the event of an error, just start the day anyways......
 		state = dp.getMarketHoursToday()
 		print( state )
-		if 'closed' in state['state'] : #Seems to not apply to sunday!!!
+		"""if 'closed' in state['state'] : #Seems to not apply to sunday!!!
 			#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
 			print( 'Market Closed Today')
-			return
+			return"""
 	except Exception as error:
 		print(f'StartDay - An error occoured: {error}')
 		
@@ -135,13 +138,14 @@ def startDay():
 	SPXopenPrice = -1
 	SPX1DTEdayData = {}
 	skip1DTE = 0
+	skipPreMarket = 0
 	print( "Day started" )
 	
 def endDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData
 	if not blnRun : return
 	blnRun = False
-	today = str(datetime.date.today()).split(":")[0]
+	today = getToday()[0] # str(datetime.date.today()).split(":")[0]
 	#save0dte()
 	def savePriceChart(ticker):
 		dayCandles = dp.getCandles(ticker, 0, 1)
@@ -157,7 +161,13 @@ def endDay():
 
 def getStrTime(): 
 	now = datetime.datetime.now()
-	return (now.hour * 100) + now.minute + (now.second * 0.01) #return str(datetime.datetime.now()).split(' ')[1].split('.')[0]
+	return (now.hour * 100) + now.minute + (now.second * 0.01)
+
+def getToday():
+	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
+	tmp = dateAndtime[1].split(".")[0].split(":")
+	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
+	return (dateAndtime[0], minute)
 
 def timerThread():
 	global blnRun
@@ -170,8 +180,7 @@ schedule.every().day.at("13:00").do(endDay)
 
 timer = dp.RepeatTimer(20, timerThread, daemon=True)
 timer.start()
-#now = datetime.datetime.now()
-tmp = getStrTime()#(now.hour * 100) + now.minute
+tmp = getToday()[1]
 if (tmp > 0) and (tmp < 1300): 
 	print('Late start to the day')
 	startDay()

@@ -87,14 +87,13 @@ def save0dte(bln1dte, thisDate):
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
 
+lowSPX = None
+highSPX = None
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX
 	myTime = getToday()
 	minute = myTime[1] #getStrTime()
 	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
-	if minute < 630 :
-		skipPreMarket = (skipPreMarket + 1) % 6
-		if skipPreMarket != 1 : return
 
 	try:
 		options = dp.getOptionsChain("SPX", 0)
@@ -102,11 +101,41 @@ def appendData():
 		price = dp.getPrice('SPX', gex) #gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
-		#SPX0DTEdayData[getStrTime()] = {**{'price': price, 'data': gex}}
+		if gex == "": print('GEX Empty String')
+		
+		#**********************************************************************************
+		if minute < 630 : #Special Premarket folded logging
+			skipPreMarket = (skipPreMarket + 1) % 15
+			#print( f'Minute {minute} - {skipPreMarket} - Skip {skipPreMarket != 1}' )
+			
+			if lowSPX == None :
+				lowSPX = gex
+				highSPX = gex
+					
+			lowPrice = dp.getPrice("SPX", lowSPX)
+			highPrice = dp.getPrice("SPX", highSPX)
+			
+			if price < lowPrice : lowSPX = gex
+			if price > highPrice : highSPX = gex
+					
+			if skipPreMarket == 14 :
+				SPX0DTEdayData[minute] = lowSPX
+				SPX0DTEdayData[minute + 0.01] = highSPX
+				
+				SPXLastData = {}
+				SPXLastData[minute] = lowSPX
+				SPXLastData[minute + 0.01] = highSPX
+				
+				save0dte( False, thisDate = myTime[0])
+				lowSPX = None
+			return
+		#***********************************************************************************
+
+		#Normal logging during day
 		SPX0DTEdayData[minute] = gex
 		SPXLastData = {}
-		SPXLastData[minute] = gex
-		if gex == "": print('GEX Empty String')
+		SPXLastData[minute] = gex		
+		
 		if skip1DTE == 0:
 			options = dp.getOptionsChain("SPX", 1)
 			gex = dp.getGEX( options[1] )
@@ -121,24 +150,27 @@ def appendData():
 		print( f'During Error State - {state}' )
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX
 	try:  # In the event of an error, just start the day anyways......
 		state = dp.getMarketHoursToday()
 		print( state )
 		"""if 'closed' in state['state'] : #Seems to not apply to sunday!!!
 			#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
+			#Saturday Morning - {'date': '2024-04-06', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1712392287, 'next_change': '07:00', 'next_state': 'premarket'}
 			print( 'Market Closed Today')
 			return"""
 	except Exception as error:
 		print(f'StartDay - An error occoured: {error}')
 		
-	if datetime.datetime.now().weekday() > 4 : return
+	#if datetime.datetime.now().weekday() > 4 : return
 	blnRun = True
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1
 	SPX1DTEdayData = {}
 	skip1DTE = 0
 	skipPreMarket = 0
+	lowSPX = None
+	highSPX = None
 	print( "Day started" )
 	
 def endDay():

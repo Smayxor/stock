@@ -146,8 +146,8 @@ def appendData():
 		save0dte(skip1DTE == 0, thisDate = myTime[0])
 	except Exception as error:
 		print(f'{blnRun} AppendData - An error occoured: {error}')
-		state = dp.getMarketHoursToday()
-		print( f'During Error State - {state}' )
+		#state = dp.getMarketHoursToday()   #DONT DO THIS.   If network connection fails, unhandled exception stops timer
+		#print( f'During Error State - {state}' )
 
 def startDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX
@@ -162,7 +162,7 @@ def startDay():
 	except Exception as error:
 		print(f'StartDay - An error occoured: {error}')
 		
-	#if datetime.datetime.now().weekday() > 4 : return
+	if datetime.datetime.now().weekday() > 4 : return
 	blnRun = True
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1

@@ -131,7 +131,9 @@ def clickButton():
 CALLORPUTA = [dp.GEX_CALL_ASK, dp.GEX_PUT_ASK]
 CALLORPUTB = [dp.GEX_CALL_BID, dp.GEX_PUT_BID]
 CALLORPUTS = [dp.GEX_CALL_SYMBOL, dp.GEX_PUT_SYMBOL]
+testPosition = 0
 def placeOrder(callput):
+	global testPosition
 	options = dp.getOptionsChain('XSP', 0)
 	gexList = dp.getGEX(options[1])
 	element = CALLORPUTA[callput]
@@ -141,12 +143,19 @@ def placeOrder(callput):
 	symbol = strike[CALLORPUTS[callput]]
 	midPrice = (bid + ask) / 2
 
+	
+
+	if 'XSP' in openOrders : print('Yes')
+	if testPosition == 1 : return
+	testPosition = 1
 	print( "Call" if callput==0 else "Put", strike[dp.GEX_STRIKE], " $", midPrice )
 	
-	return
+
 	myCon = dp.placeOptionOrder(symbol, midPrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
-	
+	getAccountData(myCon)	
 	myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')
+
+	
 
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
@@ -190,6 +199,8 @@ def triggerReset():
 		pcFloatingDot = strikecanvas.create_line(500, 100, 515, 115, fill='blue', width = 3, dash=(1,3))
 		strikecanvas.bind("<Motion>", strikecanvas_on_mouse_move)
 		setPCFloat(-1,-1)
+		
+		canvas.bind('<Button-1>', on_gex_strike_click)
 	except Exception as error:
 		print("An exception occurred:", error)
 
@@ -339,6 +350,26 @@ def on_strike_click(event):
 				
 		cbCall.configure(text=text)
 	timerThread()
+
+def on_gex_strike_click(event):
+	global vcStrikes
+	if event.y < 65: 
+		e3Text.set('all')
+	else :
+		index = int( (594 - event.y) / 12.6 )
+		endText = 'c' if event.x < 243 else 'p'
+		text = str(vcStrikes[index].Strike).split('.')[0] + endText
+		if endText == 'c' : 
+			e3Text.set(text)
+			checkCall.set(1)
+		else: 
+			e4Text.set(text)
+			checkCall.set(0)
+			if e3Text.get() == 'all' :
+				e3Text.set( str(vcStrikes[index].Strike).split('.')[0] + 'c' )
+				
+		cbCall.configure(text=text)
+	timerThread()	
 
 def initVChart(strikes, ticker):
 	global vPrice, vCallGEX, vPutGEX, vcStrikes

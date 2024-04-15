@@ -16,6 +16,11 @@ INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
+
+#when XLE is down but CL is up, that means everybody is selling off and flying to safety assets ( oil & gold - gold is barely red while the rest of the market is -1% or weaker ) 
+#idk why michigan gets such a focus of attention, they survey / cold-call 'random' people and that's where they get their sentiment polls from
+#just like the st louis FED get's the spotlight above the others
+
 """
 firstData = {}
 firstData[1] = "aaa"

@@ -20,7 +20,8 @@ SPXLastData = {}
 SPXopenPrice = -1 #Used so we can ShrinkToCount around the same price value, all day long.  Keeps strike indices alligned
 skip1DTE = 0
 skipPreMarket = 0
-
+lowSPX = None
+highSPX = None
 
 """# start of the script   ***** How to cache local file
 # load the current value
@@ -87,8 +88,6 @@ def save0dte(bln1dte, thisDate):
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
 
-lowSPX = None
-highSPX = None
 def appendData():
 	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX
 	myTime = getToday()

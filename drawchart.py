@@ -82,6 +82,11 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	count = len(strikes)
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 	
+	
+	for strike in strikes :
+		strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
+	
+	
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
 	minTotalGEX = abs(min(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX])
 	maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
@@ -321,6 +326,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			if minute >= 614 and minute <= 631: 
 				openTimeIndex = len(prices)
 				continue
+			#**************************************************************************************************************************
+			if minute > 700 : continue
+			#**************************************************************************************************************************
 			callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID]
 			if callPutPrice == 0 : continue
 			for s in gexData[t]:
@@ -567,18 +575,15 @@ def drawWeeklyChart():
 	img = PILImg.new("RGB", ((IMG_H + 5) * 5, IMG_W), "#000")
 	draw = ImageDraw.Draw(img)
 	
-	images = []
-	days = dp.getMultipleDTEOptionChain(ticker, 5)
-	days = sorted(days, key=lambda x: x[0])
-	i = 0
-	price = dp.getPrice(ticker, next(iter(days))[1])
-	for day in days:
-		dteImage = drawGEXChart(ticker, count, dte=i, expDate=day[0], strikes=day[1], RAM = True)
-	#	dteImage = drawGEXChart(ticker, count, dte=i, RAM = True)
+	images = [
+		drawGEXChart(ticker, count, dte=i, expDate=day[0], strikes=day[1], RAM = True)
+		for i, day in enumerate(dp.getMultipleDTEOptionChain(ticker, 5))
+	]
+	for i, dteImage in enumerate(images) :
 		x = i * (IMG_H + 5)
 		img.paste(dteImage, (x, 0))
 		x += IMG_H
 		drawRect(draw, x + 1, 0, x + 3, IMG_W, color="#00f", border="yellow")
-		i += 1
+
 	img.save("stock-chart.png")
 	return "stock-chart.png"

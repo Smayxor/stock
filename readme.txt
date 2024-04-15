@@ -1,3 +1,4 @@
+RonS Welcome to SMayXOR
 *****Current version of gexgui.py  requires another computer running data-puller.py with a http file server
 
 You can run gexgui.py to run a local gex chart client

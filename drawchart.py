@@ -83,8 +83,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
 	
 	
-	for strike in strikes :
-		strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
+	#for strike in strikes :
+	#	strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
 	
 	
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
@@ -327,7 +327,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				openTimeIndex = len(prices)
 				continue
 			#**************************************************************************************************************************
-			if minute > 700 : continue
+			#if minute > 700 : continue
 			#**************************************************************************************************************************
 			callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID]
 			if callPutPrice == 0 : continue

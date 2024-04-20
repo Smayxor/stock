@@ -1,3 +1,8 @@
+Update.   Just use Pydroid.   After getting the bot running, you will see a terminal window, in the top right is a settings button with optiions for Wakelock and Wifilock.
+I have not figured out where to use a shell script to loop-repeat-execute of the script, so you would of have to manually Run the bot after /sudo update
+
+***************** Or configure Termux, good luck.
+
 The termux app instructions were an effort to avoid issues i had with android putting app/bot to sleep when screen is off.  Getting Termux to work is slightly complicated once u get to the Pillow stage
 
 To make run on an Android phone, install app Pydroid and pip install discord.py requests colour.   Turn OFF battery saver features so apps arent being put to sleep.  Can also Enabled Developer Mode and enable Keep Phone Screen On While Charging

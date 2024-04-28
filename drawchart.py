@@ -1,6 +1,7 @@
 from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image
 import PIL.Image as PILImg
 import datapuller as dp
+import signals as sig
 
 FONT_SIZE = 22
 STR_FONT_SIZE = str(int(FONT_SIZE / 2))  #strangely font size is 2x on tkinter canvas
@@ -53,7 +54,7 @@ def drawPointer(draw, y, color = 'yellow'):
 	draw.polygon( [290, y, 300, y-10, 300, y+10, 290, y], fill=color, outline='blue')
 
 #function recieves a Tuple Array from datapuller.py
-def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, targets=False, RAM=False):
+def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, RAM=False):
 	ticker = ticker.upper()
 	#print('a')
 	if strikes == None:
@@ -84,7 +85,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	
 	
 	#for strike in strikes :
-	#	strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
+	#	strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_TOTAL_OI]#strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
 	
 	
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
@@ -102,7 +103,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
 	#print('f')
 	keyLevels = []
-	keyLevels = dp.findKeyLevels(strikes, price, targets=True)[2]
+	keyLevels = dp.findKeyLevels(strikes)
 	
 	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 	
@@ -177,14 +178,18 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	allPrices = []
 	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5) - 20
 	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 20
-	
+	#print('a')
 	if 'all' in userArgs:
-		strikes = gexData[ next(iter(gexData)) ]
+		strikes = list(gexData.values())[-1]
+		for t in gexData: 
+			if float(t) // 1 > 630 :
+				strikes = gexData[t]
+				break
+		#print('b')
 		openPrice = dp.getPrice("SPX", strikes)
-		targets = dp.findKeyLevels( strikes, openPrice, targets=True )[2]
-		#callTargets = [[x[dp.GEX_STRIKE], 0] for x in targets[0]]
-		#putTargets = [[x[dp.GEX_STRIKE], 0] for x in targets[1]]
-		#targets = callTargets + [[x[dp.GEX_STRIKE], 0] for x in putTargets if x not in callTargets]
+		#print('c')
+		targets = dp.findKeyLevels( strikes )
+		sigs = sig.identifyKeyLevels( strikes )
 		prices = []
 		#*******************
 		flags = []
@@ -195,7 +200,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > deadprice]
 		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > deadprice]
 		x = 0
-		
+		#print('e')
 		for time, strikes in gexData.items():
 			minute = float(time)
 			callPutPrice = gexData[time][0][dp.GEX_CALL_BID] + gexData[time][0][dp.GEX_PUT_BID]
@@ -207,20 +212,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				prices.append( currentPrice )
 				
 				mostCallPutVolume = max(strikes, key=lambda i: i[dp.GEX_CALL_VOLUME] + i[dp.GEX_PUT_VOLUME])[dp.GEX_STRIKE]
-				#mostPutVolume = max(strikes, key=lambda i: i[dp.GEX_PUT_VOLUME])[dp.GEX_STRIKE]
-				"""
-				mostCallVolume = heapq.nlargest( 3, strikes, key = lambda i: i[dp.GEX_CALL_VOLUME])
-				mostPutVolume = heapq.nlargest( 3, strikes, key = lambda i: i[dp.GEX_PUT_VOLUME])
-				
-				callSizeReq = max( mostCallVolume, key=lambda i: i[dp.GEX_CALL_VOLUME] )[dp.GEX_CALL_VOLUME] * 0.8
-				putSizeReq = max( mostPutVolume, key=lambda i: i[dp.GEX_PUT_VOLUME] )[dp.GEX_PUT_VOLUME] * 0.8
-				
-				calls = [x[dp.GEX_STRIKE] for x in mostCallVolume if x[dp.GEX_CALL_VOLUME] > callSizeReq]
-				puts = [x[dp.GEX_STRIKE] for x in mostPutVolume if x[dp.GEX_PUT_VOLUME] > putSizeReq]
-				
-				mostCallVolume = min( calls )
-				mostPutVolume = max( puts )
-				"""
+
 				flags.append( (minute, mostCallPutVolume) )
 				#print(mostCallVolume, mostPutVolume)
 				for strike in strikes :
@@ -231,8 +223,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				x += 1
 			else : openTimeIndex = len(prices)
 		
-		maxPrice = max( prices ) + 5
-		minPrice = min( prices ) - 5
+		maxPrice = max( (*prices, sigs[0][1]) ) + 5
+		minPrice = min( (*prices, sigs[0][0]) ) - 5
 		priceDif = maxPrice - minPrice
 		
 		peaksValleys = dp.findPeaksAndValleys( prices )
@@ -279,7 +271,13 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='green', outline='blue')
 				#print(f'Drawing Call Flag {flags[x][2]} @ {x}x{y2}')
 #****************************************			
-			if x == openTimeIndex : draw.line([x, 50, x, 500], fill="purple", width=1)
+			if x == openTimeIndex : 
+				draw.line([x, 50, x, 500], fill="purple", width=1)
+				if sigs[1] == sig.DAY_PUMP :
+					draw.polygon( [x, 250, x-50, 300, x+50, 300, x,250], fill="green", outline='blue')
+				if sigs[1] == sig.DAY_DUMP :
+					draw.polygon( [x, 250, x-50, 200, x+50, 200, x,250], fill="red", outline='blue')
+				
 			
 		x = 0
 		y = FONT_SIZE + 15
@@ -291,14 +289,16 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		drawText( draw, 1300, y, txt=str( maxPrice ), color="green", anchor="rt")
 		drawText( draw, 1300, y2, txt=str( minPrice ), color="red", anchor="rb")
 
-
-		for tar in targets:
+		for tar in (*targets, *sigs[2], *sigs[3], *sigs[4]):
 			if minPrice < tar < maxPrice :
 				y = spxY( tar )
-				draw.line( [0, y, 1500, y], fill="green", width=1)
+				colr = "yellow" 
+				if tar in sigs[2] : colr = "blue"
+				if tar in sigs[3] : colr = "red"
+				if tar in sigs[4] : colr = "green"
+				draw.line( [0, y, 1500, y], fill=colr, width=1)
 				drawText( draw, 1400, y, txt=str(tar), color="yellow", anchor="rb")
-
-
+		
 		if RAM : return (img, allPrices)
 		img.save("price-chart.png")
 		if includePrices : return ("price-chart.png", allPrices)

@@ -16,6 +16,7 @@ INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 
+if not os.path.isdir('./logs'): os.mkdir('./logs')
 
 #when XLE is down but CL is up, that means everybody is selling off and flying to safety assets ( oil & gold - gold is barely red while the rest of the market is -1% or weaker ) 
 #idk why michigan gets such a focus of attention, they survey / cold-call 'random' people and that's where they get their sentiment polls from
@@ -53,66 +54,54 @@ class RepeatTimer(Timer):
 		while not self.finished.wait(self.interval):
 			self.function(*self.args, **self.kwargs)
 
-def findKeyLevels(strikes, price, targets=False):
-	if targets :
-		"""
-		callContractList = [x for x in strikes if x[GEX_STRIKE] > price and x[GEX_CALL_BID] > 0.3]
-		putContractList = [x for x in strikes if x[GEX_STRIKE] < price and x[GEX_PUT_BID] > 0.3]
+def findKeyLevels(strikes):
+	price = getPrice(ticker="SPX", strikes=strikes)
+	hasValueList = [x for x in strikes if (x[GEX_STRIKE] > price and x[GEX_CALL_BID] > 0.3) or (x[GEX_STRIKE] < price and x[GEX_PUT_BID] > 0.3)]
+	main3 = heapq.nlargest( 5, hasValueList, key=lambda i: i[GEX_TOTAL_OI])
+	return [x[GEX_STRIKE] for x in main3]
+	"""
+	callContractList = [x for x in strikes if x[GEX_STRIKE] > price and x[GEX_CALL_BID] > 0.3]
+	putContractList = [x for x in strikes if x[GEX_STRIKE] < price and x[GEX_PUT_BID] > 0.3]
 
-		mostCallGEX = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_GEX])
-		mostCallOI = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_OI])
-		mostCallVolume = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_VOLUME])
+	mostCallGEX = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_GEX])
+	mostCallOI = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_OI])
+	mostCallVolume = heapq.nlargest( 3, callContractList, key = lambda i: i[GEX_CALL_VOLUME])
 
-		mostPutGEX = heapq.nlargest( 3, putContractList, key = lambda i: -i[GEX_PUT_GEX])
-		mostPutOI = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_OI])
-		mostPutVolume = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_VOLUME])
+	mostPutGEX = heapq.nlargest( 3, putContractList, key = lambda i: -i[GEX_PUT_GEX])
+	mostPutOI = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_OI])
+	mostPutVolume = heapq.nlargest( 3, putContractList, key = lambda i: i[GEX_PUT_VOLUME])
 
-		#callContractList = mostCallOI + [i for i in mostCallVolume if i not in mostCallOI]
-		#putContractList = mostPutOI + [i for i in mostPutVolume if i not in mostPutOI]
-		"""
-		
-		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])[GEX_CALL_OI] * 0.6
-		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])[GEX_PUT_OI] * 0.6
-		
-		callContractList = heapq.nlargest( 5, strikes, key = lambda i: i[GEX_CALL_GEX])# if i[GEX_CALL_OI] > mostCallOI else 0)
-		putContractList = heapq.nlargest( 5, strikes, key = lambda i: -i[GEX_PUT_GEX])# if i[GEX_PUT_OI] > mostPutOI else 0)
+	#callContractList = mostCallOI + [i for i in mostCallVolume if i not in mostCallOI]
+	#putContractList = mostPutOI + [i for i in mostPutVolume if i not in mostPutOI]
 
-		#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])
-		#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])
-		callTargets = [x[GEX_STRIKE] for x in callContractList]
-		putTargets = [x[GEX_STRIKE] for x in putContractList]
-		targets = sorted(callTargets + [x for x in putTargets if x not in callTargets])
-		
-		x = 0
-		lastTarget = len(targets)
-		while x < lastTarget:
-			y = x+1
-			while y < lastTarget:
-				#print( f'Testing {targets[x]} - {targets[y]}' )
-				if abs(targets[x] - targets[y]) == 5:
-					#print( f'Removing {targets[y]}' )
-					del targets[y]
-					lastTarget -= 1
-				else: y += 1	
-			x += 1
-		
-		return (callContractList, putContractList, targets)
-	else :
-		keyLevels = []
-		def checkIfExists( strike ):
-			if strike not in keyLevels: keyLevels.append( strike )
-		priceLower = price - (price % 65) - 10
-		priceUpper = priceLower + 100
+	
+	#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])[GEX_CALL_OI] * 0.6
+	#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])[GEX_PUT_OI] * 0.6
+	
+	callContractList = heapq.nlargest( 5, strikes, key = lambda i: i[GEX_CALL_GEX])# if i[GEX_CALL_OI] > mostCallOI else 0)
+	putContractList = heapq.nlargest( 5, strikes, key = lambda i: -i[GEX_PUT_GEX])# if i[GEX_PUT_OI] > mostPutOI else 0)
 
-		nearStrikes = [x for x in strikes if priceLower < x[GEX_STRIKE] < priceUpper]
-		VALS_TO_CHECK = [GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_OI, GEX_PUT_OI]
-		n = 2 if targets else 3
-		for val in VALS_TO_CHECK:
-			#sorted(zip(score, name), reverse=True)[:3]
-			#heapq.nlargest(n, iterable, key=None)
-			most3 = heapq.nlargest(n, nearStrikes, key=lambda i: i[val])
-			for biggy in most3: checkIfExists( biggy[GEX_STRIKE] )
-		return keyLevels
+	#mostCallOI = max(strikes, key=lambda i: i[GEX_CALL_OI])
+	#mostPutOI = max(strikes, key=lambda i: i[GEX_PUT_OI])
+	callTargets = [x[GEX_STRIKE] for x in callContractList]
+	putTargets = [x[GEX_STRIKE] for x in putContractList]
+	targets = sorted(callTargets + [x for x in putTargets if x not in callTargets])
+	
+	x = 0
+	lastTarget = len(targets)
+	while x < lastTarget:
+		y = x+1
+		while y < lastTarget:
+			#print( f'Testing {targets[x]} - {targets[y]}' )
+			if abs(targets[x] - targets[y]) == 5:
+				#print( f'Removing {targets[y]}' )
+				del targets[y]
+				lastTarget -= 1
+			else: y += 1	
+		x += 1
+	
+	return (callContractList, putContractList, targets)
+	"""
 
 def findPeaksAndValleys( prices ):
 	lenavgs = len( prices )
@@ -448,69 +437,55 @@ def loadPastDTE(daysAhead):
 #Using a Windows Shortcut  C:\Windows\System32\cmd.com /c "PATH\python3 -m http.server 8080"
 #Switched to using HFS File Server
 def pullLogFileList():
-	""" # For HFS File Server
-	response = str(requests.get('http://192.168.1.254:8080/logs/').content)
-	response = response.split('<a href="')
-	result = []
-	for r in response:
-		if 'datalog.json"><img src="/' in r: 
-			tmp = r.split('datalog.json')[0] + "datalog.json"
-			result.append(tmp)
-	return result#[tmp.split('">')[0] for tmp in response]
-	"""
 	# For python3 -m http.server
 	response = str(requests.get('http://192.168.1.254:8080').content).split('-datalog.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
-	#print( result )
 	return result
 	
 lastFileName = ""
 lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
-def pullLogFile(fileName, cachedData=False):
+dateAndTime = str(datetime.datetime.now()).split(" ")[0]
+cacheFiles = os.listdir('./logs')
+def pullLogFile(fileName, cachedData=False, discordBot=False) :
 	global lastFileName, lastFileContents
 	url = f'http://192.168.1.254:8080/{fileName}'
 	urlLast = f'http://192.168.1.254:8080/last-datalog.json'
-	#url = f'http://192.168.1.254:8080/logs/{fileName}'
+	
+	blnSaveACopy = False #Store a copy of data locally
+	if not dateAndTime in fileName : # Only grab cached files for previous days
+		if fileName in cacheFiles : 
+			if lastFileName == fileName : 
+				pass
+			else:
+				#lastFileContents = {}
+				lastFileContents = json.load(open(f'./logs/{fileName}'))
+				lastFileName = fileName
+			return lastFileContents
+		else :
+			blnSaveACopy = True
+	#If data is not stored locally, lets grab it
 	try:
-		if lastFileName == fileName or fileName == "SPX":
-			#print(1)
+		if lastFileName == fileName or fileName == "SPX" :
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
-			#print(2)
 			tmp = requests.get(urlLast)
-			#print(3)
 			if tmp.status_code == 404 : return lastFileContents
-			#print(4)
 			tmp = tmp.json()
-			#print(5)
 			if fileName == "SPX" : return tmp[next(iter(tmp))]
-			#print(6)
 			lastFileContents.update( tmp )
-			#print(7)
 			return lastFileContents
 		else :
 			lastFileName = fileName
-			#print(10)
-			#print( url )
 			tmp = requests.get(url).content
-			#print( tmp.content )
-			#print(tmp[:10], " - ", tmp[-10:])  # 93 93 44
-			#blnAppend = False
 			if tmp[-1] == 44 : 
 				tmp = tmp.decode("utf-8")[:-1] + "}"
-				#print( tmp[:10] , tmp[-10:] )
-				#with open("./logs/test.json", 'a+') as f:
-				#	f.seek(0,2)
-				#	f.write( tmp )
-				#blnAppend = True
 			tmp = json.loads(tmp)
-			#print(12)
 			lastFileContents = tmp
-			#if blnAppend :
-			#	tmp = requests.get(urlLast).json()
-			#	lastFileContents.update( tmp )
-			#print(13)
-	except Exception as error:
+			
+			if blnSaveACopy and not discordBot :#Storing a cached copy of all data from previous days (today might be in progress)
+				with open(f'./logs/{fileName}', 'w') as f:
+					json.dump(lastFileContents, f)
+	except Exception as error :
 		print(f'pullLogFile Error : {error}')
 	return lastFileContents
 

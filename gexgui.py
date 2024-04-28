@@ -73,7 +73,39 @@ def getAccountData(newCon = ""):
 	#openOrders = dp.getOrders()
 	lblOpenOrders.configure(text=f'Open orders - {openOrders} - Positions - {myPositions}')
 
+
+'''
+async def some_IO_func(endpoint):
+    resp = await requests.get(endpoint)
+    payload = resp.json()
+    # do something
+    something = payload['header'] ...
+    return something'''
 def clickButton():
+	import requests
+	import ujson as json
+	
+	response = requests.post('https://api.tradier.com/v1/markets/events/session', data={}, headers=dp.TRADIER_HEADER)
+	json_response = response.json()
+
+	cp = checkCall.get()
+	options = dp.getOptionsChain('SPX', 0)
+	strikes = dp.getGEX(options[1])
+	element = dp.GEX_CALL_ASK if cp == 1 else dp.GEX_PUT_ASK
+	symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
+	
+	strike = e3Text.get()[:4] if cp == 1 else e4Text.get()[:4]
+	strike = float( strike )
+	strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - strike))
+	#strike = min(strikes, key=lambda i: abs(i[element] - 2))
+	
+	payload = { 'sessionid': json_response['stream']['sessionid'], 'symbols': f'{strike[symbol]}', 'linebreak': True }
+	r = requests.get('https://stream.tradier.com/v1/markets/events', stream=True, params=payload, headers={ 'Accept': 'application/json'})
+	for line in r.iter_lines():
+		if line:
+			print(json.loads(line))
+	return#{'type': 'quote', 'symbol': 'SPXW240426P05055000', 'bid': 0.35, 'bidsz': 829, 'bidexch': 'C', 'biddate': '1714155461000', 'ask': 0.4, 'asksz': 299, 'askexch': 'C', 'askdate': '1714155463000'}
+
 	global accountBalance, unsettledFunds, openOrders, myPositions
 	cp = checkCall.get()
 	strike = e3Text.get()[:4] if cp == 1 else e4Text.get()[:4]
@@ -174,7 +206,7 @@ def triggerReset():
 				break
 			#if float(t) // 1 > 650 : break
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp, targets=True, RAM=True) #function needs optional parameter to pass gexdata in
+		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp, RAM=True) #function needs optional parameter to pass gexdata in
 		#image = Image.open("./" + filename)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
@@ -248,7 +280,7 @@ def timerThread():
 		minute = 0
 		times = list(gexData.keys())
 		lastTimes = len(times) - 1
-
+		#print(1)
 		if fileIndex==lastFileIndex :
 			minute = times[-1]
 			gexList = gexData[minute]
@@ -259,27 +291,28 @@ def timerThread():
 				placeOrder(0)
 			if price > pPrice :
 				placeOrder(1)
-
+		#print(2)
 		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
 		minute = times[dataIndex]
 		minute = str( minute )
 		gexList = gexData[minute]
-		
+		#print(3)
 		refreshVCanvas(strikes=gexList)
-
+		#print(4)
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
-
+		#print(5)
 		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), minute=minute)
 		pcData = tmp[1]
 		filename = tmp[0]
+		#print(6)
 		#if 'error' in filename: return
 		pc_image = filename# Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
 		strikecanvas.itemconfig(strikeCanvasImage, image=pc_tk_image)
 
 	except Exception as error:
-		print( 'Error ', error )
+		print( 'Timerthread Error ', error )
 
 def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
 		
@@ -416,38 +449,39 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 		pb = strike[dp.GEX_PUT_BID]
 		calcVals.append( (strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, pb) )
 		#if strike[dp.GEX_STRIKE] == 4995 : print(strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, strike[dp.GEX_PUT_BID] )
-		
+	#print(1)
 	maxCallOI = max(calcVals, key=lambda i: i[1])[1]
 	maxPutOI = abs( min(calcVals, key=lambda i: i[2])[2] )
 	maxCallPutOI = max( (maxCallOI, maxPutOI) )
-	
+	#print(2)
 	maxCallVolume = max(calcVals, key=lambda i: i[3])[3]
 	maxPutVolume = abs( min(calcVals, key=lambda i: i[4])[4] )
 	maxCallPutVolume = max( (maxCallVolume, maxPutVolume) )
-	
+	#print(3)
 	maxCallPutOI = max( [maxCallPutOI, maxCallPutVolume] )
-	
+	#print(4)
 	maxSize = 50
 	#print(calcVals)
 	half_size = 6
 	for vcItem in vcStrikes:
-		#print( vcItem.Strike )
-		strike = next(x for x in calcVals if x[0] == vcItem.Strike)
-		
+		strike = next((x for x in calcVals if x[0] == vcItem.Strike), None)
+		if strike == None: continue
+		#print('a')
 		callSize = (strike[1] / maxCallPutOI) * maxSize
 		putSize = (strike[2] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size + half_size)
 		vcanvas.coords(vcItem.putCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size + half_size)
-		
+		#print('b')
 		callSize = (strike[3] / maxCallPutOI) * maxSize
 		putSize = (strike[4] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callVolCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size)
 		vcanvas.coords(vcItem.putVolCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size)
-		
+		#print('c')
 		vcanvas.itemconfig(vcItem.callPriceText, text=str(round((strike[5]), 2)))
 		vcanvas.itemconfig(vcItem.putPriceText, text=str(round((strike[6]), 2)))
-
+		#print('d')
 		vcanvas.itemconfig(vcItem.strikeText, text=str(round((strike[0]), 2)))
+		#print('e')
 
 def clickLeftButton():
 	global fileIndex, fileList, fileToday

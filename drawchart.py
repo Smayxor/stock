@@ -157,11 +157,21 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	drawText(draw, x=x, y=y, txt=txt, color="#3FF")
 	drawText(draw, x=x, y=y + (FONT_SIZE), txt="Zero Gamma "+"${:,.2f}".format(zeroG), color="orange")
 	drawText(draw, x=x, y=y + (FONT_SIZE * 2), txt="MaxPain ${:,.2f}".format(maxPain), color="#F00")
-	try:
-		pcr = totalPuts / totalCalls
-		color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
-		drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
-	except: pass
+	
+	colr = "purple"
+	txt = "Range Day"
+	if sigs[1] == sig.DAY_PUMP :
+		colr = "green"
+		txt = "PUMP DAY!"
+	if sigs[1] == sig.DAY_DUMP :
+		colr = "red"
+		txt = "DUMP DAY 8p"
+	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=txt, color=colr)
+	#try:
+	#	pcr = totalPuts / totalCalls
+	#	color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
+	#	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
+	#except: pass
 	
 	if RAM : return img
 	img.save("stock-chart.png")

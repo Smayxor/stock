@@ -102,8 +102,9 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxPutGEX = abs(min(strikes, key=lambda i: i[dp.GEX_PUT_GEX])[dp.GEX_PUT_GEX])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
 	#print('f')
-	keyLevels = []
-	keyLevels = dp.findKeyLevels(strikes)
+	#keyLevels = []
+	#keyLevels = dp.findKeyLevels(strikes)
+	sigs = sig.identifyKeyLevels( strikes )
 	
 	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 	
@@ -140,7 +141,9 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
-		if strike[dp.GEX_STRIKE] in keyLevels: drawPointer( draw, y=x + 6, color='yellow' )
+		if strike[dp.GEX_STRIKE] in sigs[2]: drawPointer( draw, y=x + 6, color='blue' )
+		if strike[dp.GEX_STRIKE] in sigs[3]: drawPointer( draw, y=x + 6, color='red' )
+		if strike[dp.GEX_STRIKE] in sigs[4]: drawPointer( draw, y=x + 6, color='green' )
 	#print('h')
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")
@@ -289,7 +292,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		drawText( draw, 1300, y, txt=str( maxPrice ), color="green", anchor="rt")
 		drawText( draw, 1300, y2, txt=str( minPrice ), color="red", anchor="rb")
 
-		for tar in (*targets, *sigs[2], *sigs[3], *sigs[4]):
+		for tar in (*sigs[2], *sigs[3], *sigs[4]):#*targets, 
 			if minPrice < tar < maxPrice :
 				y = spxY( tar )
 				colr = "yellow" 

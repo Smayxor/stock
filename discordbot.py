@@ -381,7 +381,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await intr.response.send_message(user + " requested code update")
 		print("getting update")
 		#fileName = args[1].lower()
-		files = ['discordbot.py', 'datapuller.py', 'drawchart.py']
+		files = ['discordbot.py', 'datapuller.py', 'drawchart.py', 'signals.py']
 		for fileName in files:
 			r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
 			print("recieved file")
@@ -500,7 +500,7 @@ async def pc(ctx, *args):
 		fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
 		file = fileList[-1]
 		
-		gexData = dp.pullLogFile(file)
+		gexData = dp.pullLogFile(file, discordBot=True)
 		chart = dc.drawPriceChart( ticker, file, gexData, args )
 	
 		await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )

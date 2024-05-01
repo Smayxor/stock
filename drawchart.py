@@ -61,32 +61,24 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		optionsChains = dp.getOptionsChain(ticker, dte)
 		expDate = optionsChains[0]
 		strikes = dp.getGEX(optionsChains[1], chartType=chartType)
-	#print('b')
-	#atr = dp.getATR(ticker)
-	#atrs = atr[1]
+
 	zeroG = dp.calcZeroGEX( strikes )
 	maxPain = dp.calcMaxPain( strikes )
-	#print('c')
 	strikeLen = len( strikes[0] )
 	for strike in strikes:
 		for i in range(strikeLen):
 			if strike[i] == None : print( strike )
-	#print('d')
+	
 	callDollars = sum([strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_ASK] for strike in strikes])  # Calc BEFORE shrinking count!!!
 	putDollars = sum([strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_ASK] for strike in strikes])
 	totalCalls = sum([strike[dp.GEX_CALL_OI] for strike in strikes]) 
 	totalPuts = sum([strike[dp.GEX_PUT_OI] for strike in strikes]) 
-	#print(f'Calls {totalCalls} - Puts {totalPuts}')
+	
 	if price == 0: price = dp.getPrice(ticker, strikes)  #Done BEFORE shrinkToCount
 
+	sigs = sig.identifyKeyLevels( strikes )  #Done BEFORE shrinkToCount
 	strikes = dp.shrinkToCount(strikes, price, count)
 	count = len(strikes)
-	#0-Strike, 1-TotalGEX, 2-TotalOI, 3-CallGEX, 4-CallOI,  5-PutGEX, 6-PutOI, 7-IV, 8-CallBid, 9-CallAsk, 10-PutBid, 11-PutAsk
-	
-	
-	#for strike in strikes :
-	#	strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_TOTAL_OI]#strike[dp.GEX_CALL_GEX] + abs(strike[dp.GEX_PUT_GEX])
-	
 	
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
 	minTotalGEX = abs(min(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX])
@@ -101,12 +93,6 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	maxCallGEX = max(strikes, key=lambda i: i[dp.GEX_CALL_GEX])[dp.GEX_CALL_GEX]
 	maxPutGEX = abs(min(strikes, key=lambda i: i[dp.GEX_PUT_GEX])[dp.GEX_PUT_GEX])
 	maxCallPutGEX = max( (maxCallGEX, maxPutGEX) )
-	#print('f')
-	#keyLevels = []
-	#keyLevels = dp.findKeyLevels(strikes)
-	sigs = sig.identifyKeyLevels( strikes )
-	
-	#if targets: keyLevels = [x[dp.GEX_STRIKE] for x in keyLevels[0]] + [x[dp.GEX_STRIKE] for x in keyLevels[1]]
 	
 	IMG_W = ((FONT_SIZE - 3) * count)   #IMG_W and IMG_H used backwards
 	IMG_H = 500 + 65
@@ -127,11 +113,6 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		putVolume = strike[dp.GEX_PUT_VOLUME]
 		callOI = strike[dp.GEX_CALL_OI]
 		putOI = strike[dp.GEX_PUT_OI]
-		#if strike[dp.GEX_TOTAL_OI] != 0 : drawRect(draw, 0, x, ((strike[dp.GEX_TOTAL_OI] / maxTotalOI) * 65), x + 12, color="#00F", border='')
-		#if callVolume > maxTotalOI : callVolume = maxTotalOI
-		#if putVolume > maxTotalOI : putVolume = maxTotalOI
-		#if callVolume != 0 : drawRect(draw, 0, x, ((callVolume / maxTotalOI) * 65), x + 2, color="#0F0", border='')
-		#if putVolume != 0 : drawRect(draw, 0, x+3, ((putVolume / maxTotalOI) * 65), x + 5, color="#F00", border='')
 		if callOI > 0: drawRect(draw, 0, x, ((callOI / maxOIVol) * 65), x + 12, color="#0F0", border='')
 		if callVolume > 0: drawRect(draw, 0, x, ((callVolume / maxOIVol) * 65), x + 6, color="#00F", border='')
 		if putOI > 0: drawRect(draw, IMG_H - ((putOI / maxOIVol) * 65), x, IMG_H, x + 12, color="#F00", border='')
@@ -197,12 +178,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		for t in gexData: 
 			if float(t) // 1 > 630 :
 				strikes = gexData[t]
+				#print(f'Price chart at {t} - count {len(strikes)}')
 				break
 		#print('b')
 		openPrice = dp.getPrice("SPX", strikes)
 		#print('c')
-		targets = dp.findKeyLevels( strikes )
+		#targets = dp.findKeyLevels( strikes )
 		sigs = sig.identifyKeyLevels( strikes )
+		#print( sigs )
 		prices = []
 		#*******************
 		flags = []

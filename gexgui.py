@@ -2,9 +2,13 @@ import tkinter as tk
 from PIL import Image,ImageTk
 import datapuller as dp
 import drawchart as dc
-from threading import Timer
+import threading
 import time
 import math
+import requests
+import ujson as json
+import asyncio
+import websockets
 
 blnRun = True
 IMG_H = 700
@@ -82,8 +86,6 @@ async def some_IO_func(endpoint):
     something = payload['header'] ...
     return something'''
 def clickButton():
-	import requests
-	import ujson as json
 	
 	response = requests.post('https://api.tradier.com/v1/markets/events/session', data={}, headers=dp.TRADIER_HEADER)
 	json_response = response.json()
@@ -201,6 +203,7 @@ def triggerReset():
 		for t in gexData: 
 			if float(t) // 1 > 630 :
 				gexList = gexData[t]
+				#print(f'GEX Chart at {t} - count {len(gexList)}')
 				#strike = next(x for x in gexList if x[dp.GEX_STRIKE] == 5050)
 				#print( f'Call {strike[dp.GEX_CALL_BID]}-{strike[dp.GEX_CALL_ASK]} - Put {strike[dp.GEX_PUT_BID]}-{strike[dp.GEX_PUT_ASK]}' )
 				break
@@ -271,10 +274,16 @@ Call 18.3-18.5 - Put 7.2-7.3
 Call 19.7-19.8 - Put 6.6-6.8
 Call 20.0-20.1 - Put 7.0-7.1'''
 def timerThread():
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex
+	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
 	if blnReset: triggerReset()
 	dte = dteText.get()
 	if not dte.isnumeric(): dte = 0
+	else : dte = int(dte)
+	if dte != fileIndex : 
+		fileIndex = dte
+		fileToday = fileList[fileIndex]
+		triggerReset()
+		
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
 		minute = 0
@@ -527,7 +536,7 @@ lblDays.place(x=100, y=0)
 tk.Button(win, text="<", command=clickLeftButton, width=1).place(x=130, y=0)
 tk.Button(win, text=">", command=clickRightButton, width=1).place(x=150, y=0)
 
-deadPrice = tk.Spinbox(win, width=4, wrap=True, values=(0.30, 0.25, 0.20, 0.15, 0.45, 0.40))#from_=10, to=50)
+deadPrice = tk.Spinbox(win, width=4, wrap=True, values=(-0.1, 0.30, 0.25, 0.20, 0.15, 0.45, 0.40))#from_=10, to=50)
 deadPrice.place(x=200, y=0)
 
 e3Text = tk.StringVar() 
@@ -597,5 +606,34 @@ e7.place(x=225, y=710)
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
 timerThread()
+
+
+async def connect_and_consume(sessionID):
+	uri = "wss://ws.tradier.com/v1/accounts/events"
+	async with websockets.connect(uri) as websocket:
+		payload = {"events": ["order"], "sessionid": f'{sessionID}', "excludeAccounts": []}
+		print(1)
+		await websocket.send(payload)
+		print(2)
+		print(payload)
+		print(3)
+
+		while True:
+			print(4)
+			response = await websocket.recv()
+			print(5)
+			print(response)
+			print(6)
+
+def f():
+	print('Timer started')
+	response = requests.post('https://api.tradier.com/v1/accounts/events/session', data={}, headers=dp.TRADIER_HEADER)
+	json_response = response.json()
+	sessionID = json_response['stream']['sessionid']
+	#print( json_response )  # {'stream': {'url': 'wss://ws.tradier.com/v1/accounts/events', 'sessionid': '73fff1ed-5575-41b6-9521-9ffb5ebe781f'}}
+	asyncio.get_event_loop().run_until_complete(connect_and_consume(sessionID))
+#t = threading.Thread(target=f)
+#t.start()
+#f()
 
 tk.mainloop()

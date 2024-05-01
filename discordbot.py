@@ -281,9 +281,17 @@ def getChartType( arg ):
 	elif arg == 'HEATMAP': return CHART_HEATMAP
 	else: return CHART_GEX
 
+def getStrTime(): 
+	now = datetime.datetime.now()
+	return (now.hour * 100) + now.minute + (now.second * 0.01)
+	
 @bot.tree.command(name="gex", description="Draws a GEX chart")
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
+	minute = getStrTime()
+	if 615 < minute < 630 :
+		await intr.response.send_message("Charting down for server maintenance during 15 minutes before Market Open.")
+		return
 	await intr.response.defer(thinking=True)
 	ticker = ticker.upper()
 	chartType = getChartType( chart )

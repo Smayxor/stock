@@ -40,11 +40,11 @@ def identifyKeyLevels(strikes):
 	for node in main5:
 		strike = node
 		#strike = next(x for x in strikes if x[dp.GEX_STRIKE] == node)
-		#print(3)
-		if (strike[dp.GEX_CALL_OI] > averageCallOI * 3 or strike[dp.GEX_CALL_OI] > mostCallOI * 0.7) and strike[dp.GEX_PUT_OI] < strike[dp.GEX_CALL_OI] * 0.5 :
+		#print(node[dp.GEX_STRIKE])
+		if (strike[dp.GEX_CALL_OI] > averageCallOI * 2.5 or strike[dp.GEX_CALL_OI] > mostCallOI * 0.7) and strike[dp.GEX_PUT_OI] < strike[dp.GEX_CALL_OI] * 0.4 :
 			callWalls.append( node[dp.GEX_STRIKE] )
 			strResult = f' CallWall {node[dp.GEX_STRIKE]} -' + strResult 
-		elif (strike[dp.GEX_PUT_OI] > averagePutOI * 3 or strike[dp.GEX_PUT_OI] > mostPutOI * 0.7) and strike[dp.GEX_CALL_OI] < strike[dp.GEX_PUT_OI] * 0.5 :
+		elif (strike[dp.GEX_PUT_OI] > averagePutOI * 2.5 or strike[dp.GEX_PUT_OI] > mostPutOI * 0.7) and strike[dp.GEX_CALL_OI] < strike[dp.GEX_PUT_OI] * 0.4 :
 			putWalls.append( node[dp.GEX_STRIKE] )
 			strResult = f' PutWall {node[dp.GEX_STRIKE]} -' + strResult 
 		elif strike[dp.GEX_TOTAL_OI] > averageTotalOI * 2 :
@@ -73,6 +73,30 @@ def identifyKeyLevels(strikes):
 	if sumPutOI > sumCallOI * 1.4 : dayType = DAY_DUMP
 	
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
+	
+def planEntry( gexData, sigs ):
+	lastTime = next(reversed(gexData))
+	price = dp.getPrice(ticker="SPX", strikes=gexData[lastTime])
+	
+	if sigs[1] == DAY_RANGE :
+#		allNodes = sorted(sigs[2] + sigs[3] + sigs[4])
+#		result = sorted( sorted( allNodes, key=lambda strike: abs(strike - price) )[:2], key=lambda strike: strike )
+		
+		for x in sigs[2]:
+			if x < price : sigs[3].append(x)
+		for x in sigs[3]:
+			if x > price : sigs[4].append(x)
+		
+		sigs[3].append(0)
+		sigs[4].append(9999)
+		lowTarget = max( sigs[3] )
+		highTarget = min( sigs[4] )
+		
+		return (lowTarget, highTarget)
+	else:
+		return (0, 9999)
+		
+	
 """
 Day 0 - ISP and NISP, Range Day.   Largest CallWall works
 Day 1 - ISP and NISP and NISP, Range Day.  Play pump from ZeroG

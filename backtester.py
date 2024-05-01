@@ -2,7 +2,7 @@ import ujson as json #usjon is json written in C
 import requests
 import datapuller as dp
 import datetime
-import random
+import signals as sig
 
 ticker = 'SPX'
 pnl = 0
@@ -19,11 +19,37 @@ lastDay = lastFile.replace('-0dte-datalog.json','')
 previousClose = 0
 #for candle in candles: print( candle['date'] )
 
+
+daysTR = {}
+TRs = json.load(open(f'./logs/TR.json'))
+def calcATR(day):
+	prevClose = -1
+	ATR = 0
+	for k, v in TRs.items(): 
+		dayAsNumber = int( k.replace('-', '') )
+		if day in k:
+			#result = sorted( TRs, key=lambda pd: int( pd.replace('-', '') ) )[:14]
+			listDays = []
+			for xk, xv in reversed(TRs.items()):
+				xDN = int( xk.replace('-', '') )
+				if dayAsNumber - xDN > 0 : 
+					listDays.append( xDN )
+					if prevClose == -1 : prevClose = xv[1]
+					ATR += xv[0]
+				if len( listDays ) == 14 : break
+			while len(listDays) != 14:
+				listDays.append(50)
+				ATR += 50
+			ATR = ATR / 14
+			#print(dayAsNumber, ' - ', ATR, prevClose)
+			return (ATR, prevClose)
+
+wins = 0
+losses = 0
 for file in fileList:
 	gexData = dp.pullLogFile(file)
 	end = file.replace('-0dte-datalog.json','')
 	#start = str(datetime.datetime.strptime(end, '%Y-%m-%d') - datetime.timedelta(days=30)).split(' ')[0]
-	#print( start, " - ", end )
 	
 	strikes = gexData[ next(iter(gexData)) ]
 	#strikes = gexData[ next(t for t in gexData if float(t) > 630) ]
@@ -48,9 +74,10 @@ for file in fileList:
 	prices = [openPrice]
 	#prices.append( openPrice )
 	priceDif = 0
-	
+	sigs = None
+	sigLevels = []
 	prevData = {}
-	
+	openPrice = 0
 	lenData = len(gexData) - 2
 	for time in gexData:
 		minute = float( time )
@@ -66,13 +93,18 @@ for file in fileList:
 		
 		lastPrice = prices[-2]
 		
+		if openPrice == 0 :
+			if minute > 629 :
+				openPrice = price
+				sigs = sig.identifyKeyLevels(strikes)
+				sigLevels = sig.planEntry( prevData, sigs )
+				#print(f'{end} - Price ${price} - Targets - {sigLevels}')
+			continue
+		
+
 		if callEntered == 0 and putEntered == 0:
-			if 640 < minute < 700 :
-				priceDif += prices[-1] - prices[-2]
-					
-			else :
-				if priceDif < 5 : putEntered = 1
-				if priceDif > 5 : callEntered = 1
+			if price <= sigLevels[0] : callEntered = 1
+			if price >= sigLevels[1] : putEntered = 1
 		
 		if callEntered == 1:
 			#callStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price - 20) )[dp.GEX_STRIKE]
@@ -100,7 +132,7 @@ for file in fileList:
 			if ask <= callEntryPrice :
 				callEntered = 3
 				pnl -= callEntryPrice
-				callExitPrice = callEntryPrice * 2
+				callExitPrice = callEntryPrice * 3
 				print(f'{end} Entered {callStrike} Call for ${callEntryPrice} - {minute}')
 		
 		if putEntered == 2:
@@ -109,14 +141,14 @@ for file in fileList:
 			if ask <= putEntryPrice :
 				putEntered = 3
 				pnl -= putEntryPrice
-				putExitPrice = putEntryPrice * 2
+				putExitPrice = putEntryPrice * 3
 				print(f'{end} Entered {putStrike} Put for ${putEntryPrice} - {minute}')
 		
 		if callEntered == 3:		
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)
 			bid = strike[dp.GEX_CALL_BID]
-			if bid < callEntryPrice - 0.20 : callExitPrice = bid * 3
-			if bid < 1 or bid >= callExitPrice or minute >= 1200:
+			#if bid < callEntryPrice - 0.20 : callExitPrice = bid * 3
+			if price > sigLevels[0] + 20 or minute >= 1200: #bid < 0.5 or bid >= callExitPrice
 				callEntered = 4
 				tmp = min( (bid, callExitPrice) )  #Ensure correct Exit Price for conditions
 				pnl += tmp
@@ -125,15 +157,22 @@ for file in fileList:
 		if putEntered == 3:	
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == putStrike)
 			bid = strike[dp.GEX_PUT_BID]
-			if bid < putEntryPrice - 0.20 : putExitPrice = bid * 3
-			if bid < 1 or bid >= putExitPrice or minute >= 1200:
+			#if bid < putEntryPrice - 0.20 : putExitPrice = bid * 3
+			if price < sigLevels[1] - 20 or minute >= 1200: #bid < 0.5 or bid >= putExitPrice
 				putEntered = 4
 				tmp = min((bid, putExitPrice))
 				pnl += tmp
 				print(f'Sold {putStrike} Put for {tmp} - {minute}')
-			
-				
-	previousClose = prices[-1]	
+		
+		
+	close = prices[-1]
+	TR = highestPrice - lowestPrice# max( (abs(previousClose - lowestPrice), abs(previousClose - highestPrice), abs(highestPrice - lowestPrice)) )
+	daysTR[end] = (TR, close)#{'open': openPrice, 'low': lowestPrice, 'high': highestPrice, 'previous_close': previousClose}	
+	previousClose = close
 
 	if pnl < mostDown: mostDown = pnl
 print(f'Total PnL ${round(pnl * 100, 2)},  most negative ${round(mostDown * 100, 2)}')
+print(f'Winners : {wins} - Losers {losses}')
+#for day, candle in daysTR.items() : print( f'{day} - {candle}' )
+#with open(f'./logs/TR.json', 'w') as f:
+#	json.dump(daysTR, f)

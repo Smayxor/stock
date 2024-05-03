@@ -466,25 +466,35 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			blnSaveACopy = True
 	#If data is not stored locally, lets grab it
 	try:
-		if lastFileName == fileName or fileName == "SPX" :
+		if (lastFileName == fileName or fileName == "SPX") and not discordBot :
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = requests.get(urlLast)
+			#print(1)
 			if tmp.status_code == 404 : return lastFileContents
+			#print(2)
 			tmp = tmp.json()
+			#print(3)
 			if fileName == "SPX" : return tmp[next(iter(tmp))]
+			#print(4)
 			lastFileContents.update( tmp )
+			#print(5)
 			return lastFileContents
 		else :
 			lastFileName = fileName
+			#print('a')
 			tmp = requests.get(url).content
+			#print(tmp)
 			if tmp[-1] == 44 : 
 				tmp = tmp.decode("utf-8")[:-1] + "}"
+			#print('c')
 			tmp = json.loads(tmp)
+			#print('d')
 			lastFileContents = tmp
-			
+			#print('e')
 			if blnSaveACopy and not discordBot :#Storing a cached copy of all data from previous days (today might be in progress)
 				with open(f'./logs/{fileName}', 'w') as f:
 					json.dump(lastFileContents, f)
+			#if discordBot : return lastFileContents
 	except Exception as error :
 		print(f'pullLogFile Error : {error}')
 	return lastFileContents

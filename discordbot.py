@@ -299,11 +299,30 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 		fn = dc.drawWeeklyChart()
 	else:
 		fn = ""
-		#if ticker == "SPX" and dte == 0 and chart == "R" : # Pull the data from PC Server,  needs to check if server is even available
-		#	gexData = dp.pullLogFile("SPX")
-		#	fn = dc.drawGEXChart("SPX", 30, dte=0, strikes=gexData, expDate=0, targets=True)
-		#else:
-		fn = dc.drawGEXChart(ticker, count, dte, getChartType(chart))
+		if "SPX." in ticker: # Pull the data from PC Server,  needs to check if server is even available
+			try :
+				tmp = ticker.split(".")
+				ticker = tmp[0]
+				minute = float(tmp[1])
+				
+				fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
+				file = fileList[-1]
+				gexData = dp.pullLogFile(file, discordBot=True)
+				strikes = None
+				dif = 99999
+
+				for t in gexData:
+					tmp = abs(float(t) - minute)
+					if tmp < dif :
+						dif = tmp
+						strikes = gexData[t]
+						dte = t
+				fn = dc.drawGEXChart("SPX", 30, dte=0, strikes=strikes, expDate=dte)
+			except Exception as er:
+				print("GEX BOOM - ", er)
+				await  intr.followup.send("Error pulling data!")
+		else:
+			fn = dc.drawGEXChart(ticker, count, dte, getChartType(chart))
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))

@@ -2,7 +2,7 @@
 import datapuller as dp
 import heapq
 
-DAY_RANGE, DAY_PUMP, DAY_DUMP, DAY_CRAZY, DAY_CONDOR = 0, 1, 2, 3, 4
+DAY_RANGE, DAY_PUMP, DAY_DUMP, DAY_CRAZY, DAY_CONDOR, DAY_BREACH = 0, 1, 2, 3, 4, 5
 
 def identifyKeyLevels(strikes):
 	lenStrikes = len(strikes)
@@ -77,13 +77,13 @@ def identifyKeyLevels(strikes):
 		if plus != lastPlus : polaritySwitches += 1
 		if (lastPlus == nextPlus) and (plus != lastPlus) and node not in straddles : straddles.append( node )
 			
-	print(f'Polarity Switches {polaritySwitches}')
+	#print(f'Polarity Switches {polaritySwitches}')
 
 	#print( gexPolarity )
 	
 	dayType = DAY_RANGE
-	if sumCallOI > sumPutOI * 1.4 : dayType = DAY_PUMP
-	if sumPutOI > sumCallOI * 1.4 : dayType = DAY_DUMP
+	if sumCallOI > sumPutOI * 1.4 : dayType = DAY_BREACH
+	if sumPutOI > sumCallOI * 1.4 : dayType = DAY_BREACH
 	if creditSpreads == 2 : dayType = DAY_CONDOR
 	if polaritySwitches > 4 : dayType = DAY_CRAZY
 	

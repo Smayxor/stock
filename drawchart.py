@@ -118,7 +118,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if putOI > 0: drawRect(draw, IMG_H - ((putOI / maxOIVol) * 65), x, IMG_H, x + 12, color="#F00", border='')
 		if putVolume > 0: drawRect(draw, IMG_H - ((putVolume / maxOIVol) * 65), x, IMG_H, x + 6, color="yellow", border='')
 		#***************
-		if strike[dp.GEX_TOTAL_GEX] != 0 : drawRect(draw, 215 - ((abs(strike[dp.GEX_TOTAL_GEX]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[dp.GEX_TOTAL_GEX] > -1) else "#f00"), border='')
+		if strike[dp.GEX_TOTAL_GEX] != 0 : drawRect(draw, 215 - ((abs(strike[dp.GEX_TOTAL_GEX]) / maxTotalGEX) * 150), x, 215, x + 12, color=("#0f0" if (strike[dp.GEX_TOTAL_GEX] > 0) else "#f00"), border='')
 		if (strike[dp.GEX_CALL_GEX] != 0) : drawRect(draw, 399 - ((strike[dp.GEX_CALL_GEX] / maxCallPutGEX) * 100), x, 399, x + 12, color="#0f0", border='')
 		if (strike[dp.GEX_PUT_GEX] != 0) : drawRect(draw, 401, x, 401 - ((strike[dp.GEX_PUT_GEX] / maxCallPutGEX) * 100), x + 12, color="#f00", border='')
 		
@@ -141,12 +141,18 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	
 	colr = "purple"
 	txt = "Range Day"
-	if sigs[1] == sig.DAY_PUMP :
+	sigsDay = sigs[1]
+	if sigsDay == sig.DAY_PUMP :
 		colr = "green"
 		txt = "PUMP DAY!"
-	if sigs[1] == sig.DAY_DUMP :
+	elif sigsDay == sig.DAY_DUMP :
 		colr = "red"
 		txt = "DUMP DAY 8p"
+	elif sigsDay == sig.DAY_CRAZY :
+		txt = "Crazy GEX"
+	elif sigsDay == sig.DAY_CONDOR :
+		txt = "Condor Day"
+		
 	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=txt, color=colr)
 	#try:
 	#	pcr = totalPuts / totalCalls
@@ -193,8 +199,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		allPrices.append(prices)
 		firstStrike = gexData[next(iter(gexData))]
 		
-		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_CALL_BID] > deadprice]
-		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if x[dp.GEX_PUT_BID] > deadprice]
+		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 50 == 0)]
+		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 50 == 0)]
 		x = 0
 		#print('e')
 		for time, strikes in gexData.items():

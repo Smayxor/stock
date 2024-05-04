@@ -222,6 +222,11 @@ def triggerReset():
 					break
 		initVChart( gexList, "SPX" )
 	
+		price = dp.getPrice(ticker="SPX", strikes=gexList)
+		priceMod = int(price - (price % 5))
+		e3Text.set('all')
+		e4Text.set(f'{priceMod}p')
+	
 		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
 		pcData = tmp[1]
 		filename = tmp[0]

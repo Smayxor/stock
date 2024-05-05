@@ -154,11 +154,6 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		txt = "Condor Day"
 		
 	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=txt, color=colr)
-	#try:
-	#	pcr = totalPuts / totalCalls
-	#	color = 'green' if pcr < 0.5 else 'red' if pcr > 1.3 else 'white'
-	#	drawText(draw, x=x, y=y + (FONT_SIZE * 3), txt=f'PCR {round((pcr), 2)}', color="#F00")
-	#except: pass
 	
 	if RAM : return img
 	img.save("stock-chart.png")
@@ -178,62 +173,43 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	allPrices = []
 	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5) - 20
 	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 20
-	#print('a')
 	if 'all' in userArgs:
 		strikes = list(gexData.values())[-1]
 		for t in gexData: 
 			if float(t) // 1 > 630 :
 				strikes = gexData[t]
-				#print(f'Price chart at {t} - count {len(strikes)}')
 				break
-		#print('b')
 		openPrice = dp.getPrice("SPX", strikes)
-		#print('c')
-		#targets = dp.findKeyLevels( strikes )
 		sigs = sig.identifyKeyLevels( strikes )
-		#print( sigs )
-		prices = []
+		#prices = []
 		#*******************
 		flags = []
 		#****************
-		allPrices.append(prices)
-		firstStrike = gexData[next(iter(gexData))]
 		
-		callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 50 == 0)]
-		putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 50 == 0)]
-		x = 0
-		#print('e')
+		firstTime = next(iter(gexData))
+		firstStrike = gexData[firstTime]
+		strat = sig.SignalDPT(sigs=sigs, firstTime=firstTime, firstStrike=firstStrike, deadprice=deadprice)
+		prices = strat.Prices
+		allPrices.append(prices)
 		for time, strikes in gexData.items():
 			minute = float(time)
-			callPutPrice = gexData[time][0][dp.GEX_CALL_BID] + gexData[time][0][dp.GEX_PUT_BID]
+			
+			callPutPrice = gexData[time][0][dp.GEX_CALL_BID] + gexData[time][0][dp.GEX_PUT_BID] #filtering out bad data
 			if callPutPrice == 0 : continue
 			
 			if minute < 614 or minute > 631:
 				
-				currentPrice = dp.getPrice(ticker, strikes)
-				prices.append( currentPrice )
-				
-				mostCallPutVolume = max(strikes, key=lambda i: i[dp.GEX_CALL_VOLUME] + i[dp.GEX_PUT_VOLUME])[dp.GEX_STRIKE]
-
-				flags.append( (minute, mostCallPutVolume) )
-				#print(mostCallVolume, mostPutVolume)
-				for strike in strikes :
-					for c in callTimes:
-						if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= deadprice: c[1] = x
-					for p in putTimes:
-						if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= deadprice: p[1] = x
-				x += 1
+				#currentPrice = dp.getPrice(ticker, strikes)
+				#prices.append( currentPrice )
+				strat.addTime(minute, strikes)
 			else : openTimeIndex = len(prices)
-		
 		maxPrice = max( (*prices, sigs[0][1]) ) + 5
 		minPrice = min( (*prices, sigs[0][0]) ) - 5
 		priceDif = maxPrice - minPrice
-		
 		peaksValleys = dp.findPeaksAndValleys( prices )
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
 		flag = 0
-		
 		for x in range(1, len(prices)):
 			prevPrice = prices[x-1]
 			price = prices[x]
@@ -242,12 +218,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y2 = spxY( price )
 			
 			colr = 'yellow'
-			for c in callTimes:
+			for c in strat.callTimes:
 				if c[1] == x:
 					colr = 'green'
 					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
 					drawText( draw, x, y2, txt=str( c[0] ), color=colr, anchor="rt")
-			for p in putTimes:
+			for p in strat.putTimes:
 				if p[1] == x:
 					colr = 'red'
 					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)

@@ -89,48 +89,90 @@ def identifyKeyLevels(strikes):
 	
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
 	
-def examineOVN(gexData):
-	prevData = {}
-	prices = []
-	ovnl, ovnh, ovnRange = 0, 0, 0
-	#strikes = gexData[ next(iter(gexData)) ]
-	#openPrice = dp.getPrice("SPX", strikes)
+class SignalDPT:
+	def __init__(self, sigs, firstTime, firstStrike, deadprice):
+		self.Lower50 = sigs[0][0]
+		self.Upper50 = sigs[0][1]
+		self.DayType = sigs[1]
+		self.Straddles = sigs[2]
+		self.PutWalls = sigs[3]
+		self.CallWalls = sigs[4]
+		self.AllNodes = sigs[2] + sigs[3] + sigs[4]
+		self.deadprice = deadprice
+		
+		price = dp.getPrice("SPX", firstStrike)
+		self.OVNH = price
+		self.OVNL = price
+		self.Prices = []
+		self.PrevData = {}
+		self.PrevData[firstTime] = firstStrike
+		#********************** Variables for Peak and Valley
+		self.Highs = []
+		self.Lows = []
+		self.HighIndex = 0
+		self.LowIndex = 0
+		#*********************
+		
+		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+
+	def findPivots(self, price):
+		pass
+		
+		
+	def addTime(self, minute, strikes):
+		price = dp.getPrice("SPX", strikes)
+		self.Prices.append(price)
+		self.PrevData[minute] = strikes
+		x = len(self.Prices) - 1
+		for strike in strikes :
+			for c in self.callTimes:
+				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: c[1] = x
+			for p in self.putTimes:
+				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: p[1] = x
+		if minute < 630 :
+			if price > self.OVNH : self.OVNH = price
+			if price < self.OVNL : self.OVNL = price
+		else :
+			pass
+
 	
-	for timeStamp, strikes in gexData.items() :
-		minute = float( timeStamp )
-		price = dp.getPrice(ticker="SPX", strikes=strikes)
-		prices.append( price )
-		prevData[timeStamp] = strikes
-		
-		if minute > 629:
-			ovnl = min( prices )
-			ovnh = max( prices )
-			ovnRange = ovnh - ovnl
-			break
-	return (ovnl, ovnh, ovnRange, prices)	
 	
-def planEntry( gexData, sigs ):
-	lastTime = next(reversed(gexData))
-	price = dp.getPrice(ticker="SPX", strikes=gexData[lastTime])
+def findPeaksAndValleys( prices ):
+	lenavgs = len( prices )
+	highs = []
+	lows = []
+	last = prices[0]
+	high = 0
+	low = 0
+	def checkNextHigh(index):
+		#last = index + 30 if index + 30 < lenavgs else lenavgs
+		last = index + 30
+		if last > lenavgs : return False
+		for i in range(index, last):
+			if prices[i] > prices[index] : return False
+		return True
+	def checkNextLow(index):
+		#last = index + 30 if index + 30 < lenavgs else lenavgs
+		last = index + 30
+		if last > lenavgs : return False
+		for i in range(index, last):
+			if prices[i] < prices[index] : return False
+		return True
+
+	for i in range( 1, lenavgs ) :
+		if prices[i] > prices[high] and checkNextHigh(i):
+			highs.append(i)
+			high = i
+			low = i
+		elif prices[i] < prices[low] and checkNextLow(i):
+			lows.append(i)
+			low = i
+			high = i
+		else:
+			pass
+	return (lows, highs)
 	
-	if sigs[1] == DAY_RANGE :
-#		allNodes = sorted(sigs[2] + sigs[3] + sigs[4])
-#		result = sorted( sorted( allNodes, key=lambda strike: abs(strike - price) )[:2], key=lambda strike: strike )
-		
-		for x in sigs[2]:
-			if x < price : sigs[3].append(x)
-		for x in sigs[3]:
-			if x > price : sigs[4].append(x)
-		
-		sigs[3].append(0)
-		sigs[4].append(9999)
-		lowTarget = max( sigs[3] )
-		highTarget = min( sigs[4] )
-		
-		return (lowTarget, highTarget)
-	else:
-		return (0, 9999)
-		
 	
 """
 Day 0 - CrazyGEX - Puts From ONL   - Long Straddle						                     DPT - 4900 Breach - Target 4850p
@@ -174,4 +216,29 @@ Day 37 - Normal Gex - No signals
 Day 38 - Normal Gex - No signals
 Day 39 - Normal Gex - Crab until -> DPT Target is HOD 5235 @$0.15 during PowerHour
 Day 40 - Crazy GEX - DPT - No Tap
+Day 41 - Missing signals?
+Day 42 - Wide-Swath Normal GEX - DPT Fail
+Day 43 - Normal GEX - DPT Trigger OVN  - Need ABS-GEX Trigger Level
+Day 44 - Normal GEX - DPT Tap 5250 Target 5200p
+Day 45 - Needs to trigger Breach Day - DPT Tap 5150 Target 5250c
+Day 46 - Condor Day - DPT yes
+Day 47 - Normal GEX - DPT Offset 25 points - Targets 5150p and 5200c
+Day 48 - Normal GEX - DPT Offset Taps - Targets 5250c 5200c
+Day 49 - Crazy GEX - DPT Fail
+Day 50 - Normal GEX - DPT Fail
+Day 51 - Normal GEX - DPT Fail
+Day 52 - Condor GEX - DPT Mixed Results
+Day 53 - Normal GEX - DPT ?Needs tuning?
+Day 54 - Normal GEX - DPT Targets @ $0.25
+Day 55 - Crazy GEX - DPT Fail
+Day 56 - Normal GEX - DPT Target Put Support 
+Day 57 - Normal GEX - DPT Targets %25 @ $0.40
+Day 58 - Needs flagged as Condor Day - Condor Breach!!!
+Day 59 - Normal GEX - DPT Tap 5000 Target 5050c @ $0.60   - 60 point OVN Drop
+Day 60 - Normal GEX - DPT meh
+Day 61 - Normal GEX - DPT 25-points @ 75 away
+Day 62 - Normal GEX - DPT No Signals - Put Juiced
+Day 63 - FOMC - DPT sort of
+Day 64 - Normal Gex - DPT Fail
+Day 65 - Normal GEX - Large OVN Pump 55 points - DPT Needs target adjustment to 0.55
 """

@@ -86,6 +86,7 @@ def identifyKeyLevels(strikes):
 	if sumPutOI > sumCallOI * 1.4 : dayType = DAY_BREACH
 	if creditSpreads == 2 : dayType = DAY_CONDOR
 	if polaritySwitches > 4 : dayType = DAY_CRAZY
+	#1d EXP Move calced by looking at Forward Volatility
 	
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
 	
@@ -111,30 +112,62 @@ class SignalDPT:
 		self.Lows = []
 		self.HighIndex = 0
 		self.LowIndex = 0
+		self.lastOptionIndex = 0
+		self.lastModulusIndex = 0
+		self.bullFlag = 0
 		#*********************
 		
 		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
 		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
-
+	#************************ Is it needed?
 	def findPivots(self, price):
-		pass
-		
-		
+		if len(self.Prices) == 30 :
+			for i in range( self.Prices ):
+				thisPrice = self.Prices[i]
+				if thisPrice > self.Prices[self.HighIndex] : self.HighIndex = i
+				if thisPrice < self.Prices[self.LowIndex] : self.LowIndex = i
+			self.Highs.append(self.HighIndex)
+			self.Lows.append(self.LowIndex)
+		else :
+			thisIndex = len(self.Prices) - 1
+			thisPrice = self.Prices[thisIndex]
+			
+			lastHigh = self.Prices[self.HighIndex]
+			lastLow = self.Prices[self.LowIndex] 
+			
+			lastPivotIndex = max( (self.HighIndex, self.LowIndex) )
+			lastPivot = self.Prices[lastPivotIndex] 
+			
+			if thisPrice > lastHigh : self.HighIndex = lastIndex
+	#*****************************
+
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
 		self.Prices.append(price)
 		self.PrevData[minute] = strikes
 		x = len(self.Prices) - 1
+		if abs((price % 25) - 12.5) > 9: self.lastModulusIndex = x#Store index of last time price neared price%25
+		#print(f'Price {price} - abs {abs((price % 25) - 12.5)}')
+		
 		for strike in strikes :
 			for c in self.callTimes:
-				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: c[1] = x
+				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: 
+					c[1] = x
+					self.lastOptionIndex = x
+					self.bullFlag = 1
 			for p in self.putTimes:
-				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: p[1] = x
-		if minute < 630 :
-			if price > self.OVNH : self.OVNH = price
-			if price < self.OVNL : self.OVNL = price
-		else :
-			pass
+				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: 
+					p[1] = x
+					self.lastOptionIndex = x
+					self.bullFlag = -1
+	
+		result = (self.lastOptionIndex == x and x - self.lastModulusIndex < 5)
+		return self.bullFlag if result else 0
+		#if minute < 630 :
+		#	if price > self.OVNH : self.OVNH = price
+		#	if price < self.OVNL : self.OVNL = price
+		#else :
+		#	pass
 
 	
 	

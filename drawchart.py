@@ -198,10 +198,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			if callPutPrice == 0 : continue
 			
 			if minute < 614 or minute > 631:
+				#if minute // 1 == 630 :
+				#	sigs = sig.identifyKeyLevels( strikes )
+				#	strat.sigs = sigs
 				
-				#currentPrice = dp.getPrice(ticker, strikes)
-				#prices.append( currentPrice )
-				strat.addTime(minute, strikes)
+				flags.append( strat.addTime(minute, strikes) )
+					
 			else : openTimeIndex = len(prices)
 		maxPrice = max( (*prices, sigs[0][1]) ) + 5
 		minPrice = min( (*prices, sigs[0][0]) ) - 5
@@ -209,7 +211,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		peaksValleys = dp.findPeaksAndValleys( prices )
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
-		flag = 0
+		#print( flags )
 		for x in range(1, len(prices)):
 			prevPrice = prices[x-1]
 			price = prices[x]
@@ -235,19 +237,15 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			if x in highs : draw.line((x-20, y2, x+20, y2), fill='green', width=2)
 			
 #****************************************
-			#if flags[x][0] > 700 and flag == 0 and abs(price - flags[x][1]) > 20 :
-			#	flag = 1 if price > flags[x][1] else -1
-			#if abs(price - flags[x][1]) < 5: flag = 0
-			if flag == 1:
-				flag = 2
+			flag = flags[x]
+			if flag == -1:
 				#drawText( draw, x, y2-40, txt=str( flags[x][1] ), color=colr, anchor="rt")
 				draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
-				#print(f'Drawing Put Flag {flags[x][1]} @ {x}x{y2}')
-			if flag == -1:
-				flag = -2
+				#print(f'Drawing Put Flag {flags[x]} @ {x}x{y2}')
+			if flag == 1:
 				#drawText( draw, x, y2+40, txt=str( flags[x][1] ), color=colr, anchor="rt")
 				draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='green', outline='blue')
-				#print(f'Drawing Call Flag {flags[x][2]} @ {x}x{y2}')
+				#print(f'Drawing Call Flag {flags[x]} @ {x}x{y2}')
 #****************************************			
 			if x == openTimeIndex : 
 				draw.line([x, 50, x, 500], fill="purple", width=1)

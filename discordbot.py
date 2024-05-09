@@ -288,9 +288,25 @@ def getStrTime():
 @bot.tree.command(name="gex", description="Draws a GEX chart")
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
+	
+	
+	# Get the ID of the channel where the interaction occurred.
+	channel_id = intr.channel_id
+
+	# Get the ID of the guild where the interaction occurred, if applicable.
+	guild_id = intr.guild_id
+	#1026265666552090676 1029425222404800613
+	if guild_id == 1026265666552090676:
+		if channel_id != 1029425222404800613 :
+			await intr.response.send_message("Hey, /gex only works in #commands")
+			return	
 	minute = getStrTime()
 	if 615 < minute < 630 :
-		await intr.response.send_message("Charting down for server maintenance during 15 minutes before Market Open.")
+		randomMessage = ["Charting down for server maintenance during 15 minutes before Market Open.",
+						"Bot is refreshing, go run one out, those are rookie numbers",
+						"Smaybot is updating, please boost server for more info",
+						"Go read Mark Douglas for a few"]
+		await intr.response.send_message(random.choice(randomMessage))
 		return
 	await intr.response.defer(thinking=True)
 	ticker = ticker.upper()

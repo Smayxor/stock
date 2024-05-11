@@ -455,6 +455,10 @@ def initVChart(strikes, ticker):
 def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	calcVals = []
 	for strike in strikes:
+		#coi = abs( strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME] )
+		#poi = abs( strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME] )
+		#cv = 0
+		#pv = 0
 		coi = strike[dp.GEX_CALL_OI]
 		poi = strike[dp.GEX_PUT_OI]
 		cv = strike[dp.GEX_CALL_VOLUME]

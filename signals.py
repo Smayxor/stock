@@ -124,6 +124,12 @@ def findPeaksAndValleys( prices ):
 		else:
 			pass
 	return (lows, highs)
+
+def analyzeDay( strikes ):
+	totalCallOI = sum( [x[dp.GEX_CALL_OI] for x in strikes] )
+	totalPutOI = sum( [x[dp.GEX_PUT_OI] for x in strikes] )
+	
+	#print( f'CallOI {totalCallOI:,} - PutOI {totalPutOI:,}')
 	
 class Signal:	
 	def __init__(self, sigs, firstTime, strikes, deadprice):
@@ -144,6 +150,7 @@ class Signal:
 		self.PrevDataTimes = []
 		self.PrevData[firstTime] = strikes
 	
+		self.PreMarket = True
 		#self.allPositions = sigs[2] + sigs[3] + sigs[4]
 		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice)]
 		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice)]
@@ -155,6 +162,11 @@ class Signal:
 		if minute < 630 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
+#			self.PreMarket = True
+		
+		if self.PreMarket and minute // 1 > 629:
+			self.PreMarket = False
+			analyzeDay( strikes )
 		return price
 			
 class SignalTemplate(Signal): #Blank Signal example
@@ -244,6 +256,7 @@ class SignalOVN(Signal):
 		self.High = self.OVNH
 	def addTime(self, minute, strikes):
 		price = super().addTime(minute, strikes)
+		
 		x = len(self.Prices) - 1
 		if minute < 630 : return 0
 		
@@ -258,6 +271,7 @@ class SignalOVN(Signal):
 		if blnOver and price <= self.OVNL : return 1
 
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
+#https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c
 """
 Day 0 - CrazyGEX - Puts From ONL   - Long Straddle						                     DPT - 4900 Breach - Target 4850p
 Day 1 - CrazyGEX - Call and Puts from ONL.  Puts to ONH - Long Straddle                      DPT - 4850 Tap - Target 4900c

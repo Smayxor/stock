@@ -172,6 +172,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	xPlus = 0
 	allPrices = []
 	def convertY( val ): return IMG_H - ((val / maxPrice) * 250) - 252 + (xPlus * 5) - 20
+	def convertSPXY( val ): return IMG_H - (((val-minPrice) / priceDif) * 250) - 252 + (xPlus * 5) - 20
 	def spxY( val ): return IMG_H - (((val - minPrice) / priceDif) * 500) - 20
 	if 'all' in userArgs:
 		strikes = list(gexData.values())[-1]
@@ -188,7 +189,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		
 		firstTime = next(iter(gexData))
 		firstStrike = gexData[firstTime]
-		strat = sig.SignalDPT(sigs=sigs, firstTime=firstTime, firstStrike=firstStrike, deadprice=deadprice)
+		strat = sig.SignalOVN(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
+		#strat = sig.SignalFD(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
 		prices = strat.Prices
 		allPrices.append(prices)
 		for time, strikes in gexData.items():
@@ -212,6 +214,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
 		#print( flags )
+		#print( len( strat.callTimes ), len( strat.putTimes ) )
+		#print( strat.callTimes, strat.putTimes )
 		for x in range(1, len(prices)):
 			prevPrice = prices[x-1]
 			price = prices[x]
@@ -288,54 +292,76 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	strikes = []
 	
 	for arg in userArgs:
+		if arg == 'spx' :
+			strikes.append( (0, 'spx') )
+			continue
 		strikeVal = int(arg[:-1])
 		if arg[-1] == 'c' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'call') )
 		elif arg[-1] == 'p' and strikeExists( strikeVal ) : strikes.append( (strikeVal, 'put') )
 	if len(strikes) == 0: return 'error.png'
-
+	
 	for strike in strikes:
 		element = dp.GEX_CALL_BID if strike[1] == 'call' else dp.GEX_PUT_BID
 		prices = []
 		allPrices.append( prices )
+		
 		for t in gexData:
 			minute = float(t)
 			if minute >= 614 and minute <= 631: 
 				openTimeIndex = len(prices)
 				continue
-			#**************************************************************************************************************************
-			#if minute > 700 : continue
-			#**************************************************************************************************************************
+			
 			callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID]
-			if callPutPrice == 0 : continue
-			for s in gexData[t]:
-				if s[dp.GEX_STRIKE] == strike[0]:
-					#if s[element] == 0 : print( t, strike[0], s )
-					#if s[element] == 0: print( f'Bad Data {minute}' )
-					prices.append( s[element] )
-					#if s[element] == 0: print( minute )
-					continue			
-		
-		colr = "green" if strike[1] == 'call' else "red"
-		maxPrice = max( prices )
-		minPrice = min( prices )
-		
-		for i in range(1, len(prices)):
-			draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
-			if i == openTimeIndex : draw.line([i, 50, i, 500], fill="purple", width=1)
-		
-		y = convertY(maxPrice)
-		drawRotatedPriceLine(draw, y, colr)
-		drawText( draw, 300 + xPlus, y, txt=str( maxPrice ), color=colr, anchor="rt")
-		
-		y = convertY( minPrice )
-		drawRotatedPriceLine(draw, y, colr)
-		drawText( draw, 300 + xPlus, y, txt=str( minPrice ), color=colr, anchor="rb")
+			if callPutPrice == 0 : continue #filters out bad data
+			
+			if strike[1] in 'spx':
+				prices.append( dp.getPrice("SPX", gexData[t]) )
+			else :
+				for s in gexData[t]:
+					if s[dp.GEX_STRIKE] == strike[0]:
+						prices.append( s[element] )
+						continue	
 
-		"""y = convertY( 0.20 )
-		drawRotatedPriceLine(draw, y, colr)
-		drawText( draw, 300 + xPlus, y, txt="0.20", color=colr, anchor="rb")"""
+		if strike[1] == "spx" :
+			colr = 'yellow'
 
-		xPlus += 50
+			maxPrice = max( prices )
+			minPrice = min( prices )
+			priceDif = maxPrice - minPrice
+			
+			for i in range(1, len(prices)):
+				draw.line([i-1, convertSPXY(prices[i-1]), i, convertSPXY(prices[i])], fill=colr, width=1)
+				if i == openTimeIndex : draw.line([i, 50, i, 500], fill="purple", width=1)
+			
+			y = convertSPXY(maxPrice)
+			drawRotatedPriceLine(draw, y, colr)
+			drawText( draw, 300 + xPlus, y, txt=str( maxPrice ), color=colr, anchor="rt")
+			
+			y = convertSPXY( minPrice )
+			drawRotatedPriceLine(draw, y, colr)
+			drawText( draw, 300 + xPlus, y, txt=str( minPrice ), color=colr, anchor="rb")
+
+			xPlus += 50
+		
+		else :
+			colr = "green" if strike[1] == 'call' else "red"
+
+			maxPrice = max( prices )
+			minPrice = min( prices )
+			
+			for i in range(1, len(prices)):
+				draw.line([i-1, convertY(prices[i-1]), i, convertY(prices[i])], fill=colr, width=1)
+				if i == openTimeIndex : draw.line([i, 50, i, 500], fill="purple", width=1)
+			
+			y = convertY(maxPrice)
+			drawRotatedPriceLine(draw, y, colr)
+			drawText( draw, 300 + xPlus, y, txt=str( maxPrice ), color=colr, anchor="rt")
+			
+			y = convertY( minPrice )
+			drawRotatedPriceLine(draw, y, colr)
+			drawText( draw, 300 + xPlus, y, txt=str( minPrice ), color=colr, anchor="rb")
+
+			xPlus += 50
 
 	if RAM : return (img, allPrices)
 	img.save("price-chart.png")

@@ -18,7 +18,7 @@ def identifyKeyLevels(strikes):
 	
 	hasValueList = [x for x in strikes if (x[dp.GEX_STRIKE] > price and x[dp.GEX_CALL_BID] > 0.3) or (x[dp.GEX_STRIKE] < price and x[dp.GEX_PUT_BID] > 0.3)]
 	main5 = heapq.nlargest( 5, hasValueList, key=lambda x: x[dp.GEX_TOTAL_OI])
-	
+	#print( [x[dp.GEX_STRIKE] for x in main5] )
 	mostCallOI = max(strikes, key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_CALL_OI]
 	mostPutOI = max(strikes, key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_PUT_OI]
 	mostCallPutOI = max( (mostCallOI, mostPutOI) )
@@ -89,88 +89,7 @@ def identifyKeyLevels(strikes):
 	#1d EXP Move calced by looking at Forward Volatility
 	
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
-	
-class SignalDPT:
-	def __init__(self, sigs, firstTime, firstStrike, deadprice):
-		self.Lower50 = sigs[0][0]
-		self.Upper50 = sigs[0][1]
-		self.DayType = sigs[1]
-		self.Straddles = sigs[2]
-		self.PutWalls = sigs[3]
-		self.CallWalls = sigs[4]
-		self.AllNodes = sigs[2] + sigs[3] + sigs[4]
-		self.deadprice = deadprice
-		
-		price = dp.getPrice("SPX", firstStrike)
-		self.OVNH = price
-		self.OVNL = price
-		self.Prices = []
-		self.PrevData = {}
-		self.PrevData[firstTime] = firstStrike
-		#********************** Variables for Peak and Valley
-		self.Highs = []
-		self.Lows = []
-		self.HighIndex = 0
-		self.LowIndex = 0
-		self.lastOptionIndex = 0
-		self.lastModulusIndex = 0
-		self.bullFlag = 0
-		#*********************
-		
-		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
-		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in firstStrike if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
-	#************************ Is it needed?
-	def findPivots(self, price):
-		if len(self.Prices) == 30 :
-			for i in range( self.Prices ):
-				thisPrice = self.Prices[i]
-				if thisPrice > self.Prices[self.HighIndex] : self.HighIndex = i
-				if thisPrice < self.Prices[self.LowIndex] : self.LowIndex = i
-			self.Highs.append(self.HighIndex)
-			self.Lows.append(self.LowIndex)
-		else :
-			thisIndex = len(self.Prices) - 1
-			thisPrice = self.Prices[thisIndex]
-			
-			lastHigh = self.Prices[self.HighIndex]
-			lastLow = self.Prices[self.LowIndex] 
-			
-			lastPivotIndex = max( (self.HighIndex, self.LowIndex) )
-			lastPivot = self.Prices[lastPivotIndex] 
-			
-			if thisPrice > lastHigh : self.HighIndex = lastIndex
-	#*****************************
 
-	def addTime(self, minute, strikes):
-		price = dp.getPrice("SPX", strikes)
-		self.Prices.append(price)
-		self.PrevData[minute] = strikes
-		x = len(self.Prices) - 1
-		if abs((price % 25) - 12.5) > 9: self.lastModulusIndex = x#Store index of last time price neared price%25
-		#print(f'Price {price} - abs {abs((price % 25) - 12.5)}')
-		
-		for strike in strikes :
-			for c in self.callTimes:
-				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: 
-					c[1] = x
-					self.lastOptionIndex = x
-					self.bullFlag = 1
-			for p in self.putTimes:
-				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: 
-					p[1] = x
-					self.lastOptionIndex = x
-					self.bullFlag = -1
-	
-		result = (self.lastOptionIndex == x and x - self.lastModulusIndex < 5)
-		return self.bullFlag if result else 0
-		#if minute < 630 :
-		#	if price > self.OVNH : self.OVNH = price
-		#	if price < self.OVNL : self.OVNL = price
-		#else :
-		#	pass
-
-	
-	
 def findPeaksAndValleys( prices ):
 	lenavgs = len( prices )
 	highs = []
@@ -206,7 +125,139 @@ def findPeaksAndValleys( prices ):
 			pass
 	return (lows, highs)
 	
+class Signal:	
+	def __init__(self, sigs, firstTime, strikes, deadprice):
+		self.Lower50 = sigs[0][0]
+		self.Upper50 = sigs[0][1]
+		self.DayType = sigs[1]
+		self.Straddles = sigs[2]
+		self.PutWalls = sigs[3]
+		self.CallWalls = sigs[4]
+		self.AllNodes = sigs[2] + sigs[3] + sigs[4]
+		self.deadprice = deadprice
+		
+		price = dp.getPrice("SPX", strikes)
+		self.OVNH = price
+		self.OVNL = price
+		self.Prices = []
+		self.PrevData = {}
+		self.PrevDataTimes = []
+		self.PrevData[firstTime] = strikes
 	
+		#self.allPositions = sigs[2] + sigs[3] + sigs[4]
+		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice)]
+		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice)]
+	def addTime(self, minute, strikes):
+		price = dp.getPrice("SPX", strikes)
+		self.Prices.append(price)
+		self.PrevDataTimes.append( minute )
+		self.PrevData[minute] = strikes	
+		if minute < 630 : 
+			if price < self.OVNL : self.OVNL = price
+			if price > self.OVNH : self.OVNH = price
+		return price
+			
+class SignalTemplate(Signal): #Blank Signal example
+	def __init__(self, sigs, firstTime, strikes, deadprice):
+		super().__init__(sigs, firstTime, strikes, deadprice)
+	def addTime(self, minute, strikes):
+		price = super().addTime(minute, strikes)
+		x = len(self.Prices) - 1
+		#price = self.Prices[x]
+		
+class SignalDPT(Signal):
+	def __init__(self, sigs, firstTime, strikes, deadprice):
+		super().__init__(sigs, firstTime, strikes, deadprice)
+		self.lastOptionIndex = 0
+		self.lastModulusIndex = 0
+		self.bullFlag = 0
+		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+
+	def addTime(self, minute, strikes):
+		super().addTime(minute, strikes)
+		x = len(self.Prices) - 1
+		price = self.Prices[x]
+		if abs((price % 25) - 12.5) > 9: self.lastModulusIndex = x#Store index of last time price neared price%25
+		#print(f'Price {price} - abs {abs((price % 25) - 12.5)}')
+		
+		for strike in strikes :
+			for c in self.callTimes:
+				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: 
+					c[1] = x
+					self.lastOptionIndex = x
+					self.bullFlag = 1
+			for p in self.putTimes:
+				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: 
+					p[1] = x
+					self.lastOptionIndex = x
+					self.bullFlag = -1
+	
+		result = (self.lastOptionIndex == x and x - self.lastModulusIndex < 5) \
+			  or (self.lastModulusIndex == x and x - self.lastOptionIndex < 5)
+		return self.bullFlag if result else 0
+
+class Signal2x50(Signal):
+	def __init__(self, sigs, firstTime, strikes, deadprice):
+		super().__init__(sigs, firstTime, strikes, deadprice)
+		
+		self.callTimes = [ [x[0], 0, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes ]
+		self.putTimes = [  [x[0], 0, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes]
+
+	def addTime(self, minute, strikes):
+		price = super().addTime(minute, strikes)
+		x = len(self.Prices) - 1
+
+		result = 0
+		for c in self.callTimes:
+			strike = next((x for x in strikes if x[dp.GEX_STRIKE] == c[0]), None)
+			if strike == None: continue
+			bid = strike[dp.GEX_CALL_BID]
+			
+			if bid > c[3] : c[3] = bid
+			if bid < c[2] : c[2] = bid
+			if not (1 < c[3] < 5) : continue
+			if bid == c[3] * 0.3 : 
+				result = 1
+				c[1] = x
+				c[3] = bid
+		
+		for p in self.putTimes:
+			strike = next((x for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
+			if strike == None: continue
+			bid = strike[dp.GEX_PUT_BID]
+			
+			if bid > p[3] : p[3] = bid
+			if bid < p[2] : p[2] = bid
+			#if not (1 < p[3] < 5) : continue
+			if bid == p[3] * 0.3 : 
+				result = -1
+				p[1] = x
+				p[3] = bid
+		
+		return result
+
+class SignalOVN(Signal):
+	def __init__(self, sigs, firstTime, strikes, deadprice):
+		super().__init__(sigs, firstTime, strikes, deadprice)
+		self.Low = self.OVNL
+		self.High = self.OVNH
+	def addTime(self, minute, strikes):
+		price = super().addTime(minute, strikes)
+		x = len(self.Prices) - 1
+		if minute < 630 : return 0
+		
+		blnUnder = True
+		blnOver = True
+		for y in range( x-10, x-1):
+			prePrice = self.Prices[y]
+			blnUnder = blnUnder and (prePrice < self.OVNH)
+			blnOver = blnOver and (prePrice > self.OVNL)
+			
+		if blnUnder and price >= self.OVNH : return -1
+		if blnOver and price <= self.OVNL : return 1
+
+#strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 """
 Day 0 - CrazyGEX - Puts From ONL   - Long Straddle						                     DPT - 4900 Breach - Target 4850p
 Day 1 - CrazyGEX - Call and Puts from ONL.  Puts to ONH - Long Straddle                      DPT - 4850 Tap - Target 4900c
@@ -265,8 +316,8 @@ Day 53 - Normal GEX - DPT ?Needs tuning?
 Day 54 - Normal GEX - DPT Targets @ $0.25
 Day 55 - Crazy GEX - DPT Fail
 Day 56 - Normal GEX - DPT Target Put Support 
-Day 57 - Normal GEX - DPT Targets %25 @ $0.40
-Day 58 - Needs flagged as Condor Day - Condor Breach!!!
+Day 57 - Condor GEX - Needs flagged as Condor Day - Condor Breach!!!
+Day 58 - Condor GEX - 
 Day 59 - Normal GEX - DPT Tap 5000 Target 5050c @ $0.60   - 60 point OVN Drop
 Day 60 - Normal GEX - DPT meh
 Day 61 - Normal GEX - DPT 25-points @ 75 away
@@ -274,4 +325,30 @@ Day 62 - Normal GEX - DPT No Signals - Put Juiced
 Day 63 - FOMC - DPT sort of
 Day 64 - Normal Gex - DPT Fail
 Day 65 - Normal GEX - Large OVN Pump 55 points - DPT Needs target adjustment to 0.55
+
+New Strat, Target weak option, buy every $0.05
+
+
+FD Notes
+Day 0 - PH Dump - Crab till 11:45
+Day 1 - Pump Day - 8:12 LOD - 9:55 Exit - 12:05 HOD
+Day 2 - Pump Day - OVN Dump - 6:00 LOD - 12:10 HOD
+Day 3 - V - Vanna Day - 7:00 HOD - 7:45 LOD - 9:45 Exit - 11:45 HOD
+Day 4 - Crab Day - OVN Uptrendy - 6:50 HOD - 7:15 OVNL
+Day 5 - UpTrend - OVN Uptrend - 6:46 LOD - TrippleBottom 7:05 - 7:30 HOD - Crab
+Day 6 - Crab Day
+Day 7 - UpTrend Day - Double-Bottom 6:50
+Day 8 - A - Vanna Day - 7:15 LOD - 8:30 HOD - dump between 10:20-11:20
+Day 9 - Dump Day - OVN Dump - Crab till 8:45-10:30 dump till 12:30
+Day 10 - V - Vanna Day - 7:26 FHOD - 9:00 LOD -  pump 11-close
+Day 11 - Uptrend - 8:10 LOD - 11:56 HOD
+Day 12 - Vanna Day - OVN Dump - 7:00 LOD - 11:00 HOD
+Day 13 - Downtrend - 6:34 HOD - 9:40 LOD
+Day 14 - Crab - PH Pump - LOD 12:20
+Day 15 - Uptrend - 11:30 HOD
+Day 16 - Crab - 6:45 HOD - 8:00 LOD
+Day 17 - Downtrend - 6:35 HOD
+Day 18 - Crab - 9:50 LOD
+Day 19 - Crab - 8:00 HOD
+Day 20 - Vanna Day - OVN Pump - 8:40 LOD
 """

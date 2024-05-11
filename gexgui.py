@@ -223,9 +223,9 @@ def triggerReset():
 		initVChart( gexList, "SPX" )
 	
 		price = dp.getPrice(ticker="SPX", strikes=gexList)
-		priceMod = int(price - (price % 5))
-		e3Text.set('all')
-		e4Text.set(f'{priceMod}p')
+		#priceMod = int(price - (price % 5))
+		#e3Text.set('all')
+		#e4Text.set(f'{priceMod}p')
 	
 		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
 		pcData = tmp[1]
@@ -476,6 +476,10 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	#print(4)
 	maxSize = 50
 	#print(calcVals)
+#	absVolumeList = [ (x[dp.GEX_STRIKE], x[dp.GEX_CALL_VOLUME] + x[dp.GEX_PUT_VOLUME]) for x in strikes]
+#	mostABSVolume = max( absVolumeList, key=lambda i: i[1] )[0]
+#	print( mostABSVolume )
+	
 	half_size = 6
 	for vcItem in vcStrikes:
 		strike = next((x for x in calcVals if x[0] == vcItem.Strike), None)
@@ -541,7 +545,7 @@ lblDays.place(x=100, y=0)
 tk.Button(win, text="<", command=clickLeftButton, width=1).place(x=130, y=0)
 tk.Button(win, text=">", command=clickRightButton, width=1).place(x=150, y=0)
 
-deadPrice = tk.Spinbox(win, width=4, wrap=True, values=(0.30, 0.25, 0.20, 0.15, 0.45, 0.40, -0.1))#from_=10, to=50)
+deadPrice = tk.Spinbox(win, width=4, wrap=True, values=(0.30, 0.25, 0.20, 0.15, -0.1, 0.6, 0.55, 0.5, 0.45, 0.40))#from_=10, to=50)
 deadPrice.place(x=200, y=0)
 
 e3Text = tk.StringVar() 

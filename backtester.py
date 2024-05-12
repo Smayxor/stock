@@ -51,7 +51,8 @@ for file in fileList:
 	end = file.replace('-0dte-datalog.json','')
 	#start = str(datetime.datetime.strptime(end, '%Y-%m-%d') - datetime.timedelta(days=30)).split(' ')[0]
 	
-	strikes = gexData[ next(iter(gexData)) ]
+	firstTime = next(iter(gexData))
+	strikes = gexData[firstTime]
 	#strikes = gexData[ next(t for t in gexData if float(t) > 630) ]
 	openPrice = dp.getPrice("SPX", strikes)#firstStrike[dp.GEX_STRIKE] + ((firstStrike[dp.GEX_CALL_BID] + firstStrike[dp.GEX_CALL_ASK]) / 2)
 	if previousClose == 0: previousClose = openPrice
@@ -68,61 +69,47 @@ for file in fileList:
 	putExitPrice = 0
 	callLowTime = 0
 	putLowTime = 0
-
-	lowestPrice = 999999
-	highestPrice = 0
-	prices = [openPrice]
+	
 	#prices.append( openPrice )
 	priceDif = 0
-	sigs = None
-	sigLevels = []
-	prevData = {}
-	openPrice = 0
+	sigs = sig.identifyKeyLevels(strikes)
+	strat = sig.SignalDPT(sigs=sigs, firstTime=firstTime, strikes=strikes, deadprice=0.30)
+	flags = []
 	lenData = len(gexData) - 2
+	openPrice = 0
 	for time in gexData:
 		minute = float( time )
 		strikes = gexData[time]
 		if minute < 630 and minute > 614 : continue
 		
 		price = dp.getPrice('SPX', strikes=strikes)
-		prices.append( price )
-		if price > highestPrice : highestPrice = price
-		if price < lowestPrice : lowestPrice = price
-		
-		prevData[time] = strikes
-		
-		lastPrice = prices[-2]
-		
+		flag = strat.addTime(minute, strikes)
+		flags.append( flag )
 		if openPrice == 0 :
 			if minute > 629 :
-				openPrice = price
+				openPrice = price	
 				sigs = sig.identifyKeyLevels(strikes)
-				sigLevels = sig.planEntry( prevData, sigs )
 				#print(f'{end} - Price ${price} - Targets - {sigLevels}')
-			continue
+			else: continue
 		
+		if minute < 800:
+			if flag == 1 and callEntered == 0 : callEntered = 1
+			if flag == -1  and putEntered == 0 : putEntered = 1
 
-		if callEntered == 0 and putEntered == 0:
-			if price <= sigLevels[0] : callEntered = 1
-			if price >= sigLevels[1] : putEntered = 1
-		
+
 		if callEntered == 1:
 			#callStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price - 20) )[dp.GEX_STRIKE]
-			callStrike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )[dp.GEX_STRIKE]
-			tmpPrices = []
-			for x in prevData:
-				tmpPrices.append( next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)[dp.GEX_CALL_ASK] )
-			callEntryPrice = min( tmpPrices )
+			strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )
+			callStrike = strike[dp.GEX_STRIKE]
+			callEntryPrice = strike[dp.GEX_CALL_ASK]
 			callEntered = 2
 			#print( f'Price of {price} - Planning call {callStrike} @ ${callEntryPrice}' )
 			
 		if putEntered == 1:
 			#putStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price + 20) )[dp.GEX_STRIKE]
-			putStrike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 2) )[dp.GEX_STRIKE]
-			tmpPrices = []
-			for x in prevData:
-				tmpPrices.append( next(x for x in strikes if x[dp.GEX_STRIKE] == putStrike)[dp.GEX_PUT_ASK] )
-			putEntryPrice = min( tmpPrices )
+			strike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 2) )
+			putStrike = strike[dp.GEX_STRIKE]
+			putEntryPrice = strike[dp.GEX_PUT_ASK]
 			putEntered = 2
 			#print( f'Price of {price} - Planning put {putStrike} @ ${putEntryPrice}' )
 			
@@ -148,27 +135,26 @@ for file in fileList:
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)
 			bid = strike[dp.GEX_CALL_BID]
 			#if bid < callEntryPrice - 0.20 : callExitPrice = bid * 3
-			if price > sigLevels[0] + 20 or minute >= 1200: #bid < 0.5 or bid >= callExitPrice
+			if bid >= callExitPrice or minute >= 1200: #bid < 0.5 or bid >= callExitPrice
 				callEntered = 4
 				tmp = min( (bid, callExitPrice) )  #Ensure correct Exit Price for conditions
 				pnl += tmp
 				print(f'Sold {callStrike} Call for {tmp} - {minute}')
+				if bid >= callExitPrice : wins += 1
+				else: losses += 1
 			
 		if putEntered == 3:	
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == putStrike)
 			bid = strike[dp.GEX_PUT_BID]
 			#if bid < putEntryPrice - 0.20 : putExitPrice = bid * 3
-			if price < sigLevels[1] - 20 or minute >= 1200: #bid < 0.5 or bid >= putExitPrice
+			if bid <= putExitPrice or minute >= 1200: #bid < 0.5 or bid >= putExitPrice
 				putEntered = 4
 				tmp = min((bid, putExitPrice))
 				pnl += tmp
 				print(f'Sold {putStrike} Put for {tmp} - {minute}')
+				if bid >= putExitPrice : wins += 1
+				else: losses += 1		
 		
-		
-	close = prices[-1]
-	TR = highestPrice - lowestPrice# max( (abs(previousClose - lowestPrice), abs(previousClose - highestPrice), abs(highestPrice - lowestPrice)) )
-	daysTR[end] = (TR, close)#{'open': openPrice, 'low': lowestPrice, 'high': highestPrice, 'previous_close': previousClose}	
-	previousClose = close
 
 	if pnl < mostDown: mostDown = pnl
 print(f'Total PnL ${round(pnl * 100, 2)},  most negative ${round(mostDown * 100, 2)}')

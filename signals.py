@@ -214,7 +214,8 @@ class Signal2x50(Signal):
 		super().__init__(sigs, firstTime, strikes, deadprice)
 		
 		self.callTimes = [ [x[0], 0, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes ]
-		self.putTimes = [  [x[0], 0, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes]
+		self.putTimes = [ [x[0], 0, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes]
+		#print( [x[0] for x in self.putTimes] )
 
 	def addTime(self, minute, strikes):
 		price = super().addTime(minute, strikes)
@@ -229,7 +230,7 @@ class Signal2x50(Signal):
 			if bid > c[3] : c[3] = bid
 			if bid < c[2] : c[2] = bid
 			if not (1 < c[3] < 5) : continue
-			if bid == c[3] * 0.3 : 
+			if bid <= c[3] * 0.5 : 
 				result = 1
 				c[1] = x
 				c[3] = bid
@@ -237,12 +238,14 @@ class Signal2x50(Signal):
 		for p in self.putTimes:
 			strike = next((x for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
 			if strike == None: continue
+			#if minute < 635 and strike[dp.GEX_STRIKE] == 4850 : print( f'Low {p[2]} - High {p[3]}')
 			bid = strike[dp.GEX_PUT_BID]
 			
 			if bid > p[3] : p[3] = bid
 			if bid < p[2] : p[2] = bid
-			#if not (1 < p[3] < 5) : continue
-			if bid == p[3] * 0.3 : 
+			if not (1 < p[3] < 5) : continue
+			if bid <= p[3] * 0.5 : 
+				#if strike[dp.GEX_STRIKE] == 4850 : print( f'Minute {minute} - Low {p[2]} - High {p[3]}')
 				result = -1
 				p[1] = x
 				p[3] = bid
@@ -259,6 +262,7 @@ class SignalOVN(Signal):
 		
 		x = len(self.Prices) - 1
 		if minute < 630 : return 0
+		if len( self.Prices ) < 10 : return 0 # No Premarket Data
 		
 		blnUnder = True
 		blnOver = True
@@ -272,6 +276,8 @@ class SignalOVN(Signal):
 
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 #https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c
+#EMA = Closing price * multiplier + EMA (previous day) * (1-multiplier). The multiplier is calculated using the formula 2 / (number of observations +1)
+#EMA_1 = close_curr * [2 / (20 + 1)] + EMA_prev * [1 - [2 / (20 + 1)]]
 """
 Day 0 - CrazyGEX - Puts From ONL   - Long Straddle						                     DPT - 4900 Breach - Target 4850p
 Day 1 - CrazyGEX - Call and Puts from ONL.  Puts to ONH - Long Straddle                      DPT - 4850 Tap - Target 4900c
@@ -365,4 +371,9 @@ Day 17 - Downtrend - 6:35 HOD
 Day 18 - Crab - 9:50 LOD
 Day 19 - Crab - 8:00 HOD
 Day 20 - Vanna Day - OVN Pump - 8:40 LOD
+
+
+MorningWick Notes
+Day 70 - OVN 10 pt range. Large CallOI.  5250c A - Winner.  5200p Cab till open under OVNL - Loser
+Day 69 - OVN 20 pt Range. Large CallVolume.  
 """

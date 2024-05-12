@@ -310,8 +310,30 @@ def timerThread():
 		minute = times[dataIndex]
 		minute = str( minute )
 		gexList = gexData[minute]
+		
+		#**************************************************************************************************
+		newStrikes = None
+		"""if dataIndex > 10 :
+			prevIndex = dataIndex - 10
+			prevMinute = times[prevIndex]
+			prevGEX = gexData[prevMinute]
+			newStrikes = []
+			for strike, prevStrike in zip(gexList, prevGEX):
+				if strike[dp.GEX_STRIKE] != prevStrike[dp.GEX_STRIKE] :
+					print('Error comparing strikes')
+					break
+				newStrikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None"] ) 
+				newStrikes[-1][dp.GEX_CALL_VOLUME] = strike[dp.GEX_CALL_VOLUME] - prevStrike[dp.GEX_CALL_VOLUME]
+				newStrikes[-1][dp.GEX_PUT_VOLUME] = strike[dp.GEX_PUT_VOLUME] - prevStrike[dp.GEX_PUT_VOLUME]
+				newStrikes[-1][dp.GEX_STRIKE] = strike[dp.GEX_STRIKE]
+				#newStrikes[-1][dp.GEX_CALL_OI] = strike[dp.GEX_CALL_OI]
+				#newStrikes[-1][dp.GEX_PUT_OI] = strike[dp.GEX_PUT_OI]
+				newStrikes[-1][dp.GEX_CALL_BID] = strike[dp.GEX_CALL_BID]
+				newStrikes[-1][dp.GEX_PUT_BID] = strike[dp.GEX_PUT_BID]
+		"""
+		#***************************************************************************************************
 		#print(3)
-		refreshVCanvas(strikes=gexList)
+		refreshVCanvas(strikes=gexList if newStrikes==None else newStrikes)
 		#print(4)
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
@@ -455,14 +477,16 @@ def initVChart(strikes, ticker):
 def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	calcVals = []
 	for strike in strikes:
-		#coi = abs( strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME] )
-		#poi = abs( strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME] )
-		#cv = 0
-		#pv = 0
-		coi = strike[dp.GEX_CALL_OI]
-		poi = strike[dp.GEX_PUT_OI]
-		cv = strike[dp.GEX_CALL_VOLUME]
-		pv = strike[dp.GEX_PUT_VOLUME]
+		if True == False :
+			coi = abs( strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME] )
+			poi = abs( strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME] )
+			cv = 0
+			pv = 0
+		else :
+			coi = strike[dp.GEX_CALL_OI]
+			poi = strike[dp.GEX_PUT_OI]
+			cv = strike[dp.GEX_CALL_VOLUME]
+			pv = strike[dp.GEX_PUT_VOLUME]
 		cb = strike[dp.GEX_CALL_BID]
 		pb = strike[dp.GEX_PUT_BID]
 		calcVals.append( (strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, pb) )
@@ -596,7 +620,7 @@ vcanvas = tk.Canvas()
 vcanvas.place(x=340, y=40)
 vcanvas.configure(width=150, height=605, bg='black')
 
-strikecanvas = tk.Canvas(win,width= 1400, height=605, bg='black')
+strikecanvas = tk.Canvas(win,width= 1400, height=705, bg='black')
 strikecanvas.place(x=492, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
 

@@ -161,8 +161,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 
 def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, minute='630'):
 	IMG_W = 1500
-	IMG_H = 500 + FONT_SIZE + 15 + 20
-	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	IMG_H = 605# 500 + FONT_SIZE + 15 + 20
+	img = PILImg.new("RGB", (IMG_W, IMG_H + 100), "#000")
 	draw = ImageDraw.Draw(img)
 	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
@@ -186,10 +186,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		#*******************
 		flags = []
 		#****************
+		totalCallOTM = []
+		totalPutOTM = []
 		
 		firstTime = next(iter(gexData))
 		firstStrike = gexData[firstTime]
-		strat = sig.SignalOVN(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
+		strat = sig.Signal2x50(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
 		#strat = sig.SignalFD(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
 		prices = strat.Prices
 		allPrices.append(prices)
@@ -205,7 +207,13 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				#	strat.sigs = sigs
 				
 				flags.append( strat.addTime(minute, strikes) )
-					
+				
+				#allCallPrem = sum( [x[dp.GEX_CALL_VOLUME] for x in gexData[time] if x[dp.GEX_STRIKE] > prices[-1]] )
+				#allPutPrem = sum( [x[dp.GEX_PUT_VOLUME] for x in gexData[time] if x[dp.GEX_STRIKE] < prices[-1]] )
+				allCallPrem = sum( [x[dp.GEX_CALL_VOLUME] for x in gexData[time]] )
+				allPutPrem = sum( [x[dp.GEX_PUT_VOLUME] for x in gexData[time]] )
+				totalCallOTM.append( allCallPrem  )
+				totalPutOTM.append( allPutPrem )
 			else : openTimeIndex = len(prices)
 		maxPrice = max( (*prices, sigs[0][1]) ) + 5
 		minPrice = min( (*prices, sigs[0][0]) ) - 5
@@ -239,7 +247,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			
 			if x in lows : draw.line((x-20, y2, x+20, y2), fill='red', width=2)
 			if x in highs : draw.line((x-20, y2, x+20, y2), fill='green', width=2)
-			
+
 #****************************************
 			flag = flags[x]
 			if flag == -1:
@@ -257,7 +265,26 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					draw.polygon( [x, 250, x-50, 300, x+50, 300, x,250], fill="green", outline='blue')
 				if sigs[1] == sig.DAY_DUMP :
 					draw.polygon( [x, 250, x-50, 200, x+50, 200, x,250], fill="red", outline='blue')
+			
+			
+
+
+
+
+			if x > 30 :
+				cDif = totalCallOTM[x] - totalCallOTM[x - 30]
+				pDif = totalPutOTM[x] - totalPutOTM[x-30]
 				
+				h = IMG_H + 50
+				y2 = cDif / 1000
+				draw.line([x, h-y2, x, h], fill='green', width=1)
+				y2 = pDif / 1000
+				draw.line([x, h+y2, x, h], fill='red', width=1)
+
+
+
+				
+
 			
 		x = 0
 		y = FONT_SIZE + 15
@@ -317,10 +344,20 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			if strike[1] in 'spx':
 				prices.append( dp.getPrice("SPX", gexData[t]) )
 			else :
+				#Used to display OTM Premium Totals ******************************
+				"""price = dp.getPrice("SPX", gexData[t])
+				if strike[1] == 'call':
+					allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > price] )
+					prices.append( allCallPrem )
+				if strike[1] == 'put':
+					allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < price] )
+					prices.append( allPutPrem )
+				continue #Temporary adjustment to view TimeValue above
+				"""#******************************************************************
 				for s in gexData[t]:
 					if s[dp.GEX_STRIKE] == strike[0]:
 						prices.append( s[element] )
-						continue	
+						continue
 
 		if strike[1] == "spx" :
 			colr = 'yellow'

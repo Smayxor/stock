@@ -89,13 +89,13 @@ def save0dte(bln1dte, thisDate):
 		json.dump(SPXLastData, f)
 
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate
 	myTime = getToday()
 	minute = myTime[1] #getStrTime()
 	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
 
 	try:
-		options = dp.getOptionsChain("SPX", 0)
+		options = dp.getOptionsChain("SPX", 0, date=SPX0DTEDate)
 		gex = dp.getGEX( options[1] )
 		price = dp.getPrice('SPX', gex) #gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
 		if SPXopenPrice == -1: SPXopenPrice = price
@@ -136,7 +136,7 @@ def appendData():
 		SPXLastData[minute] = gex		
 		
 		if skip1DTE == 0:
-			options = dp.getOptionsChain("SPX", 1)
+			options = dp.getOptionsChain("SPX", 1, date=SPX1DTEDate)
 			gex = dp.getGEX( options[1] )
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 			SPX1DTEdayData[minute] = gex
@@ -149,7 +149,7 @@ def appendData():
 		#print( f'During Error State - {state}' )
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate
 	try:  # In the event of an error, just start the day anyways......
 		state = dp.getMarketHoursToday()
 		print( state )
@@ -170,6 +170,10 @@ def startDay():
 	skipPreMarket = 0
 	lowSPX = None
 	highSPX = None
+	
+	SPX0DTEDate = dp.getExpirationDate('SPX', 0)
+	SPX1DTEDate = dp.getExpirationDate('SPX', 1)
+	print(SPX0DTEDate, SPX1DTEDate)
 	print( "Day started" )
 	
 def endDay():

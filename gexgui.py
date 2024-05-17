@@ -209,7 +209,7 @@ def triggerReset():
 				break
 			#if float(t) // 1 > 650 : break
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp, RAM=True) #function needs optional parameter to pass gexdata in
+		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp + ' ' + t, RAM=True) #function needs optional parameter to pass gexdata in
 		#image = Image.open("./" + filename)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
@@ -244,40 +244,6 @@ def triggerReset():
 	except Exception as error:
 		print("An exception occurred:", error)
 
-
-'''Call 11.4-15.8 - Put 8.6-12.9   #Faulty Data Example
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 8.6-12.9
-Call 11.4-15.8 - Put 15.5-15.7
-Call 7.7-7.9 - Put 15.6-15.8
-Call 7.4-7.6 - Put 16.2-16.4
-Call 7.4-7.5 - Put 16.0-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 7.4-7.6 - Put 16.1-16.3
-Call 12.1-12.3 - Put 9.9-10.1
-Call 13.5-13.6 - Put 9.2-9.3
-Call 15.5-15.9 - Put 7.8-8.2
-Call 16.1-16.3 - Put 7.9-8.1
-Call 16.4-16.6 - Put 7.7-7.9
-Call 16.5-16.6 - Put 7.9-8.0
-Call 16.8-17.0 - Put 7.7-7.9
-Call 17.6-17.8 - Put 7.4-7.6
-Call 18.3-18.5 - Put 7.2-7.3
-Call 19.7-19.8 - Put 6.6-6.8
-Call 20.0-20.1 - Put 7.0-7.1'''
 def timerThread():
 	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
 	if blnReset: triggerReset()
@@ -313,8 +279,9 @@ def timerThread():
 		
 		#**************************************************************************************************
 		newStrikes = None
-		"""if dataIndex > 10 :
-			prevIndex = dataIndex - 10
+		deltaVolumeTime = int(sliderValue.get())
+		if  0 < deltaVolumeTime < dataIndex:
+			prevIndex = dataIndex - deltaVolumeTime
 			prevMinute = times[prevIndex]
 			prevGEX = gexData[prevMinute]
 			newStrikes = []
@@ -326,11 +293,11 @@ def timerThread():
 				newStrikes[-1][dp.GEX_CALL_VOLUME] = strike[dp.GEX_CALL_VOLUME] - prevStrike[dp.GEX_CALL_VOLUME]
 				newStrikes[-1][dp.GEX_PUT_VOLUME] = strike[dp.GEX_PUT_VOLUME] - prevStrike[dp.GEX_PUT_VOLUME]
 				newStrikes[-1][dp.GEX_STRIKE] = strike[dp.GEX_STRIKE]
-				#newStrikes[-1][dp.GEX_CALL_OI] = strike[dp.GEX_CALL_OI]
-				#newStrikes[-1][dp.GEX_PUT_OI] = strike[dp.GEX_PUT_OI]
+				newStrikes[-1][dp.GEX_CALL_OI] = 0#strike[dp.GEX_CALL_OI]
+				newStrikes[-1][dp.GEX_PUT_OI] = 0#strike[dp.GEX_PUT_OI]
 				newStrikes[-1][dp.GEX_CALL_BID] = strike[dp.GEX_CALL_BID]
 				newStrikes[-1][dp.GEX_PUT_BID] = strike[dp.GEX_PUT_BID]
-		"""
+		
 		#***************************************************************************************************
 		#print(3)
 		refreshVCanvas(strikes=gexList if newStrikes==None else newStrikes)
@@ -361,15 +328,15 @@ def setPCFloat(x, y):
 	all = 'all' in e3Text.get()
 	tops = 0 #if (all) or (y < 300) else 1
 
-	def spxY( val ): return 537 - (((val - minPrice) / difPrice) * 500)
-	def convertY( val ): return 537 - ((val / maxPrice) * 250) - 252 + (tops * 250)
+	def spxY( val ): return 605 - (((val - minPrice) / difPrice) * 500) - 20
+	def convertY( val ): return 590 - ((val / maxPrice) * 250) - 252 + (tops * 250) - 20
 		
 	if x > -1:
 		firstPCData = pcData[0]#pcData[tops]
 		mostX = len(firstPCData) - 1
 		if x > mostX : x = mostX
-		maxPrice = max( firstPCData )
-		minPrice = min( firstPCData )
+		maxPrice = max( firstPCData ) + 5
+		minPrice = min( firstPCData ) - 5
 		difPrice = maxPrice - minPrice
 		y2 = 0
 		txt = f'  ${round((firstPCData[x]), 2)} '
@@ -586,8 +553,8 @@ e4Text.set("4850p")
 e4 = tk.Entry(win, width=8, textvariable=e4Text)
 e4.place(x=355, y=0)
 
-timeOfDay = tk.DoubleVar() 
-s1 = tk.Scale( win, variable = timeOfDay, from_ = 0, to = 100, orient = tk.HORIZONTAL, length=500)
+sliderValue = tk.DoubleVar() 
+s1 = tk.Scale( win, variable = sliderValue, from_ = 0, to = 100, orient = tk.HORIZONTAL, length=500)
 s1.place(x=650, y=0)
 
 btnFetch = tk.Button(win, text="Buy/Sell", command=clickButton, width=8)
@@ -643,34 +610,5 @@ e7.place(x=225, y=710)
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
 timerThread()
-
-
-async def connect_and_consume(sessionID):
-	uri = "wss://ws.tradier.com/v1/accounts/events"
-	async with websockets.connect(uri) as websocket:
-		payload = {"events": ["order"], "sessionid": f'{sessionID}', "excludeAccounts": []}
-		print(1)
-		await websocket.send(payload)
-		print(2)
-		print(payload)
-		print(3)
-
-		while True:
-			print(4)
-			response = await websocket.recv()
-			print(5)
-			print(response)
-			print(6)
-
-def f():
-	print('Timer started')
-	response = requests.post('https://api.tradier.com/v1/accounts/events/session', data={}, headers=dp.TRADIER_HEADER)
-	json_response = response.json()
-	sessionID = json_response['stream']['sessionid']
-	#print( json_response )  # {'stream': {'url': 'wss://ws.tradier.com/v1/accounts/events', 'sessionid': '73fff1ed-5575-41b6-9521-9ffb5ebe781f'}}
-	asyncio.get_event_loop().run_until_complete(connect_and_consume(sessionID))
-#t = threading.Thread(target=f)
-#t.start()
-#f()
 
 tk.mainloop()

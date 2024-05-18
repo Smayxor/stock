@@ -200,17 +200,10 @@ def triggerReset():
 	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=False)
-		gexList = list(gexData.values())[-1]
-		for t in gexData: 
-			if float(t) // 1 > 630 :
-				gexList = gexData[t]
-				#print(f'GEX Chart at {t} - count {len(gexList)}')
-				#strike = next(x for x in gexList if x[dp.GEX_STRIKE] == 5050)
-				#print( f'Call {strike[dp.GEX_CALL_BID]}-{strike[dp.GEX_CALL_ASK]} - Put {strike[dp.GEX_PUT_BID]}-{strike[dp.GEX_PUT_ASK]}' )
-				break
-			#if float(t) // 1 > 650 : break
+		firstTime = min( gexData.keys(), key=lambda i: abs(630 - float(i)))
+		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp + ' ' + t, RAM=True) #function needs optional parameter to pass gexdata in
+		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
 		#image = Image.open("./" + filename)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
@@ -328,22 +321,20 @@ def setPCFloat(x, y):
 	
 	if pcFloatingText == None : return
 	all = 'all' in e3Text.get()
-	tops = 0 #if (all) or (y < 300) else 1
-	
+	tops = 0
+	mouseY = y
 	if x > -1:
-		firstPCData = pcData[0]#pcData[tops]
+		firstPCData = pcData[0]
 		mostX = len(firstPCData) - 2
 		if x > mostX : x = mostX
-		#print( x, ' - ', len(pcY[0]) )
 		y2 = pcY[0][x]
 		txt = f'  ${round((firstPCData[x]), 2)} '
 		if all : 
+			y2 = y
 			y = pcY[0][x] - 5
-			y2 = y + 10
 		else : 
-			#y = convertY( firstPCData[x] )
 			y = pcY[0][x]
-			y2 = y + 1
+			y2 = y + 5
 			tops = 1
 			if len(pcData) == 2:
 				firstPCData = pcData[1]
@@ -351,10 +342,7 @@ def setPCFloat(x, y):
 				txt += f'\n  ${round((firstPCData[x]), 2)} '
 		
 		strikecanvas.coords(pcFloatingDot, x, y, x, y2)
-		if all : 
-			if y < 250 : y += 50
-			else : y -= 50
-		else : y = 260
+		y = mouseY
 		strikecanvas.coords(pcFloatingText, x, y)
 		strikecanvas.itemconfig(pcFloatingText, text=txt)
 		
@@ -430,7 +418,7 @@ def initVChart(strikes, ticker):
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 14
 		
-	allTarget = vcanvas.create_text( 70, y, fill='white', text='  SPX    -    Show-All    -   SPX', tag='widget' )
+	allTarget = vcanvas.create_text( 70, 7, fill='white', text='  SPX    -    Show-All    -   SPX', tag='widget' )
 	vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
 	refreshVCanvas(strikes = strikes)
 	

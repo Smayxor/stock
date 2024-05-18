@@ -3,8 +3,118 @@ import datapuller as dp
 import heapq
 
 DAY_RANGE, DAY_PUMP, DAY_DUMP, DAY_CRAZY, DAY_CONDOR, DAY_BREACH = 0, 1, 2, 3, 4, 5
+#fitness(x) = 1 / (sum_of_all_positive_metrics_mentioned_above - sum_of_all_negative_metrics_mentioned_above)
+"""time in trade
+percentage of port / percentage of budget
+number of trades taken
+number of trades won
+avg gain per trade
+stdev of avg gain per trade
+avg loss per trade
+stdev of avg loss per trade
+avg drawdown
+stdev of avg drawdown
+avg time in drawdown
+stdev of avg time in drawdown"""
 
 def identifyKeyLevels(strikes):
+	lenStrikes = len(strikes)
+	price = dp.getPrice(ticker="SPX", strikes=strikes)
+	#strikes = dp.shrinkToCount(strikes, price, 60)
+	
+	priceModulus = (price % 50)
+	priceLower50 = price - priceModulus
+	priceUpper50 = priceLower50 + 50
+	priceBounds = [priceLower50, priceUpper50]
+	
+	hasValueList = [x for x in strikes if (x[dp.GEX_STRIKE] > price and x[dp.GEX_CALL_BID] > 0.5) or (x[dp.GEX_STRIKE] < price and x[dp.GEX_PUT_BID] > 0.5)]
+	mainNodes = heapq.nlargest( 10, hasValueList, key=lambda x: x[dp.GEX_TOTAL_OI])
+	#print( [x[dp.GEX_STRIKE] for x in main5] )
+	mostCallOI = max(strikes, key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_CALL_OI]
+	mostPutOI = max(strikes, key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_PUT_OI]
+	mostCallPutOI = max( (mostCallOI, mostPutOI) )
+	mostTotalOI = max(strikes, key=lambda i: i[dp.GEX_TOTAL_OI])[dp.GEX_TOTAL_OI]
+	
+	totalOTMCallPremium = sum( [x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_BID] for x in strikes if x[dp.GEX_STRIKE] > price] )
+	totalOTMPutPremium = sum( [x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] < price] )
+	#print( f'{int(totalOTMCallPremium):,}' , f'{int(totalOTMPutPremium):,}'  )
+	
+	sumCallOI = sum( [x[dp.GEX_CALL_OI] for x in strikes] )
+	sumPutOI = sum( [x[dp.GEX_PUT_OI] for x in strikes] )
+	sumTotalOI = sum( [x[dp.GEX_CALL_OI] + x[dp.GEX_PUT_OI] for x in strikes] )
+	
+	averageCallOI = sumCallOI / lenStrikes
+	averagePutOI = sumPutOI / lenStrikes
+	averageTotalOI = sumTotalOI / lenStrikes
+	
+	straddles = []
+	callWalls = []
+	putWalls = []
+	zeroG = dp.calcZeroGEX( strikes )
+	straddles.append( zeroG )
+	
+	lastPutVolume = 0
+	for x in reversed(strikes):
+		putVolume = x[dp.GEX_PUT_VOLUME]
+		#if x[dp.GEX_STRIKE] == 5170 or x[dp.GEX_STRIKE] == 5165 : print( f'{x[dp.GEX_STRIKE]} - {putVolume}' )
+		if lastPutVolume > 300 and lastPutVolume * 0.2 > putVolume :#and putVolume < 50 :
+			callWalls.append( x[dp.GEX_STRIKE] )
+			break
+		lastPutVolume = putVolume
+	
+	for strike in mainNodes:
+		if (strike[dp.GEX_CALL_OI] > averageCallOI * 2.5 or strike[dp.GEX_CALL_OI] > mostCallOI * 0.7) and strike[dp.GEX_PUT_OI] < strike[dp.GEX_CALL_OI] * 0.4 :
+			callWalls.append( strike[dp.GEX_STRIKE] )
+		elif (strike[dp.GEX_PUT_OI] > averagePutOI * 2.5 or strike[dp.GEX_PUT_OI] > mostPutOI * 0.7) and strike[dp.GEX_CALL_OI] < strike[dp.GEX_PUT_OI] * 0.4 :
+			putWalls.append( strike[dp.GEX_STRIKE] )
+		elif strike[dp.GEX_TOTAL_OI] > averageTotalOI * 2 :
+			straddles.append( strike[dp.GEX_STRIKE] )
+		
+	creditSpreads = 0
+	i = 0 # Trim the CCS and PCS nodes to show outter node
+	while i < len(callWalls) :
+		node = callWalls[i]
+		if node + 5 in callWalls :
+			callWalls.pop(i)
+			creditSpreads += 1
+		else : i += 1
+	i = 0
+	while i < len(putWalls) :
+		node = putWalls[i]
+		if node - 5 in putWalls :
+			putWalls.pop(i)
+			creditSpreads += 1
+		else : i += 1
+	
+	gexPolarity = [(x[dp.GEX_STRIKE], x[dp.GEX_TOTAL_GEX] >= 0) for x in strikes if abs(x[dp.GEX_STRIKE] - price) < 100]
+	polaritySwitches = 0
+	for i in range(1, len(gexPolarity) - 1) :
+		node = gexPolarity[i][0]
+		plus = gexPolarity[i][1]
+		nextPlus = gexPolarity[i+1][1]
+		lastPlus = gexPolarity[i-1][1]
+		
+		if plus != lastPlus : polaritySwitches += 1
+		if (lastPlus == nextPlus) and (plus != lastPlus) and node not in straddles : straddles.append( node )
+			
+	#print(f'Polarity Switches {polaritySwitches}')
+
+	#print( gexPolarity )
+	
+	dayType = DAY_RANGE
+	#print( f'{sumCallOI} - {sumPutOI}')
+	if sumCallOI > sumPutOI * 1.4 : dayType = DAY_BREACH
+	if sumPutOI > sumCallOI * 1.4 : dayType = DAY_BREACH
+	if creditSpreads == 2 : dayType = DAY_CONDOR
+	if polaritySwitches > 4 : dayType = DAY_CRAZY
+	#1d EXP Move calced by looking at Forward Volatility
+	
+	return (priceBounds, dayType, straddles, putWalls, callWalls)
+
+
+
+
+def OLDidentifyKeyLevels(strikes):
 	lenStrikes = len(strikes)
 	
 	price = dp.getPrice(ticker="SPX", strikes=strikes)
@@ -90,6 +200,9 @@ def identifyKeyLevels(strikes):
 	
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
 
+
+
+
 def findPeaksAndValleys( prices ):
 	lenavgs = len( prices )
 	highs = []
@@ -125,26 +238,16 @@ def findPeaksAndValleys( prices ):
 			pass
 	return (lows, highs)
 
-def analyzeDay( strikes ):
-	totalCallOI = sum( [x[dp.GEX_CALL_OI] for x in strikes] )
-	totalPutOI = sum( [x[dp.GEX_PUT_OI] for x in strikes] )
-	
-	#print( f'CallOI {totalCallOI:,} - PutOI {totalPutOI:,}')
-	
 class Signal:	
-	def __init__(self, sigs, firstTime, strikes, deadprice):
-		self.Lower50 = sigs[0][0]
-		self.Upper50 = sigs[0][1]
-		self.DayType = sigs[1]
-		self.Straddles = sigs[2]
-		self.PutWalls = sigs[3]
-		self.CallWalls = sigs[4]
-		self.AllNodes = sigs[2] + sigs[3] + sigs[4]
+	def __init__(self, firstTime, strikes, deadprice):
 		self.deadprice = deadprice
 		
 		price = dp.getPrice("SPX", strikes)
 		self.OVNH = price
 		self.OVNL = price
+		self.OpenPrice = -1
+		self.Low = -1
+		self.High = -1
 		self.Prices = []
 		self.PrevData = {}
 		self.PrevDataTimes = []
@@ -152,8 +255,10 @@ class Signal:
 	
 		self.PreMarket = True
 		#self.allPositions = sigs[2] + sigs[3] + sigs[4]
-		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice)]
-		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice)]
+		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+		
+		self.LargestCandle = 0
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
 		self.Prices.append(price)
@@ -162,24 +267,48 @@ class Signal:
 		if minute < 630 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
-#			self.PreMarket = True
+			
+			if len(self.Prices) > 1:
+				wick = abs(self.Prices[-1] - self.Prices[-2])
+				if wick > self.LargestCandle : self.LargestCandle = wick
+			return price
 		
-		if self.PreMarket and minute // 1 > 629:
+		if self.PreMarket :#and minute // 1 > 629:
 			self.PreMarket = False
-			analyzeDay( strikes )
+			self.OpenPrice = price
+			self.Low = price
+			self.High = price
+			#sigs = identifyKeyLevels( strikes ) # Can only be done AFTER OI updates
+			#self.Lower50 = sigs[0][0]
+			#self.Upper50 = sigs[0][1]
+			#self.DayType = sigs[1]
+			#self.Straddles = sigs[2]
+			#self.PutWalls = sigs[3]
+			#self.CallWalls = sigs[4]
+			#self.AllNodes = sigs[2] + sigs[3] + sigs[4]
+		if price < self.Low : self.Low = price
+		if price > self.High : self.High = price
+		
+		for c in [c for c in self.callTimes if c[1] == -1] :
+			bid = next(x for x in strikes if x[dp.GEX_STRIKE] == c[0])[dp.GEX_CALL_BID]
+			if bid <= self.deadprice : c[1] = len(self.Prices) - 1
+		for p in [p for p in self.putTimes if p[1] == -1] :
+			bid = next(x for x in strikes if x[dp.GEX_STRIKE] == p[0])[dp.GEX_PUT_BID]
+			if bid <= self.deadprice : p[1] = len(self.Prices) - 1
+
 		return price
 			
 class SignalTemplate(Signal): #Blank Signal example
-	def __init__(self, sigs, firstTime, strikes, deadprice):
-		super().__init__(sigs, firstTime, strikes, deadprice)
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
 	def addTime(self, minute, strikes):
 		price = super().addTime(minute, strikes)
 		x = len(self.Prices) - 1
 		#price = self.Prices[x]
 		
 class SignalDPT(Signal):
-	def __init__(self, sigs, firstTime, strikes, deadprice):
-		super().__init__(sigs, firstTime, strikes, deadprice)
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
 		self.lastOptionIndex = 0
 		self.lastModulusIndex = 0
 		self.bullFlag = 0
@@ -188,6 +317,7 @@ class SignalDPT(Signal):
 
 	def addTime(self, minute, strikes):
 		super().addTime(minute, strikes)
+		
 		x = len(self.Prices) - 1
 		price = self.Prices[x]
 		if abs((price % 25) - 12.5) > 9: self.lastModulusIndex = x#Store index of last time price neared price%25
@@ -210,16 +340,24 @@ class SignalDPT(Signal):
 		return self.bullFlag if result else 0
 
 class Signal2x50(Signal):
-	def __init__(self, sigs, firstTime, strikes, deadprice):
-		super().__init__(sigs, firstTime, strikes, deadprice)
-		
-		self.callTimes = [ [x[0], 0, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes ]
-		self.putTimes = [ [x[0], 0, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if x[dp.GEX_STRIKE] in self.AllNodes]
-		#print( [x[0] for x in self.putTimes] )
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
+		self.pickNodes(strikes)
+		self.FindNodes = True
 
+	def pickNodes(self, strikes):
+		self.FindNodes = False
+		strike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50)
+		self.callTimes = [[self.Upper50, 0, strike[dp.GEX_CALL_BID], strike[dp.GEX_CALL_BID]]]
+		strike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.Lower50)
+		self.putTimes = [ [self.Lower50, 0, strike[dp.GEX_PUT_BID], strike[dp.GEX_PUT_BID]]]
+		#print( [x[0] for x in self.callTimes], [x[0] for x in self.putTimes] )
+		
 	def addTime(self, minute, strikes):
 		price = super().addTime(minute, strikes)
 		x = len(self.Prices) - 1
+		
+		if self.OpenPrice > -1 and self.FindNodes : self.pickNodes(strikes)
 
 		result = 0
 		for c in self.callTimes:
@@ -228,8 +366,10 @@ class Signal2x50(Signal):
 			bid = strike[dp.GEX_CALL_BID]
 			
 			if bid > c[3] : c[3] = bid
-			if bid < c[2] : c[2] = bid
-			if not (1 < c[3] < 5) : continue
+			if bid < c[2] : 
+				c[2] = bid
+				if c[3] < c[2] * 2 : c[3] = c[2]
+			if not (0.2 < c[3]) : continue
 			if bid <= c[3] * 0.5 : 
 				result = 1
 				c[1] = x
@@ -242,10 +382,12 @@ class Signal2x50(Signal):
 			bid = strike[dp.GEX_PUT_BID]
 			
 			if bid > p[3] : p[3] = bid
-			if bid < p[2] : p[2] = bid
-			if not (1 < p[3] < 5) : continue
-			if bid <= p[3] * 0.5 : 
-				#if strike[dp.GEX_STRIKE] == 4850 : print( f'Minute {minute} - Low {p[2]} - High {p[3]}')
+			if bid < p[2] : 
+				p[2] = bid
+				if p[3] < p[2] * 2 : p[3] = p[2]
+			if not (0.2 < p[3]) : continue
+			if bid <= p[3] * 0.5 :
+				#if strike[dp.GEX_STRIKE] == 5225 : print( f'Minute {minute} - Low {p[2]} - High {p[3]}')
 				result = -1
 				p[1] = x
 				p[3] = bid
@@ -253,8 +395,8 @@ class Signal2x50(Signal):
 		return result
 
 class SignalOVN(Signal):
-	def __init__(self, sigs, firstTime, strikes, deadprice):
-		super().__init__(sigs, firstTime, strikes, deadprice)
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
 		self.Low = self.OVNL
 		self.High = self.OVNH
 	def addTime(self, minute, strikes):
@@ -273,6 +415,69 @@ class SignalOVN(Signal):
 			
 		if blnUnder and price >= self.OVNH : return -1
 		if blnOver and price <= self.OVNL : return 1
+		return 0
+
+
+class SignalDataRelease(Signal):
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
+		self.FindNodes = True
+		self.callTarget = None
+		self.putTarget = None
+		
+	def getOVNLowHigh(self, strikeStrike, call=True):
+		element = dp.GEX_CALL_BID if call else dp.GEX_PUT_BID
+		low, high = 9999, 0
+		for minute, strikes in self.PrevData.items():
+			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == strikeStrike)
+			bid = strike[element]
+			if bid < low : low = bid
+			if bid > high : high = bid
+		return [strikeStrike, low, high]
+	
+	def addTime(self, minute, strikes):
+		price = super().addTime(minute, strikes)
+		x = len(self.Prices) - 1
+		result = 0
+		if self.FindNodes and not self.PreMarket : 
+			self.FindNodes = False
+			mostCall = max([x for x in strikes if x[dp.GEX_STRIKE] - price < 50], key=lambda i: i[dp.GEX_CALL_OI] + i[dp.GEX_CALL_VOLUME])[dp.GEX_STRIKE]
+			mostPut = max([x for x in strikes if price - x[dp.GEX_STRIKE] < 50], key=lambda i: i[dp.GEX_PUT_OI] + i[dp.GEX_PUT_VOLUME])[dp.GEX_STRIKE] 
+			self.callTarget = self.getOVNLowHigh( mostCall, True )
+			self.putTarget = self.getOVNLowHigh( mostPut, False )
+			print( f'{minute} - {self.callTarget}, {self.putTarget}' )
+			self.callTarget[1] = self.callTarget[1] * 1
+			self.putTarget[1] = self.putTarget[1] * 1
+			self.callTarget[2] = self.callTarget[2] * 0.33
+			self.putTarget[2] = self.putTarget[2] * 0.33
+			self.callTimes = [[mostCall, -1]]
+			self.putTimes = [[mostPut, -1]]
+
+		elif not self.FindNodes :
+			callStrike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.callTarget[0])
+			putStrike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.putTarget[0])
+			callBid = callStrike[dp.GEX_CALL_BID]
+			putBid = putStrike[dp.GEX_PUT_BID]
+
+			if callBid < self.callTarget[1] : 
+				self.callTarget[1] = -1
+				result = 1
+			if callBid < self.callTarget[2] : 
+				self.callTarget[2] = -1
+				result = 1
+		
+			if putBid < self.putTarget[1] : 
+				self.putTarget[1] = -1
+				result = -1
+			if putBid < self.putTarget[2] : 
+				self.putTarget[2] = -1
+				result = -1
+				
+			#if minute // 1 < 640 : result = 0
+			
+		
+		return result
+
 
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 #https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c
@@ -346,34 +551,19 @@ Day 63 - FOMC - DPT sort of
 Day 64 - Normal Gex - DPT Fail
 Day 65 - Normal GEX - Large OVN Pump 55 points - DPT Needs target adjustment to 0.55
 
-New Strat, Target weak option, buy every $0.05
-
-
-FD Notes
-Day 0 - PH Dump - Crab till 11:45
-Day 1 - Pump Day - 8:12 LOD - 9:55 Exit - 12:05 HOD
-Day 2 - Pump Day - OVN Dump - 6:00 LOD - 12:10 HOD
-Day 3 - V - Vanna Day - 7:00 HOD - 7:45 LOD - 9:45 Exit - 11:45 HOD
-Day 4 - Crab Day - OVN Uptrendy - 6:50 HOD - 7:15 OVNL
-Day 5 - UpTrend - OVN Uptrend - 6:46 LOD - TrippleBottom 7:05 - 7:30 HOD - Crab
-Day 6 - Crab Day
-Day 7 - UpTrend Day - Double-Bottom 6:50
-Day 8 - A - Vanna Day - 7:15 LOD - 8:30 HOD - dump between 10:20-11:20
-Day 9 - Dump Day - OVN Dump - Crab till 8:45-10:30 dump till 12:30
-Day 10 - V - Vanna Day - 7:26 FHOD - 9:00 LOD -  pump 11-close
-Day 11 - Uptrend - 8:10 LOD - 11:56 HOD
-Day 12 - Vanna Day - OVN Dump - 7:00 LOD - 11:00 HOD
-Day 13 - Downtrend - 6:34 HOD - 9:40 LOD
-Day 14 - Crab - PH Pump - LOD 12:20
-Day 15 - Uptrend - 11:30 HOD
-Day 16 - Crab - 6:45 HOD - 8:00 LOD
-Day 17 - Downtrend - 6:35 HOD
-Day 18 - Crab - 9:50 LOD
-Day 19 - Crab - 8:00 HOD
-Day 20 - Vanna Day - OVN Pump - 8:40 LOD
-
-
-MorningWick Notes
-Day 70 - OVN 10 pt range. Large CallOI.  5250c A - Winner.  5200p Cab till open under OVNL - Loser
-Day 69 - OVN 20 pt Range. Large CallVolume.  
+Data Release Suspects ->
+9  - 2024-02-13 - OVN 56 - Day 50 - Total 87 - LargestWick 26.549999999999272
+28 - 2024-03-12 - OVN 41 - Day 64 - Total 65 - LargestWick 16.550000000000182
+45 - 2024-04-05 - OVN 27 - Day 67 - Total 75 - LargestWick 20.100000000000364
+46 - 2024-04-08 - OVN 29 - Day 23 - Total 31 - LargestWick 18.349999999999454
+48 - 2024-04-10 - OVN 89 - Day 43 - Total 89 - LargestWick 78.0
+49 - 2024-04-11 - OVN 42 - Day 76 - Total 79 - LargestWick 24.600000000000364
+50 - 2024-04-12 - OVN 52 - Day 66 - Total 98 - LargestWick 17.0
+51 - 2024-04-15 - OVN 23 - Day 116 - Total 116 - LargestWick 18.400000000000546
+59 - 2024-04-25 - OVN 40 - Day 68 - Total 68 - LargestWick 23.449999999999818
+60 - 2024-04-26 - OVN 27 - Day 40 - Total 40 - LargestWick 20.449999999999818
+62 - 2024-04-30 - OVN 24 - Day 73 - Total 77 - LargestWick 24.149999999999636
+65 - 2024-05-03 - OVN 55 - Day 36 - Total 64 - LargestWick 39.45000000000073
+72 - 2024-05-14 - OVN 25 - Day 35 - Total 51 - LargestWick 25.0
+73 - 2024-05-15 - OVN 36 - Day 50 - Total 70 - LargestWick 28.75
 """

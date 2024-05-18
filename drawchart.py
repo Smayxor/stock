@@ -165,11 +165,6 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-
-
-
-
-
 def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, minute='630'):
 	IMG_W = 1500
 	IMG_H = 705# 500 + FONT_SIZE + 15 + 20
@@ -184,13 +179,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	totalCallVolume = []
 	totalPutVolume = []
 	openTimeIndex = 0
-	for t in gexData: 
-		firstTime = t
-		if float(t) > 630 : break#firstTime = next(iter(gexData))
+	firstTime = min( gexData.keys(), key=lambda i: abs(630 - float(i)))
 	firstStrikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels( firstStrikes )
-	strat = sig.SignalDataRelease(sigs=sigs, firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
-	#strat = sig.SignalFD(sigs=sigs, firstTime=firstTime, strikes=firstStrike, deadprice=deadprice)
+	strat = sig.SignalDataRelease(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
+	#strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
 	for arg in userArgs:
 		if arg == 'spx' :
 			displayStrikes.append( ('spx', 0) )
@@ -247,7 +240,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : spxPrices = prices1
 	if dStrike2 != None and (dStrike2[0] == 'all' or dStrike2[0] == 'spx') : spxPrices = prices2
 	if spxPrices != None :
-		peaksValleys = dp.findPeaksAndValleys( spxPrices )
+		peaksValleys = sig.findPeaksAndValleys( spxPrices )
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
 	
@@ -262,7 +255,6 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		colr = 'yellow' 
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
 		if isSPX :
-			#maxPrice = maxPrice - minPrice
 			maxPrice = max( (*prices, sigs[0][1]) ) + 5
 			minPrice = min( (*prices, sigs[0][0]) ) - 5
 			maxSPX = maxPrice
@@ -285,7 +277,6 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y2 = convertY( price, maxPrice ) + addY
 			yValues[j].append(y2)
 			
-
 			for c in strat.callTimes:
 				if c[1] == x:
 					cr = 'green'
@@ -345,7 +336,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 
 		#self.Straddles = sigs[2] 	#self.PutWalls = sigs[3]    #self.CallWalls = sigs[4]    #self.AllNodes = sigs[2] + sigs[3] + sigs[4]	
 		if isSPX :
-			for tar in strat.AllNodes:
+			for tar in sigs[2] + sigs[3] + sigs[4]:
 				if minSPX < tar < maxSPX :
 					y = convertY( tar - minSPX, maxPrice ) + addY
 					colr = "yellow" 
@@ -361,15 +352,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		if x > 30 :
 			cDif = totalCallVolume[x] - totalCallVolume[x - 30]
 			pDif = totalPutVolume[x] - totalPutVolume[x-30]
+			#y2 = cDif / 1000 #y3 = pDif / 1000 #draw.line([x, h-y2, x, h], fill='green', width=1) #draw.line([x, h+y3, x, h], fill='red', width=1)
+			dif = cDif - pDif
+			cr = 'green' if dif > 0 else 'red'
+			y2 = abs(dif) / 500
+			draw.line([x, 700-y2, x, 700], fill=cr, width=1)
 			
-			y2 = cDif / 1000
-			y3 = pDif / 1000
-			draw.line([x, h-y2, x, h], fill='green', width=1)
-			#draw.line([x, h-y2, x, h], fill='green', width=1)
-			
-			#draw.line([x, h-y3, x, h], fill='red', width=1)
-			draw.line([x, h+y3, x, h], fill='red', width=1)
-
 	if RAM : return (img, allPrices, yValues)
 	img.save("price-chart.png")
 	if includePrices : return ("price-chart.png", allPrices)

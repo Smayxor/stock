@@ -40,6 +40,12 @@ def drawRotatedPriceLine(draw, y, color):  #Draws a dashed line
 		draw.line([x, y, x + 4, y], fill=color, width=1)
 		x += 6
 
+def drawLongPriceLine(draw, y, color, startX, lastX):  #Draws a dashed line
+	x = startX
+	while x < lastX:
+		draw.line([x, y, x + 2, y], fill=color, width=1)
+		x += 6
+
 def drawText(draw, x, y, txt, color, anchor = "la"):
 	draw.text((x,y), text=txt, fill=color, font=font, anchor=anchor)
 
@@ -166,8 +172,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 
 def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, minute='630'):
 	IMG_W = 1500
-	IMG_H = 605# 500 + FONT_SIZE + 15 + 20
-	img = PILImg.new("RGB", (IMG_W, IMG_H + 100), "#000")
+	IMG_H = 705# 500 + FONT_SIZE + 15 + 20
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
@@ -175,6 +181,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	allPrices = []
 	displayStrikes = []
 	flags = []
+	totalCallVolume = []
+	totalPutVolume = []
 	openTimeIndex = 0
 	for t in gexData: 
 		firstTime = t
@@ -209,6 +217,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			continue
 		spxPrice = dp.getPrice("SPX", strikes)
 		flags.append( strat.addTime(minute, strikes) )
+		#allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > prices[-1]] )
+		#allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < prices[-1]] )
+		#allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t]] )
+		#allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t]] )
+		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in gexData[t]] )
+		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in gexData[t]] )
+		totalCallVolume.append( allCallVol )
+		totalPutVolume.append( allPutVol )
 		if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : 
 			prices1.append(spxPrice)
 		else:
@@ -224,26 +240,39 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	allPrices.append( prices1 )
 	if lenDisplays == 2 : allPrices.append( prices2 )
 	
-	displaySize = 500
-	if lenDisplays == 2 : displaySize = 250
+	displaySize = 600
+	if lenDisplays == 2 : displaySize = 300
 	
-	def convertY( val, maxPrice ): return 250 - ((val / maxPrice) * displaySize)
+	lows, highs, spxPrices = [], [], None
+	if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : spxPrices = prices1
+	if dStrike2 != None and (dStrike2[0] == 'all' or dStrike2[0] == 'spx') : spxPrices = prices2
+	if spxPrices != None :
+		peaksValleys = dp.findPeaksAndValleys( spxPrices )
+		lows = peaksValleys[0]
+		highs = peaksValleys[1]
+	
+	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
 	for j in range(lenDisplays):
 		prices = allPrices[j]
 		lenPrices = len(prices)
 		if lenPrices < 2 : break
-		maxPrice = max( prices )
-		minPrice = min( prices )
+		maxPrice, maxSPX = max( prices ), 0
+		minPrice, minSPX = min( prices ), 0
 		colr = 'yellow' 
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
 		if isSPX :
+			#maxPrice = maxPrice - minPrice
+			maxPrice = max( (*prices, sigs[0][1]) ) + 5
+			minPrice = min( (*prices, sigs[0][0]) ) - 5
+			maxSPX = maxPrice
+			minSPX = minPrice
 			maxPrice = maxPrice - minPrice
 		else :
 			if displayStrikes[j][1] == 'call' : colr = 'green'
 			else: colr = 'red'
-		addY = 30 + (j * 250)
-		if displaySize == 500 : addY = 530
+		addY = 30 + (j * 302)
+		if displaySize == 600 : addY = 30
 		for x in range( 1, lenPrices ) :
 			price = prices[x]
 			prevPrice = prices[x-1]
@@ -256,32 +285,108 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y2 = convertY( price, maxPrice ) + addY
 			yValues[j].append(y2)
 			
-			draw.line([x-1, y1, x, y2], fill=colr, width=1)
-		
 
-#****************************************
+			for c in strat.callTimes:
+				if c[1] == x:
+					cr = 'green'
+					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
+					drawText( draw, x, y2, txt=str( c[0] ), color=cr, anchor="rt")
+			for p in strat.putTimes:
+				if p[1] == x:
+					cr = 'red'
+					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
+					drawText( draw, x, y2, txt=str( p[0] ), color=cr, anchor="rt")
+			
+			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+
 			flag = flags[x]
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
 			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='green', outline='blue')
-#****************************************			
+			
 			if x == openTimeIndex : 
-				draw.line([x, 50, x, 500], fill="purple", width=1)
-					#if sigs[1] == sig.DAY_PUMP :
-					#	draw.polygon( [x, 250, x-50, 300, x+50, 300, x,250], fill="green", outline='blue')
-					#if sigs[1] == sig.DAY_DUMP :
-					#	draw.polygon( [x, 250, x-50, 200, x+50, 200, x,250], fill="red", outline='blue')
-			
+				draw.line([x, 50, x, 600], fill="purple", width=1)
+				#if sigs[1] == sig.DAY_PUMP :
+				#	draw.polygon( [x, 250, x-50, 300, x+50, 300, x,250], fill="green", outline='blue')
+				#if sigs[1] == sig.DAY_DUMP :
+				#	draw.polygon( [x, 250, x-50, 200, x+50, 200, x,250], fill="red", outline='blue')
+				
+				ovnPrices = prices[:openTimeIndex]
+				ovnl = min( ovnPrices )
+				ovnh = max( ovnPrices )
+				txtl = ' ${0:.2f}'.format(ovnl)
+				txth = ' ${0:.2f}'.format(ovnh)
+				if isSPX : 
+					ovnl = ovnl - minPrice
+					ovnh = ovnh - minPrice
+				y = convertY( ovnl, maxPrice ) + addY
+				#draw.line([0, y, x, y], fill="orange", width=1)
+				drawLongPriceLine(draw, y, 'orange', 0, openTimeIndex)
+				drawText( draw, 0, y, txt=txtl, color='orange', anchor="lt")
 
+				y = convertY( ovnh, maxPrice ) + addY
+				#draw.line([0, y, x, y], fill="orange", width=1)
+				drawLongPriceLine(draw, y, 'orange', 3, openTimeIndex)
+				drawText( draw, 0, y, txt=txth, color='orange', anchor="lt")
+				
+			if x in lows : draw.line((x-20, y2, x+20, y2), fill='red', width=2)
+			if x in highs : draw.line((x-20, y2, x+20, y2), fill='green', width=2)
 
+		
+		txt = str( max((maxPrice, maxSPX)) )
+		y = convertY(maxPrice, maxPrice) + addY
+		drawLongPriceLine(draw, y, colr, 1, 1400)
+		drawText( draw, 1200 + (j*50), y, txt=txt, color=colr, anchor="rt")
+		
+		txt = str( max( (minPrice, minSPX) ) )
+		y = convertY( 0, maxPrice ) + addY
+		drawLongPriceLine(draw, y, colr, 3, 1400)
+		drawText( draw, 1200 + (j*50), y, txt=txt, color=colr, anchor="rb")
+	
+
+		#self.Straddles = sigs[2] 	#self.PutWalls = sigs[3]    #self.CallWalls = sigs[4]    #self.AllNodes = sigs[2] + sigs[3] + sigs[4]	
+		if isSPX :
+			for tar in strat.AllNodes:
+				if minSPX < tar < maxSPX :
+					y = convertY( tar - minSPX, maxPrice ) + addY
+					colr = "yellow" 
+					if tar in sigs[2] : colr = "blue"
+					if tar in sigs[3] : colr = "red"
+					if tar in sigs[4] : colr = "green"
+					#draw.line( [0, y, 1500, y], fill=colr, width=1)
+					drawLongPriceLine(draw, y, colr, 3, 1400)
+					drawText( draw, 1400, y, txt=str(tar), color="yellow", anchor="rb")
+
+	h = 650
+	for x in range( len( totalCallVolume ) ) :  # Volume Chart under the SPX chart
+		if x > 30 :
+			cDif = totalCallVolume[x] - totalCallVolume[x - 30]
+			pDif = totalPutVolume[x] - totalPutVolume[x-30]
 			
-	if RAM : return (img, allPrices)
+			y2 = cDif / 1000
+			y3 = pDif / 1000
+			draw.line([x, h-y2, x, h], fill='green', width=1)
+			#draw.line([x, h-y2, x, h], fill='green', width=1)
+			
+			#draw.line([x, h-y3, x, h], fill='red', width=1)
+			draw.line([x, h+y3, x, h], fill='red', width=1)
+
+	if RAM : return (img, allPrices, yValues)
 	img.save("price-chart.png")
 	if includePrices : return ("price-chart.png", allPrices)
 	else : return "price-chart.png"  #Below is normal Option Price Chart
 
+	#Used to display OTM Premium Totals ******************************
+	"""price = dp.getPrice("SPX", gexData[t])
+	if strike[1] == 'call':
+		allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > price] )
+		prices.append( allCallPrem )
+	if strike[1] == 'put':
+		allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < price] )
+		prices.append( allPutPrem )
+	continue #Temporary adjustment to view TimeValue above
+	"""#******************************************************************
 
-
-
+"""
 def OLDdrawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, minute='630'):
 	IMG_W = 1500
 	IMG_H = 605# 500 + FONT_SIZE + 15 + 20
@@ -472,16 +577,7 @@ def OLDdrawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False
 			if strike[1] in 'spx':
 				prices.append( dp.getPrice("SPX", gexData[t]) )
 			else :
-				#Used to display OTM Premium Totals ******************************
-				"""price = dp.getPrice("SPX", gexData[t])
-				if strike[1] == 'call':
-					allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > price] )
-					prices.append( allCallPrem )
-				if strike[1] == 'put':
-					allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < price] )
-					prices.append( allPutPrem )
-				continue #Temporary adjustment to view TimeValue above
-				"""#******************************************************************
+
 				for s in gexData[t]:
 					if s[dp.GEX_STRIKE] == strike[0]:
 						prices.append( s[element] )
@@ -532,7 +628,7 @@ def OLDdrawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False
 	img.save("price-chart.png")
 	if includePrices : return ("price-chart.png", allPrices)
 	else : return "price-chart.png"
-
+"""
 def drawHeatMap(ticker, strikeCount, dayTotal): #Works on any ticker, doesnt use historical data
 	def alignValue(val, spaces): return f'{int(val):,d}'.rjust(spaces)
 

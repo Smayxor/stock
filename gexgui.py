@@ -28,6 +28,7 @@ lastFileIndex = len(fileList) - 1
 fileIndex = lastFileIndex
 fileToday = fileList[fileIndex]
 pcData = []
+pcY = []
 dataIndex = -1
 
 accountBalance = 0
@@ -193,7 +194,7 @@ def placeOrder(callput):
 
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
 	blnReset = False
 	ticker = e1.get().upper()
 	
@@ -229,6 +230,7 @@ def triggerReset():
 	
 		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
 		pcData = tmp[1]
+		pcY = tmp[2]
 		filename = tmp[0]
 		#if 'error' in filename: return
 		pc_image = filename#Image.open("./" + filename)
@@ -245,7 +247,7 @@ def triggerReset():
 		print("An exception occurred:", error)
 
 def timerThread():
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
 	if blnReset: triggerReset()
 	dte = dteText.get()
 	if not dte.isnumeric(): dte = 0
@@ -307,6 +309,8 @@ def timerThread():
 		#print(5)
 		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), minute=minute)
 		pcData = tmp[1]
+		pcY = tmp[2]
+		
 		filename = tmp[0]
 		#print(6)
 		#if 'error' in filename: return
@@ -320,40 +324,30 @@ def timerThread():
 def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
 		
 def setPCFloat(x, y):
-	global pcData, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, dataIndex
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, dataIndex
 	
 	if pcFloatingText == None : return
-	minPrice, maxPrice, difPrice = 0, 0, 0
-
 	all = 'all' in e3Text.get()
 	tops = 0 #if (all) or (y < 300) else 1
-
-	def spxY( val ): return 605 - (((val - minPrice) / difPrice) * 500) - 20
-	def convertY( val ): return 590 - ((val / maxPrice) * 250) - 252 + (tops * 250) - 20
-		
+	
 	if x > -1:
 		firstPCData = pcData[0]#pcData[tops]
-		mostX = len(firstPCData) - 1
+		mostX = len(firstPCData) - 2
 		if x > mostX : x = mostX
-		maxPrice = max( firstPCData ) + 5
-		minPrice = min( firstPCData ) - 5
-		difPrice = maxPrice - minPrice
-		y2 = 0
+		#print( x, ' - ', len(pcY[0]) )
+		y2 = pcY[0][x]
 		txt = f'  ${round((firstPCData[x]), 2)} '
 		if all : 
-			y = spxY( firstPCData[x] ) - 5
+			y = pcY[0][x] - 5
 			y2 = y + 10
 		else : 
 			#y = convertY( firstPCData[x] )
-			y = convertY( firstPCData[x] )
+			y = pcY[0][x]
 			y2 = y + 1
 			tops = 1
 			if len(pcData) == 2:
 				firstPCData = pcData[1]
-				maxPrice = max( firstPCData )
-				minPrice = min( firstPCData )
-				difPrice = maxPrice - minPrice
-				y2 = convertY( firstPCData[x] )
+				y2 = pcY[1][x]
 				txt += f'\n  ${round((firstPCData[x]), 2)} '
 		
 		strikecanvas.coords(pcFloatingDot, x, y, x, y2)
@@ -369,8 +363,10 @@ def setPCFloat(x, y):
 
 def on_strike_click(event):
 	global vcStrikes
-	if event.y < 73: 
-		e3Text.set('all')
+	if event.y < 73: #print( event.x )
+		if event.x < 50 : e3Text.set('spx')
+		elif event.x > 115 : e4Text.set('spx')
+		else : e3Text.set('all')
 	else :
 		index = (605 - event.y) // 14
 		endText = 'c' if event.x < 67 else 'p'
@@ -434,7 +430,7 @@ def initVChart(strikes, ticker):
 		vcStrikes.append( CanvasItem(strike[dp.GEX_STRIKE], y, canvasCall, canvasPut, canvasCallVol, canvasPutVol, canvasCallPrice, canvasPutPrice, canvasStrikeText) )
 		y -= 14
 		
-	allTarget = vcanvas.create_text( 70, y, fill='white', text='Show-All', tag='widget' )
+	allTarget = vcanvas.create_text( 70, y, fill='white', text='  SPX    -    Show-All    -   SPX', tag='widget' )
 	vcanvas.tag_bind('widget', '<Button-1>', on_strike_click)
 	refreshVCanvas(strikes = strikes)
 	

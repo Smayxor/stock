@@ -69,7 +69,7 @@ def identifyKeyLevels(strikes):
 			putWalls.append( strike[dp.GEX_STRIKE] )
 		elif strike[dp.GEX_TOTAL_OI] > averageTotalOI * 2 :
 			straddles.append( strike[dp.GEX_STRIKE] )
-		
+	#print( straddles, callWalls, putWalls )
 	creditSpreads = 0
 	i = 0 # Trim the CCS and PCS nodes to show outter node
 	while i < len(callWalls) :
@@ -109,10 +109,8 @@ def identifyKeyLevels(strikes):
 	if polaritySwitches > 4 : dayType = DAY_CRAZY
 	#1d EXP Move calced by looking at Forward Volatility
 	
+	#print( '2 - ', straddles, putWalls, callWalls)
 	return (priceBounds, dayType, straddles, putWalls, callWalls)
-
-
-
 
 def OLDidentifyKeyLevels(strikes):
 	lenStrikes = len(strikes)
@@ -242,9 +240,9 @@ class Signal:
 	def __init__(self, firstTime, strikes, deadprice):
 		self.deadprice = deadprice
 		
-		price = dp.getPrice("SPX", strikes)
-		self.OVNH = price
-		self.OVNL = price
+		#price = dp.getPrice("SPX", strikes)
+		self.OVNH = 0
+		self.OVNL = 99999
 		self.OpenPrice = -1
 		self.Low = -1
 		self.High = -1
@@ -264,12 +262,13 @@ class Signal:
 		self.Prices.append(price)
 		self.PrevDataTimes.append( minute )
 		self.PrevData[minute] = strikes	
+		lastPriceIndex = len(self.Prices)-1
 		if minute < 630 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
 			
 			if len(self.Prices) > 1:
-				wick = abs(self.Prices[-1] - self.Prices[-2])
+				wick = abs(self.Prices[lastPriceIndex] - self.Prices[lastPriceIndex-1])
 				if wick > self.LargestCandle : self.LargestCandle = wick
 			return price
 		
@@ -278,23 +277,21 @@ class Signal:
 			self.OpenPrice = price
 			self.Low = price
 			self.High = price
-			#sigs = identifyKeyLevels( strikes ) # Can only be done AFTER OI updates
-			#self.Lower50 = sigs[0][0]
-			#self.Upper50 = sigs[0][1]
-			#self.DayType = sigs[1]
-			#self.Straddles = sigs[2]
-			#self.PutWalls = sigs[3]
-			#self.CallWalls = sigs[4]
-			#self.AllNodes = sigs[2] + sigs[3] + sigs[4]
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
 		
 		for c in [c for c in self.callTimes if c[1] == -1] :
-			bid = next(x for x in strikes if x[dp.GEX_STRIKE] == c[0])[dp.GEX_CALL_BID]
-			if bid <= self.deadprice : c[1] = len(self.Prices) - 1
-		for p in [p for p in self.putTimes if p[1] == -1] :
-			bid = next(x for x in strikes if x[dp.GEX_STRIKE] == p[0])[dp.GEX_PUT_BID]
-			if bid <= self.deadprice : p[1] = len(self.Prices) - 1
+			bid = next((x[dp.GEX_CALL_BID] for x in strikes if x[dp.GEX_STRIKE] == c[0]), None)
+			if bid == None : 
+				c = [f'Missing\r{c[0]}', lastPriceIndex]
+				continue
+			if bid <= self.deadprice : c[1] = lastPriceIndex
+		for p in [p for p in self.putTimes if p[1] == -1] :	
+			bid = next((x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
+			if bid == None : 
+				p = [f'Missing\r{p[0]}', lastPriceIndex]
+				continue
+			if bid <= self.deadprice : p[1] = lastPriceIndex
 
 		return price
 			
@@ -422,10 +419,17 @@ class SignalDataRelease(Signal):
 	def __init__(self, firstTime, strikes, deadprice):
 		super().__init__(firstTime, strikes, deadprice)
 		self.FindNodes = True
-		self.callTarget = None
-		self.putTarget = None
+		self.lowPre530 = 99999
+		self.highPre530 = 0
+		self.low530 = 99999
+		self.high530 = 0
+		self.lowAfter = 99999
+		self.highAfter = 0
+		self.TrendDirection = 0
+		self.MidPoint = 0
+		#self.result = 0
 		
-	def getOVNLowHigh(self, strikeStrike, call=True):
+	def getContractOVNLowHigh(self, strikeStrike, call=True):
 		element = dp.GEX_CALL_BID if call else dp.GEX_PUT_BID
 		low, high = 9999, 0
 		for minute, strikes in self.PrevData.items():
@@ -439,42 +443,50 @@ class SignalDataRelease(Signal):
 		price = super().addTime(minute, strikes)
 		x = len(self.Prices) - 1
 		result = 0
-		if self.FindNodes and not self.PreMarket : 
-			self.FindNodes = False
-			mostCall = max([x for x in strikes if x[dp.GEX_STRIKE] - price < 50], key=lambda i: i[dp.GEX_CALL_OI] + i[dp.GEX_CALL_VOLUME])[dp.GEX_STRIKE]
-			mostPut = max([x for x in strikes if price - x[dp.GEX_STRIKE] < 50], key=lambda i: i[dp.GEX_PUT_OI] + i[dp.GEX_PUT_VOLUME])[dp.GEX_STRIKE] 
-			self.callTarget = self.getOVNLowHigh( mostCall, True )
-			self.putTarget = self.getOVNLowHigh( mostPut, False )
-			print( f'{minute} - {self.callTarget}, {self.putTarget}' )
-			self.callTarget[1] = self.callTarget[1] * 1
-			self.putTarget[1] = self.putTarget[1] * 1
-			self.callTarget[2] = self.callTarget[2] * 0.33
-			self.putTarget[2] = self.putTarget[2] * 0.33
-			self.callTimes = [[mostCall, -1]]
-			self.putTimes = [[mostPut, -1]]
-
-		elif not self.FindNodes :
-			callStrike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.callTarget[0])
-			putStrike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.putTarget[0])
-			callBid = callStrike[dp.GEX_CALL_BID]
-			putBid = putStrike[dp.GEX_PUT_BID]
-
-			if callBid < self.callTarget[1] : 
-				self.callTarget[1] = -1
-				result = 1
-			if callBid < self.callTarget[2] : 
-				self.callTarget[2] = -1
-				result = 1
 		
-			if putBid < self.putTarget[1] : 
-				self.putTarget[1] = -1
+		if minute < 530 : #Before Data Release
+			if self.lowPre530 > price : self.lowPre530 = price
+			if self.highPre530 < price : self.highPre530 = price
+		elif minute < 540 :  #Data release
+			if self.low530 > price : self.low530 = price
+			if self.high530 < price : self.high530 = price
+		elif minute < 630 : #Before OpenPrice
+			if self.lowAfter > price : self.lowAfter = price
+			if self.highAfter < price : self.highAfter = price
+		elif self.FindNodes :
+			self.FindNodes = False
+			pre = (self.highPre530 - self.lowPre530) // 1
+			drh = (self.high530 - self.highPre530) // 1
+			drl = (self.low530 - self.lowPre530) // 1
+			#print(f'Pre {self.lowPre530} x {self.highPre530}  - DR {self.low530} x {self.high530} ')
+			maxDR = max((abs(drh), abs(drl)))
+			#print( f'PreRange {pre} - DataRelase {drl} x {drh} ')
+			#if maxDR > 16 : IsDataRelease
+			#if maxDR < -16 : IsDataRelease
+			self.TrendDirection = -1 if abs(price - self.OVNH) > (price - self.OVNL) else 1
+			self.MidPoint = ((self.OVNH + self.OVNL) / 2) + (self.TrendDirection * 2)
+			if self.OVNH - self.OVNL < 20 :
+				self.TrendDirection = 0
+			#print( f'Trend {self.TrendDirection}' )
+		else :
+			if price > self.OVNH + 9 : 
 				result = -1
-			if putBid < self.putTarget[2] : 
-				self.putTarget[2] = -1
+				#print(f'Buy Put - OVNH {self.OVNH} - Price {price}')
+				self.OVNH = 999999
+			if price < self.OVNL - 9 :
+				result = 1
+				#print(f'Buy Call - OVNL {self.OVNL} - Price {price}')
+				self.OVNL = 0
+			if self.TrendDirection == 1 and price < self.MidPoint :
+				result = 1
+				self.TrendDirection = 0
+				#print(f'Trendy Call - MidPoint{self.MidPoint} - Price {price}')
+			if self.TrendDirection == -1 and price > self.MidPoint :
 				result = -1
-				
-			#if minute // 1 < 640 : result = 0
-			
+				self.TrendDirection = 0
+				#print(f'Trendy Put - MidPoint{self.MidPoint} - Price {price}')
+		
+		#if result != 0 : print( minute, ' ', result )
 		
 		return result
 
@@ -553,17 +565,68 @@ Day 65 - Normal GEX - Large OVN Pump 55 points - DPT Needs target adjustment to 
 
 Data Release Suspects ->
 9  - 2024-02-13 - OVN 56 - Day 50 - Total 87 - LargestWick 26.549999999999272
+	Dump Maintained - NEW LOW @ 7:15
+	AFTER DR - NOVNH -  Dump 22 - Pump 12 - Dump 18
+	8:45 Pump 40% of OVNH-LOD
+	
 28 - 2024-03-12 - OVN 41 - Day 64 - Total 65 - LargestWick 16.550000000000182
+	Dump 20 - Pump 40 - Dump 20 - Pump 10 - Dump to OVNL @ 6:45
+	
 45 - 2024-04-05 - OVN 27 - Day 67 - Total 75 - LargestWick 20.100000000000364
+	Dump Reversed!!! 
+	Dump to 50% OVNH- OVNL = Fomo Calls
+	
 46 - 2024-04-08 - OVN 29 - Day 23 - Total 31 - LargestWick 18.349999999999454
+	NO DATA RELEASE Wicks
+	Pump Maintained - Pivot 6:40
+	************* Dump to 45% OVNH-OVNL = Buy Call
+
 48 - 2024-04-10 - OVN 89 - Day 43 - Total 89 - LargestWick 78.0
+	Dump Maintainted - Pivot at 7:37
+	************** Pump 45% OVNH-OVNL = Cancel
+
 49 - 2024-04-11 - OVN 42 - Day 76 - Total 79 - LargestWick 24.600000000000364
+	Leading Dump - PUMP Maintained - Pivot at 7:15
+	************** Dump 95% = Buy Call
+	
 50 - 2024-04-12 - OVN 52 - Day 66 - Total 98 - LargestWick 17.0
+	Graduated Dump - Consider 4:00-6:30 ONLY
+	************** Pump 50% OVNH-LOD = Buy Put
+
 51 - 2024-04-15 - OVN 23 - Day 116 - Total 116 - LargestWick 18.400000000000546
+	Pump maintained - Reversal 6:40
+	************** Unclear - 
+	
 59 - 2024-04-25 - OVN 40 - Day 68 - Total 68 - LargestWick 23.449999999999818
+	Dump Maintained - Reversal at 7:00
+	************** Fomo calls at new Low -10 points from NewLow 6:40
+	CCS Formation 5045-5050,  5000p Enlargement
+	Entry Magic Time - 10 point breach
+	
 60 - 2024-04-26 - OVN 27 - Day 40 - Total 40 - LargestWick 20.449999999999818
+	Pump Flattened to new Low - Pump back to OVNH - Exit 7:12
+	************** Fomo calls at new Low -10 points from  FirstOVNL-Pre5:30
+	MostVol 5130c -> 5120c -> 5100c
+	Pump until 5130c OVNH
+
 62 - 2024-04-30 - OVN 24 - Day 73 - Total 77 - LargestWick 24.149999999999636
+	Dump Maintained - Pump till 6:45-7:20
+	****************Pump 50% from OVNH-OVNL = Buy Put
+	MostVolume switched to 5100c
+	Entry 5100p OVNL,  at 7:45  no clear Exit
+	Entry 5050p FD  Only Put Wall  @ $0.05 at 12:50
+	
 65 - 2024-05-03 - OVN 55 - Day 36 - Total 64 - LargestWick 39.45000000000073
+	45 point Maintained.  Drop 17 - Pump 25
+	****************Drop 50% from HOD-OVNL = Buy Call
+	Drop 15 point from OVNH = Buy Call.   New HOD 7:00  begin OVNH - 10 = Buy Put
+
 72 - 2024-05-14 - OVN 25 - Day 35 - Total 51 - LargestWick 25.0
+	Dump Flattened.  Dump -25 points,  EOD pump + 25 points
+	***************** Pump 10 points past OVNH = Buy Put
+	
 73 - 2024-05-15 - OVN 36 - Day 50 - Total 70 - LargestWick 28.75
+	Pump Maintained.   Target Call 5300c Destroyed before open
+	*****************Drop 50% from HOD-OVNL = Buy Call
+
 """

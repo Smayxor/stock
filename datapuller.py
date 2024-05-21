@@ -303,7 +303,7 @@ def getQuote(ticker):
 	return result
 
 lastPrice = 0
-def getPrice(ticker, strikes = None, dte = "now"):
+def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 	global lastPrice
 	if ticker in INDICES and strikes != None:
 		#*************************************************************************************************************
@@ -318,8 +318,11 @@ def getPrice(ticker, strikes = None, dte = "now"):
 		firstStrike = strikes[0]
 		lastStrike = strikes[-1]
 		price = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
-		
-		if firstStrike[GEX_CALL_BID] == 0 : price = lastPrice
+		#if test : print( 'cbid ' , firstStrike[GEX_CALL_BID] , ' cask ', firstStrike[GEX_CALL_ASK] )
+		if firstStrike[GEX_CALL_BID] == 0 : 
+			price = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
+			#if test : print( 'pbid ' , lastStrike[GEX_PUT_BID] , ' pask ', lastStrike[GEX_PUT_ASK] )
+			#price = lastPrice
 		lastPrice = price
 #			if lastStrike[GEX_PUT_BID] == 0: raise Exception("No PRICE!!!")
 #			price = ((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2) - lastStrike[GEX_STRIKE]

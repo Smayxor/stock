@@ -190,38 +190,51 @@ def placeOrder(callput):
 	getAccountData(myCon)	
 	myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')
 
-	
 
+#import signals as sig
 def triggerReset():
-	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image
+	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image, fileToday
 	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
 	blnReset = False
 	ticker = e1.get().upper()
 	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=False)
-		firstTime = min( gexData.keys(), key=lambda i: abs(630 - float(i)))
+		firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))
 		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
+		#print(f'GEXGui  {firstTime}' )
+		#sigs = sig.identifyKeyLevels( gexList )
+		#print( f'Before GEX {sigs}' )
+		#print( fileToday, ' - ', len(gexData.keys()) )
+		#print(f'reset - {len( gexData )}' )
+		price = dp.getPrice("SPX", gexList)   #Mega important!!!   If Price returns 0, dp.getPrice would  use a LastPrice for faulty return
+		if price == 0 : print( firstTime , ' - ', gexList[0])
+		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
 		#image = Image.open("./" + filename)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)
 		canvas.image = tk_image
+		minute = 630
 		if fileIndex != lastFileIndex :
 			for minute in gexData:
 				if float(minute) >= 640 :
 					gexList = gexData[minute]
 					break
+			#firstTime = min( gexData.keys(), key=lambda i: abs(630 - float(i)))
+			#firstStrikes = gexData[firstTime]		
+					
+					
 		initVChart( gexList, "SPX" )
 	
 		price = dp.getPrice(ticker="SPX", strikes=gexList)
 		#priceMod = int(price - (price % 5))
 		#e3Text.set('all')
 		#e4Text.set(f'{priceMod}p')
-	
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()))
+		#print( minute )
+		#print(f'From Reset {fileToday}')
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
 		pcData = tmp[1]
 		pcY = tmp[2]
 		filename = tmp[0]
@@ -252,6 +265,7 @@ def timerThread():
 		
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
+		#print( fileToday, ' - ', len(gexData.keys()) )
 		minute = 0
 		times = list(gexData.keys())
 		lastTimes = len(times) - 1
@@ -268,7 +282,7 @@ def timerThread():
 				placeOrder(1)
 		#print(2)
 		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
-		minute = times[dataIndex]
+		minute = times[dataIndex]  #Sets the Minute to a time mouse is hovering
 		minute = str( minute )
 		gexList = gexData[minute]
 		
@@ -299,8 +313,10 @@ def timerThread():
 		#print(4)
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
-		#print(5)
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), minute=minute)
+		#print(f'From Timer {fileToday}')
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+		#tmp = dc.drawCustomChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+		
 		pcData = tmp[1]
 		pcY = tmp[2]
 		
@@ -325,7 +341,7 @@ def setPCFloat(x, y):
 	mouseY = y
 	if x > -1:
 		firstPCData = pcData[0]
-		mostX = len(firstPCData) - 2
+		mostX = len(firstPCData) - 1
 		if x > mostX : x = mostX
 		y2 = pcY[0][x]
 		txt = f'  ${round((firstPCData[x]), 2)} '

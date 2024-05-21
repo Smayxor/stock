@@ -72,13 +72,17 @@ for file in fileList:
 	
 	#prices.append( openPrice )
 	priceDif = 0
+	firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))  #Data sucks at 630, and could catch time before at data fault
+	strikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels(strikes)
-	strat = sig.Signal2x50(sigs=sigs, firstTime=firstTime, strikes=strikes, deadprice=0.30)
+	strat = sig.SignalDataRelease(firstTime=firstTime, strikes=strikes, deadprice=0.30)
 	flags = []
 	lastFlag = 0
-	lenData = len(gexData) - 2
+	lenData = len(gexData) - 1
+	x = -1
 	openPrice = 0
 	for time in gexData:
+		x += 1
 		minute = float( time )
 		strikes = gexData[time]
 		if minute < 630 and minute > 614 : continue
@@ -87,7 +91,20 @@ for file in fileList:
 		flag = strat.addTime(minute, strikes)
 		flags.append( flag )
 		if flag != 0 : lastFlag = flag 
-		
+		"""
+		if x == lenData :
+			ovnRange = int(strat.OVNH - strat.OVNL)
+			dayRange = int(strat.High - strat.Low)
+			mHigh = max( (strat.High, strat.OVNH) )
+			mLow = min( (strat.Low, strat.OVNL) )
+			totalRange = int(mHigh - mLow)
+			#if totalRange > 50 or totalRange < 30:
+			
+			if strat.LargestCandle > 15 :
+				print( f'{end} - OVN {ovnRange} - Day {dayRange} - Total {totalRange} - LargestWick {strat.LargestCandle}' )
+			
+		continue
+		"""
 		if openPrice == 0 :
 			if minute > 629 :
 				openPrice = price	
@@ -104,7 +121,7 @@ for file in fileList:
 			#callStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price - 20) )[dp.GEX_STRIKE]
 			strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )
 			callStrike = strike[dp.GEX_STRIKE]
-			callEntryPrice = strike[dp.GEX_CALL_ASK] - 0.2
+			callEntryPrice = strike[dp.GEX_CALL_ASK]
 			callEntered = 2
 			#print( f'Price of {price} - Planning call {callStrike} @ ${callEntryPrice}' )
 			
@@ -112,7 +129,7 @@ for file in fileList:
 			#putStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price + 20) )[dp.GEX_STRIKE]
 			strike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 2) )
 			putStrike = strike[dp.GEX_STRIKE]
-			putEntryPrice = strike[dp.GEX_PUT_ASK] - 0.2
+			putEntryPrice = strike[dp.GEX_PUT_ASK]
 			putEntered = 2
 			#print( f'Price of {price} - Planning put {putStrike} @ ${putEntryPrice}' )
 			
@@ -122,7 +139,7 @@ for file in fileList:
 			if ask <= callEntryPrice :
 				callEntered = 3
 				pnl -= callEntryPrice
-				callExitPrice = callEntryPrice * 2
+				callExitPrice = callEntryPrice + 1
 				print(f'{end} Entered {callStrike} Call for ${callEntryPrice} - {minute}')
 		
 		if putEntered == 2:
@@ -131,14 +148,14 @@ for file in fileList:
 			if ask <= putEntryPrice :
 				putEntered = 3
 				pnl -= putEntryPrice
-				putExitPrice = putEntryPrice * 2
+				putExitPrice = putEntryPrice + 1
 				print(f'{end} Entered {putStrike} Put for ${putEntryPrice} - {minute}')
 		
 		if callEntered == 3:		
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == callStrike)
 			bid = strike[dp.GEX_CALL_BID]
 			#if bid < callEntryPrice - 0.20 : callExitPrice = bid * 3
-			if bid >= callExitPrice or minute >= 1200 or bid <= callEntryPrice - 0.5: #bid < 0.5 or bid >= callExitPrice
+			if bid >= callExitPrice or minute >= 1200 :#or bid <= callEntryPrice - 0.5: #bid < 0.5 or bid >= callExitPrice
 				callEntered = 4
 				tmp = min( (bid, callExitPrice) )  #Ensure correct Exit Price for conditions
 				pnl += tmp
@@ -152,7 +169,7 @@ for file in fileList:
 			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == putStrike)
 			bid = strike[dp.GEX_PUT_BID]
 			#if bid < putEntryPrice - 0.20 : putExitPrice = bid * 3
-			if bid >= putExitPrice or minute >= 1200 or bid <= putEntryPrice - 0.5: #bid < 0.5 or bid >= putExitPrice
+			if bid >= putExitPrice or minute >= 1200 :#or bid <= putEntryPrice - 0.5: #bid < 0.5 or bid >= putExitPrice
 				putEntered = 4
 				tmp = min((bid, putExitPrice))
 				pnl += tmp

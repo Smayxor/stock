@@ -250,11 +250,11 @@ class Signal:
 		self.PrevData = {}
 		self.PrevDataTimes = []
 		self.PrevData[firstTime] = strikes
-	
+		price = dp.getPrice("SPX", strikes)
 		self.PreMarket = True
 		#self.allPositions = sigs[2] + sigs[3] + sigs[4]
-		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
-		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
+		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
+		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		
 		self.LargestCandle = 0
 	def addTime(self, minute, strikes):
@@ -277,6 +277,32 @@ class Signal:
 			self.OpenPrice = price
 			self.Low = price
 			self.High = price
+			for c in self.callTimes :
+				ovnl = 99999
+				ovnh = 0
+				for prevStrikes in self.PrevData.values() :
+					bid = next((x[dp.GEX_CALL_BID] for x in prevStrikes if x[dp.GEX_STRIKE] == c[0]), None)
+					if bid == None :
+						ovnl = -1
+						ovnh = -1
+						break
+					if bid > ovnh : ovnh = bid
+					if bid < ovnl : ovnl = bid
+				c.append( ovnl )
+				c.append( ovnh )
+			for p in self.putTimes :
+				ovnl = 99999
+				ovnh = 0
+				for prevStrikes in self.PrevData.values() :
+					bid = next((x[dp.GEX_PUT_BID] for x in prevStrikes if x[dp.GEX_STRIKE] == p[0]), None)
+					if bid == None : 
+						ovnl = -1
+						ovnh = -1
+						break
+					if bid > ovnh : ovnh = bid
+					if bid < ovnl : ovnl = bid
+				p.append( ovnl )
+				p.append( ovnh )
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
 		
@@ -285,13 +311,13 @@ class Signal:
 			if bid == None : 
 				c = [f'Missing\r{c[0]}', lastPriceIndex]
 				continue
-			if bid <= self.deadprice : c[1] = lastPriceIndex
+			if bid <= c[3] * self.deadprice : c[1] = lastPriceIndex
 		for p in [p for p in self.putTimes if p[1] == -1] :	
 			bid = next((x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
 			if bid == None : 
 				p = [f'Missing\r{p[0]}', lastPriceIndex]
 				continue
-			if bid <= self.deadprice : p[1] = lastPriceIndex
+			if bid <= p[3] * self.deadprice : p[1] = lastPriceIndex
 
 		return price
 			

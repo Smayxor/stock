@@ -41,6 +41,7 @@ lblOpenOrders = None
 pcFloatingX = 0
 pcFloatingY = 0
 pcFloatingText = None
+pcFloatingText2 = None
 pcFloatingDot = None
 strikeCanvasImage, pc_tk_image, pc_image = None, None, None
 
@@ -194,7 +195,7 @@ def placeOrder(callput):
 #import signals as sig
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image, fileToday
-	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, pcFloatingText2
 	blnReset = False
 	ticker = e1.get().upper()
 	
@@ -244,6 +245,7 @@ def triggerReset():
 		strikecanvas.delete('all')
 		strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW)
 		pcFloatingText = strikecanvas.create_text( 515, 100, fill='blue', text=e3.get(), anchor="w", tag='float', font=("Helvetica", 16) )
+		pcFloatingText2 = strikecanvas.create_text( -515, 100, fill='blue', text=e3.get(), anchor="w", tag='float', font=("Helvetica", 16) )
 		pcFloatingDot = strikecanvas.create_line(500, 100, 515, 115, fill='blue', width = 3, dash=(1,3))
 		strikecanvas.bind("<Motion>", strikecanvas_on_mouse_move)
 		setPCFloat(-1,-1)
@@ -253,7 +255,7 @@ def triggerReset():
 		print("An exception occurred:", error)
 
 def timerThread():
-	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingText2, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
 	if blnReset: triggerReset()
 	dte = dteText.get()
 	if not dte.isnumeric(): dte = 0
@@ -333,12 +335,14 @@ def timerThread():
 def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
 		
 def setPCFloat(x, y):
-	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, dataIndex
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingText2, pcFloatingDot, dataIndex
 	
 	if pcFloatingText == None : return
 	all = 'all' in e3Text.get()
 	tops = 0
 	mouseY = y
+	ypcFT2 = -500
+	txtFT2 = ""
 	if x > -1:
 		firstPCData = pcData[0]
 		mostX = len(firstPCData) - 1
@@ -355,14 +359,18 @@ def setPCFloat(x, y):
 			if len(pcData) == 2:
 				firstPCData = pcData[1]
 				y2 = pcY[1][x]
-				txt += f'\n  ${round((firstPCData[x]), 2)} '
+				txtFT2 = f'  ${round((firstPCData[x]), 2)} '
+				#txt += f'\n  ${round((firstPCData[x]), 2)} '
 		
 		strikecanvas.coords(pcFloatingDot, x, y, x, y2)
-		y = mouseY
-		strikecanvas.coords(pcFloatingText, x, y)
+		if len(pcData) == 1 : y = mouseY
+		strikecanvas.coords(pcFloatingText, x, y+25)
 		strikecanvas.itemconfig(pcFloatingText, text=txt)
+		strikecanvas.coords(pcFloatingText2, x, y2-25)
+		strikecanvas.itemconfig(pcFloatingText2, text=txtFT2)
 		
 	strikecanvas.itemconfig(pcFloatingText, anchor="e" if x > 1200 else "w")
+	strikecanvas.itemconfig(pcFloatingText2, anchor="e" if x > 1200 else "w")
 	dataIndex = x#len(pcData)
 
 def on_strike_click(event):

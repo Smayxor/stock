@@ -263,7 +263,7 @@ class Signal:
 		self.PrevDataTimes.append( minute )
 		self.PrevData[minute] = strikes	
 		lastPriceIndex = len(self.Prices)-1
-		if minute < 630 : 
+		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
 			
@@ -272,7 +272,7 @@ class Signal:
 				if wick > self.LargestCandle : self.LargestCandle = wick
 			return price
 		
-		if self.PreMarket :#and minute // 1 > 629:
+		if self.PreMarket:# Fill list of contracts with OVNL and OVNH data
 			self.PreMarket = False
 			self.OpenPrice = price
 			self.Low = price
@@ -302,23 +302,44 @@ class Signal:
 					if bid > ovnh : ovnh = bid
 					if bid < ovnl : ovnl = bid
 				p.append( ovnl )
-				p.append( ovnh )
+				p.append( ovnh )	
+			#print( 'calls ', self.callTimes, '\nputs ', self.putTimes )
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
-		
+				
+		""" #Set Values for each contract when price reaches X
 		for c in [c for c in self.callTimes if c[1] == -1] :
 			bid = next((x[dp.GEX_CALL_BID] for x in strikes if x[dp.GEX_STRIKE] == c[0]), None)
 			if bid == None : 
 				c = [f'Missing\r{c[0]}', lastPriceIndex]
 				continue
-			if bid <= c[3] * self.deadprice : c[1] = lastPriceIndex
-		for p in [p for p in self.putTimes if p[1] == -1] :	
+			if bid <= self.deadprice : c[1] = lastPriceIndex
+		for p in [p for p in self.putTimes if p[1] == -1] :
 			bid = next((x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
 			if bid == None : 
 				p = [f'Missing\r{p[0]}', lastPriceIndex]
 				continue
-			if bid <= p[3] * self.deadprice : p[1] = lastPriceIndex
-
+			if bid <= self.deadprice : p[1] = lastPriceIndex
+		"""
+		#strike =  next((x for x in strikes if x[dp.GEX_STRIKE] == roundedPrice), None)
+		#if strike == None :
+		#	print(f'{roundedPrice} could not be found')
+		#	return price
+		
+		#roundedPrice = price - (price % 5)
+		def testContract( o, cp ):
+			bid = next((x[cp] for x in strikes if x[dp.GEX_STRIKE] == o[0]), None)#
+			if bid == None : 
+				o = [f'Missing\r{o[0]}', lastPriceIndex]
+				return
+			if bid > o[3] : o[3] = bid
+			if bid <= o[3] * self.deadprice :
+				txt = f'{"{:.0%}".format(bid / o[3])} - {o[0]}'
+				o[1] = lastPriceIndex if abs(price - o[0]) < 3 else -2  #Only show flags when SPX Spot Price is near Strike Price
+				o[0] = txt
+		for c in [c for c in self.callTimes if c[1] == -1] : testContract( c, dp.GEX_CALL_BID )
+		for p in [p for p in self.putTimes if p[1] == -1] : testContract( p, dp.GEX_PUT_BID )
+		
 		return price
 			
 class SignalTemplate(Signal): #Blank Signal example
@@ -522,137 +543,12 @@ class SignalDataRelease(Signal):
 #EMA = Closing price * multiplier + EMA (previous day) * (1-multiplier). The multiplier is calculated using the formula 2 / (number of observations +1)
 #EMA_1 = close_curr * [2 / (20 + 1)] + EMA_prev * [1 - [2 / (20 + 1)]]
 """
-Day 0 - CrazyGEX - Puts From ONL   - Long Straddle						                     DPT - 4900 Breach - Target 4850p
-Day 1 - CrazyGEX - Call and Puts from ONL.  Puts to ONH - Long Straddle                      DPT - 4850 Tap - Target 4900c
-Day 2 - CrossedGEX - Calls win - Long Straddle  											 DPT - 4905* Tap - Target 4950c @ $1.50
-Day 3 - CondorGEX - Puts win - Long Straddle												 DPT - 4950 Tap - Target 4900p
-Day 4 - NormalGEX - Fomo Call.  Puts ONL.  													 DPT - 4950 Breach - Target 4900p
-Day 5 - MinorStraddles - Fomo Call  - Long Straddle*									     DPT - OVN 4950 - Target 5000c @ $0.35
-Day 6 - NISP Gex - Scalps only																 DPT - Ugly
-Day 7 - DISP - HOD * 0.12 Call - Long Straddle												 DPT - 5000 Tap - Target 5050c
-Day 8 - NISP - Fomo Call.   Puts HOD * 0.10 - Long Straddle									 DPT - Faulty Range
-Day 9 - Dump - Call Scalp.   Puts HOD * 0.10.   Calls LOD $0.50 - Long Straddle				 DPT - 4945 Tap - Target 5005c ***
-Day 10 - NormalGEX -  Calls ONL.  Puts ONL  - Long Straddle									 DPT - 4955 Tap - Target 5000c ***
-Day 11 - CondorGEX - Puts ONL.  Calls ONL  - Long Straddle									 DPT - 5000 Tap - Target 5040c ***
-Day 12 - Solo Straddle - Fomo Puts.  MAGIC TIME Calls.   Calls HOD * 0.10 - Long Straddle    Delete Day - Bad Data
-Day 13 - NISP - Puts ONL - Long Straddle													 DPT - No Tap
-Day 14 - Dump Day ISP - 4950 needs flagged.   Puts ONH * 0.10.  							 DPT - PowerHour 4950 Tap Target 4960c
-Day 15 - Pump Day - Calls ONL.  															 DPT - DATA FAULT - 5050 Tap - Target 5100c
-Day 16 - Pump Day - MAGIC TIME Puts.  														 DPT - Meh
-Day 17 - NormalGEX or ISP? - Split PVN - Puts ONL											 DPT - No Tap - Target 5050p
-Day 18 - NormalGEX - Puts ONL  																 DPT - No Tap
-Day 19 - NISP - Calls ONL.  Puts HOD * 0.10 												 DPT - No Tap - Target 5050p
-Day 20 - NormalGEX - Puts ONL.  Puts HOD * 0.10.  Calls HOD * 0.10.  Calls ONL				 DPT - Near Tap - Target @ $0.60 or $0.50
-Day 21 - ISP GEX - 5100 Straddle Breach - Galactica - DPT Fail
-Day 22 - ISP or Normalish GEX - No Tap - 5150c Needs Call Wall Flag!!!*!*!**!*!*!**!
-Day 23 - NISP - Large 5140 should flag as Call Wall - DPT - Out of sync !*!*!*!*!**!*!*!**!
-Day 24 - NISP - DPT - Out of sync
-Day 25 - Normal GEX - DPT - Failure
-Day 26 - Normal GEX  - DPT Tap ??5190?? Target 5125p
-Day 27 - Data Fault - 2024-03-11  delete     DPT - 5100 Breach - Target 5150c
-Day 28 - ISP GEX -  DPT Happened BEFORE OPEN
-Day 29 - Normal GEX - DPT ???
-Day 30 - FAKE PUMP DAY - DPT - 5150 Breach Target 5200c
-Day 31 - ISP GEX - Negative Galactica - 5140p should flag as Call Wall - DPT ????
-Day 32 - ??? GEX
-Day 33 - Condor ISP GEX - DPT No
-Day 34 - Normal GEX - Faulty Data
-Day 35 - Crazy GEX - DPT - No
-Day 36 - Fake Pump Day - DPT - No Tap
-Day 37 - Normal Gex - No signals
-Day 38 - Normal Gex - No signals
-Day 39 - Normal Gex - Crab until -> DPT Target is HOD 5235 @$0.15 during PowerHour
-Day 40 - Crazy GEX - DPT - No Tap
-Day 41 - Missing signals?
-Day 42 - Wide-Swath Normal GEX - DPT Fail
-Day 43 - Normal GEX - DPT Trigger OVN  - Need ABS-GEX Trigger Level
-Day 44 - Normal GEX - DPT Tap 5250 Target 5200p
-Day 45 - Needs to trigger Breach Day - DPT Tap 5150 Target 5250c
-Day 46 - Condor Day - DPT yes
-Day 47 - Normal GEX - DPT Offset 25 points - Targets 5150p and 5200c
-Day 48 - Normal GEX - DPT Offset Taps - Targets 5250c 5200c
-Day 49 - Crazy GEX - DPT Fail
-Day 50 - Normal GEX - DPT Fail
-Day 51 - Normal GEX - DPT Fail
-Day 52 - Condor GEX - DPT Mixed Results
-Day 53 - Normal GEX - DPT ?Needs tuning?
-Day 54 - Normal GEX - DPT Targets @ $0.25
-Day 55 - Crazy GEX - DPT Fail
-Day 56 - Normal GEX - DPT Target Put Support 
-Day 57 - Condor GEX - Needs flagged as Condor Day - Condor Breach!!!
-Day 58 - Condor GEX - 
-Day 59 - Normal GEX - DPT Tap 5000 Target 5050c @ $0.60   - 60 point OVN Drop
-Day 60 - Normal GEX - DPT meh
-Day 61 - Normal GEX - DPT 25-points @ 75 away
-Day 62 - Normal GEX - DPT No Signals - Put Juiced
-Day 63 - FOMC - DPT sort of
-Day 64 - Normal Gex - DPT Fail
-Day 65 - Normal GEX - Large OVN Pump 55 points - DPT Needs target adjustment to 0.55
-
-Data Release Suspects ->
-9  - 2024-02-13 - OVN 56 - Day 50 - Total 87 - LargestWick 26.549999999999272
-	Dump Maintained - NEW LOW @ 7:15
-	AFTER DR - NOVNH -  Dump 22 - Pump 12 - Dump 18
-	8:45 Pump 40% of OVNH-LOD
-	
-28 - 2024-03-12 - OVN 41 - Day 64 - Total 65 - LargestWick 16.550000000000182
-	Dump 20 - Pump 40 - Dump 20 - Pump 10 - Dump to OVNL @ 6:45
-	
-45 - 2024-04-05 - OVN 27 - Day 67 - Total 75 - LargestWick 20.100000000000364
-	Dump Reversed!!! 
-	Dump to 50% OVNH- OVNL = Fomo Calls
-	
-46 - 2024-04-08 - OVN 29 - Day 23 - Total 31 - LargestWick 18.349999999999454
-	NO DATA RELEASE Wicks
-	Pump Maintained - Pivot 6:40
-	************* Dump to 45% OVNH-OVNL = Buy Call
-
-48 - 2024-04-10 - OVN 89 - Day 43 - Total 89 - LargestWick 78.0
-	Dump Maintainted - Pivot at 7:37
-	************** Pump 45% OVNH-OVNL = Cancel
-
-49 - 2024-04-11 - OVN 42 - Day 76 - Total 79 - LargestWick 24.600000000000364
-	Leading Dump - PUMP Maintained - Pivot at 7:15
-	************** Dump 95% = Buy Call
-	
-50 - 2024-04-12 - OVN 52 - Day 66 - Total 98 - LargestWick 17.0
-	Graduated Dump - Consider 4:00-6:30 ONLY
-	************** Pump 50% OVNH-LOD = Buy Put
-
-51 - 2024-04-15 - OVN 23 - Day 116 - Total 116 - LargestWick 18.400000000000546
-	Pump maintained - Reversal 6:40
-	************** Unclear - 
-	
-59 - 2024-04-25 - OVN 40 - Day 68 - Total 68 - LargestWick 23.449999999999818
-	Dump Maintained - Reversal at 7:00
-	************** Fomo calls at new Low -10 points from NewLow 6:40
-	CCS Formation 5045-5050,  5000p Enlargement
-	Entry Magic Time - 10 point breach
-	
-60 - 2024-04-26 - OVN 27 - Day 40 - Total 40 - LargestWick 20.449999999999818
-	Pump Flattened to new Low - Pump back to OVNH - Exit 7:12
-	************** Fomo calls at new Low -10 points from  FirstOVNL-Pre5:30
-	MostVol 5130c -> 5120c -> 5100c
-	Pump until 5130c OVNH
-
-62 - 2024-04-30 - OVN 24 - Day 73 - Total 77 - LargestWick 24.149999999999636
-	Dump Maintained - Pump till 6:45-7:20
-	****************Pump 50% from OVNH-OVNL = Buy Put
-	MostVolume switched to 5100c
-	Entry 5100p OVNL,  at 7:45  no clear Exit
-	Entry 5050p FD  Only Put Wall  @ $0.05 at 12:50
-	
-65 - 2024-05-03 - OVN 55 - Day 36 - Total 64 - LargestWick 39.45000000000073
-	45 point Maintained.  Drop 17 - Pump 25
-	****************Drop 50% from HOD-OVNL = Buy Call
-	Drop 15 point from OVNH = Buy Call.   New HOD 7:00  begin OVNH - 10 = Buy Put
-
-72 - 2024-05-14 - OVN 25 - Day 35 - Total 51 - LargestWick 25.0
-	Dump Flattened.  Dump -25 points,  EOD pump + 25 points
-	***************** Pump 10 points past OVNH = Buy Put
-	
-73 - 2024-05-15 - OVN 36 - Day 50 - Total 70 - LargestWick 28.75
-	Pump Maintained.   Target Call 5300c Destroyed before open
-	*****************Drop 50% from HOD-OVNL = Buy Call
-
+Day 78 -  ATM Both 50% = scalp
+		  ATM 30% = scalp
+		  20 points away 3100cp = 10% Put Enter Put, 10% call Exit put
+Day 77 - 5300cp,  50% scalp Call until OVNH.
+		 At 5300c OVNH = Enter Put, Exit at 2x
+		 5320cp =  5320c 60% OVNL = Buy Call, Exit at 50% 5320p OVNH
+		 5320c Magic Time High = at 50% LowerNHOD Buy Call, Exit Same High
+		 5320c 10% = Buy Call
 """

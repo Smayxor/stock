@@ -146,8 +146,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 		if strike[dp.GEX_STRIKE] in sigs[3]: drawPointer( draw, y=x + 6, color='red' )
 		if strike[dp.GEX_STRIKE] in sigs[4]: drawPointer( draw, y=x + 6, color='green' )
 		if strikeLen == 23 :
-			callDeltas.append( (218-(strike[dp.GEX_CALL_DELTA] * 150), x) )
-			putDeltas.append( (218+(strike[dp.GEX_PUT_DELTA] * 150), x) )
+			callDeltas.append( (218-(strike[dp.GEX_CALL_DELTA] * 150), x+10) )
+			putDeltas.append( (218+(strike[dp.GEX_PUT_DELTA] * 150), x+10) )
 	
 	if strikeLen == 23 :
 		for i in range( 1, len(strikes) ) :

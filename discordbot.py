@@ -14,6 +14,7 @@ from urllib.parse import quote as enc
 import datapuller as dp
 import drawchart as dc
 import requests
+import os
 
 init = json.load(open('apikey.json'))
 BOT_TOKEN = init['BOT_TOKEN']
@@ -431,7 +432,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 			
 			with open(f'./{fileName}', "wb") as outfile:
 				outfile.write(r.content)
-				print(f'{fileName} Downloaded at {os.path.abspath(outfile.name)}/{outfile.name}' )
+				print(f'{fileName} Downloaded at {os.path.realpath(outfile.name)}/{outfile.name}' )
 		print('All files updated.  Restarting service')
 		exit(9)
 		await bot.close()

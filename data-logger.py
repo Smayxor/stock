@@ -144,7 +144,7 @@ def appendData():
 		skip1DTE = (skip1DTE + 1) % 15
 		save0dte(skip1DTE == 0, thisDate = myTime[0])
 	except Exception as error:
-		print(f'{blnRun} AppendData - An error occoured: {error}')
+		print(f'{minute} AppendData - An error occoured: {error}')
 		#state = dp.getMarketHoursToday()   #DONT DO THIS.   If network connection fails, unhandled exception stops timer
 		#print( f'During Error State - {state}' )
 
@@ -152,16 +152,23 @@ def startDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate
 	try:  # In the event of an error, just start the day anyways......
 		state = dp.getMarketHoursToday()
-		print( state )
 		"""if 'closed' in state['state'] : #Seems to not apply to sunday!!!
 			#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
 			#Saturday Morning - {'date': '2024-04-06', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1712392287, 'next_change': '07:00', 'next_state': 'premarket'}
 			print( 'Market Closed Today')
 			return"""
+		if "for" in state['description'] : 
+			print( state )
+			return
+		#print( dp.getCalendar() )
+		#{'date': '2024-05-27', 'status': 'closed', 'description': 'Market is closed for Memorial Day'}, 
+		#{'date': '2024-05-28', 'status': 'open', 'description': 'Market is open', 'premarket': {'start': '07:00', 'end': '09:24'}, 'open': {'start': '09:30', 'end': '16:00'}, 'postmarket': {'start': '16:00', 'end': '19:55'}}, {'date': '2024-05-29', 'status': 'open', 'description': 'Market is open', 'premarket': {'start': '07:00', 'end': '09:24'}, 'open': {'start': '09:30', 'end': '16:00'}
+
 	except Exception as error:
 		print(f'StartDay - An error occoured: {error}')
 		
 	if datetime.datetime.now().weekday() > 4 : return
+	
 	blnRun = True
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1
@@ -174,7 +181,7 @@ def startDay():
 	SPX0DTEDate = dp.getExpirationDate('SPX', 0)
 	SPX1DTEDate = dp.getExpirationDate('SPX', 1)
 	print(SPX0DTEDate, SPX1DTEDate)
-	print( "Day started" )
+	print( f'{SPX0DTEDate} - Day started' )
 	
 def endDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData
@@ -219,7 +226,6 @@ tmp = getToday()[1]
 if (tmp > 0) and (tmp < 1300): 
 	print('Late start to the day')
 	startDay()
-#startDay()
 
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not

@@ -236,7 +236,51 @@ def findPeaksAndValleys( prices ):
 			pass
 	return (lows, highs)
 
+def getStrike( strike, strikes ): return next((x for x in strikes if x[dp.GEX_STRIKE] == strike), None)
+
 class Signal:	
+	def __init__(self, firstTime, strikes, deadprice):
+		self.deadprice = deadprice
+		self.OVNH = 0
+		self.OVNL = 99999
+		self.OpenPrice = -1
+		self.Low = -1
+		self.High = -1
+		self.Prices = []
+		self.PrevData = {}
+		self.PrevDataTimes = []
+		self.PrevData[firstTime] = strikes
+		price = dp.getPrice("SPX", strikes)
+		self.LargestCandle = 0
+		self.isPreMarket = True
+		self.callTimes = [] # [[strike, time],[next, -1]]
+		self.putTimes = []
+		self.ExtraDisplayText = ""
+		
+	def addTime(self, minute, strikes):
+		price = dp.getPrice("SPX", strikes)
+		self.Prices.append(price)
+		self.PrevDataTimes.append( minute )
+		self.PrevData[minute] = strikes	
+		lastPriceIndex = len(self.Prices)-1
+		if minute < 631 : 
+			if price < self.OVNL : self.OVNL = price
+			if price > self.OVNH : self.OVNH = price
+			
+			if len(self.Prices) > 1:
+				wick = abs(self.Prices[lastPriceIndex] - self.Prices[lastPriceIndex-1])
+				if wick > self.LargestCandle : self.LargestCandle = wick
+		if self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
+			self.isPreMarket = False
+			self.OpenPrice = price
+			self.Low = price
+			self.High = price
+
+		if price < self.Low : self.Low = price
+		if price > self.High : self.High = price
+		return price
+		
+class SignalDeadPrices(Signal):	
 	def __init__(self, firstTime, strikes, deadprice):
 		self.deadprice = deadprice
 		
@@ -251,18 +295,32 @@ class Signal:
 		self.PrevDataTimes = []
 		self.PrevData[firstTime] = strikes
 		price = dp.getPrice("SPX", strikes)
-		self.PreMarket = True
+		self.isPreMarket = True
 		#self.allPositions = sigs[2] + sigs[3] + sigs[4]
 		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
-		
 		self.LargestCandle = 0
+		wholePrice = int(price)
+		self.MostCommonLow = wholePrice - 150 #Will crash if we move more than 150 points
+		self.MostCommonHigh = wholePrice + 150
+		self.MostCommonPrices = [[x,0] for x in range(self.MostCommonLow, self.MostCommonHigh)]
+		
+	def addCommonPrices( self, oldPrice, newPrice ):
+		op = oldPrice // 1
+		np = newPrice // 1
+		lp = op if op < np else np
+		hp = np if op < np else op
+		for mcp in self.MostCommonPrices :
+			if lp <= mcp[0] <= hp : mcp[1] += 1
+		
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
 		self.Prices.append(price)
 		self.PrevDataTimes.append( minute )
 		self.PrevData[minute] = strikes	
 		lastPriceIndex = len(self.Prices)-1
+		if lastPriceIndex > 1 : self.addCommonPrices( price, self.Prices[-2] )
+		
 		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
@@ -272,8 +330,8 @@ class Signal:
 				if wick > self.LargestCandle : self.LargestCandle = wick
 			return price
 		
-		if self.PreMarket:# Fill list of contracts with OVNL and OVNH data
-			self.PreMarket = False
+		if self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
+			self.isPreMarket = False
 			self.OpenPrice = price
 			self.Low = price
 			self.High = price
@@ -306,31 +364,12 @@ class Signal:
 			#print( 'calls ', self.callTimes, '\nputs ', self.putTimes )
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
-				
-		""" #Set Values for each contract when price reaches X
-		for c in [c for c in self.callTimes if c[1] == -1] :
-			bid = next((x[dp.GEX_CALL_BID] for x in strikes if x[dp.GEX_STRIKE] == c[0]), None)
-			if bid == None : 
-				c = [f'Missing\r{c[0]}', lastPriceIndex]
-				continue
-			if bid <= self.deadprice : c[1] = lastPriceIndex
-		for p in [p for p in self.putTimes if p[1] == -1] :
-			bid = next((x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
-			if bid == None : 
-				p = [f'Missing\r{p[0]}', lastPriceIndex]
-				continue
-			if bid <= self.deadprice : p[1] = lastPriceIndex
-		"""
-		#strike =  next((x for x in strikes if x[dp.GEX_STRIKE] == roundedPrice), None)
-		#if strike == None :
-		#	print(f'{roundedPrice} could not be found')
-		#	return price
-		
-		#roundedPrice = price - (price % 5)
+
 		def testContract( o, cp ):
-			bid = next((x[cp] for x in strikes if x[dp.GEX_STRIKE] == o[0]), None)#
+			bid = next((x[cp] for x in strikes if x[dp.GEX_STRIKE] == o[0]), None)
 			if bid == None : 
-				o = [f'Missing\r{o[0]}', lastPriceIndex]
+				#o = [f'Missing\r{o[0]}', lastPriceIndex]
+				o[1] == -2
 				return
 			if bid > o[3] : o[3] = bid
 			if bid <= o[3] * self.deadprice :
@@ -339,7 +378,7 @@ class Signal:
 				o[0] = txt
 		for c in [c for c in self.callTimes if c[1] == -1] : testContract( c, dp.GEX_CALL_BID )
 		for p in [p for p in self.putTimes if p[1] == -1] : testContract( p, dp.GEX_PUT_BID )
-		
+
 		return price
 			
 class SignalTemplate(Signal): #Blank Signal example
@@ -462,7 +501,7 @@ class SignalOVN(Signal):
 		return 0
 
 
-class SignalDataRelease(Signal):
+class SignalFIB(Signal):
 	def __init__(self, firstTime, strikes, deadprice):
 		super().__init__(firstTime, strikes, deadprice)
 		self.FindNodes = True
@@ -537,18 +576,116 @@ class SignalDataRelease(Signal):
 		
 		return result
 
+FIBS = [0.786, 0.618, 0.5, 0.33, 0.236, -1]
+#FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
+AS_STRIKE, AS_CALL_BID, AS_CALL_LOW, AS_CALL_HIGH, AS_PUT_BID, AS_PUT_LOW, AS_PUT_HIGH = 0, 1, 2, 3, 4, 5, 6
+class SignalPercentages(Signal): #Blank Signal example
+	def __init__(self, firstTime, strikes, deadprice):
+		super().__init__(firstTime, strikes, deadprice)
+		self.Upper50 = 99999
+		self.Lower50 = 0
+		self.Targets = []
+		self.SPXBottom = []
+		self.LastFlag = 0
+		self.LastSPXStrike = 0
+		self.setAllStrikes( strikes )
+		
+	def setStrikeHigh(self, strikes):
+		for strike in strikes :
+			storedStrike = next((x for x in self.allStrikes if strike[dp.GEX_STRIKE] == x[AS_STRIKE]), None)
+			if storedStrike == None : continue #print( strike[dp.GEX_STRIKE], ' not found')
+			cBid = strike[dp.GEX_CALL_BID]
+			pBid = strike[dp.GEX_PUT_BID]
+			storedStrike[AS_CALL_BID] = cBid
+			if cBid < storedStrike[AS_CALL_LOW] : storedStrike[AS_CALL_LOW] = cBid
+			if cBid > storedStrike[AS_CALL_HIGH] : storedStrike[AS_CALL_HIGH] = cBid
+			storedStrike[AS_PUT_BID] = pBid
+			if pBid < storedStrike[AS_PUT_LOW] : storedStrike[AS_PUT_LOW] = pBid
+			if pBid > storedStrike[AS_PUT_HIGH] : storedStrike[AS_PUT_HIGH] = pBid
+	
+	def setAllStrikes(self, strikes):
+		self.allStrikes = [[x[dp.GEX_STRIKE], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes]
+	
+	def addTime(self, minute, strikes):
+		price = super().addTime(minute, strikes)
+		lastIndex = len(self.Prices) - 1
+		result = 0
+		"""
+		strk = ((price + 12.5) // 25) * 25 #Round to nearest 25 points
+		if abs( price - self.LastSPXStrike ) < 25 : strk = self.LastSPXStrike
+		self.SPXBottom.append( strk )
+		if strk != self.LastSPXStrike : 
+			self.setAllStrikes( strikes )
+			print( f'{minute} - Switch - {self.SPXBottom[-1]}')
+		self.LastSPXStrike = strk
+		"""
+		self.setStrikeHigh(strikes)
+		if self.isPreMarket : return 0
+		
+		if len(self.Targets) < 2 : 
+			mostOIVolCall = max(strikes, key=lambda i: i[dp.GEX_CALL_OI] + i[dp.GEX_CALL_VOLUME])
+			mostOIVolPut  = max(strikes, key=lambda i: i[dp.GEX_PUT_OI] + i[dp.GEX_PUT_VOLUME])
+			#self.Targets = [mostOIVolCall[dp.GEX_STRIKE], mostOIVolPut[dp.GEX_STRIKE]]
+			d, m = divmod( price, 25 )
+			d = 25 * (d + (m > 12.5))
+			strk = ((price + 12.5) // 25) * 25 #Round to nearest 25 points
+			self.Targets = [strk, strk]
+			self.ExtraDisplayText = f'{self.Targets[0]} - {self.Targets[1]}'
+		
+		callStrike = next((x for x in self.allStrikes if x[AS_STRIKE] == self.Targets[0]), None)
+		putStrike = next((x for x in self.allStrikes if x[AS_STRIKE] == self.Targets[1]), None)
+		
+		if  callStrike[AS_CALL_BID] <= callStrike[AS_CALL_HIGH] * 0.666 : 
+			result = 1
+			callStrike[AS_CALL_HIGH] = callStrike[AS_CALL_BID]
+		if  callStrike[AS_PUT_BID] <= callStrike[AS_PUT_HIGH] * 0.666  : 
+			result = -1
+			callStrike[AS_PUT_HIGH] = callStrike[AS_PUT_BID]
+
+		if minute < 630 : result = 0
+
+		if self.LastFlag > 0 : self.LastFlag -= 1
+		if result != 0 and self.LastFlag == 0 : self.LastFlag = 20
+		else : result = 0
+
+		return result
+
 
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 #https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c
 #EMA = Closing price * multiplier + EMA (previous day) * (1-multiplier). The multiplier is calculated using the formula 2 / (number of observations +1)
 #EMA_1 = close_curr * [2 / (20 + 1)] + EMA_prev * [1 - [2 / (20 + 1)]]
+
 """
-Day 78 -  ATM Both 50% = scalp
-		  ATM 30% = scalp
-		  20 points away 3100cp = 10% Put Enter Put, 10% call Exit put
-Day 77 - 5300cp,  50% scalp Call until OVNH.
-		 At 5300c OVNH = Enter Put, Exit at 2x
-		 5320cp =  5320c 60% OVNL = Buy Call, Exit at 50% 5320p OVNH
-		 5320c Magic Time High = at 50% LowerNHOD Buy Call, Exit Same High
-		 5320c 10% = Buy Call
+Day 0 - Open 4900 - Nlargest 4900, 4875, 4925.   BestPlay 11:45  - No PVN or it is 4900?
+		4875p High $13.90 -> 11:45 -> $2.05 - 14.7%
+		4925c High $8.60 -> $1.20 - 13.9%
+		4900p OVNL $8.60 -> $31.30 -> 11:45 -> $8.80 - 28%
+		4900c OVNH $20.20 -> $3.90 - 19.3% -> $12.10 - 310%
+		
+Day 1 - Open 4866 - 4850, 4890   BestPlay 8:12  - No PVN
+		4850c OVNH $26.90 -> $12.40 - 46% -> $54.90 - 442%
+		4850p OVNH $8.20 -> 7:30 - $2.15 - 26% -> $9.40 - 437%
+		
+Day 2 - Open 4910 - 4900 - Volume>OI - 4950 - No PVN
+
+Day 3 - Open 4945 - 4925, 4985, 4990.  Best Play 6:55 -> 7:45 -> 9:42.   Late PVN 4980, 4990
+		4950c OVNH $13.10
+		4925p HOD $13.20 -> Enter Call
+
+Day 4 - Open 4950 - 4900, 4960, 4980.  Best Play 6:45.  PVN 4980
+
+Day 5 - Open 4975 - 4950,  4930, 5000.  Best Play 7:04.    PVN 4990, 5000  Breach
+
+Day 6 - Open 4995 - 5000.  Best Play NA.  PVN 5030, 5035
+
+Day 7 - Open 5000 - 5000 5100. Best Play 6:50.  No PVN
+
+Day 8 - Open 5025 - 5000 5050. Best Play 7:14.  PVN 5060, 5065, 5070
+
+Day 9 - Open 4950 - 5050.  Best Play 9:45.  No PVN
+
+Day 10 - Open 4980 - 4950 5000.  Best Play 7:26 -> 9:05 -> EOD.  No PVN
+
+
 """

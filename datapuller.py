@@ -15,7 +15,7 @@ SPY2SPXRatio = 0 # No longer used
 INDICES = ['SPX', 'VIX', 'XSP', 'SOX']
 SPX0DTEDate, SPX0DTEDate = None, None
 
-GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
 
 if not os.path.isdir('./logs'): os.mkdir('./logs')
 
@@ -184,7 +184,7 @@ def getMultipleDTEOptionChain(ticker, days):
 #{'symbol': 'SPY231030C00499000', 'description': 'SPY Oct 30 2023 $499.00 Call', 'exch': 'Z', 'type': 'option', 'last': 0.01, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.01, 'underlying': 'SPY', 'strike': 499.0, 'greeks': {'delta': 0.0, 'gamma': 0.0, 'theta': 0.0, 'vega': 2e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.716638, 'ask_iv': 0.716638, 'smv_vol': 0.16, 'updated_at': '2023-10-27 20:00:01'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 11, 'trade_date': 1697812231388, 'prevclose': 0.01, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'Q', 'bid_date': 1698437676000, 'asksize': 5608, 'askexch': 'X', 'ask_date': 1698437691000, 'open_interest': 36, 'contract_size': 100, 'expiration_date': '2023-10-30', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPY'}
 #{'symbol': 'SPXW240216P00200000', 'description': 'SPXW Feb 16 2024 $200.00 Put', 'exch': 'C', 'type': 'option', 'last': None, 'change': None, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.05, 'underlying': 'SPX', 'strike': 200.0, 'greeks': {'delta': -2.25e-14, 'gamma': -3.2575160249757252e-15, 'theta': 2.236129405855236e-11, 'vega': 2.0000060368178682e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 0.42, 'updated_at': '2024-02-15 20:59:59'}, 'change_percentage': None, 'average_volume': 0, 'last_volume': 0, 'trade_date': 0, 'prevclose': None, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'C', 'bid_date': 1708093802000, 'asksize': 1067, 'askexch': 'C', 'ask_date': 1708095327000, 'open_interest': 9, 'contract_size': 100, 'expiration_date': '2024-02-16', 'expiration_type': 'standard', 'option_type': 'put', 'root_symbol': 'SPXW'}
 #{'symbol': 'SPX240216P00400000', 'description': 'SPX Feb 16 2024 $400.00 Put', 'exch': 'C', 'type': 'option', 'last': 0.05, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 0.0, 'ask': 0.15, 'underlying': 'SPX', 'strike': 400.0, 'greeks': {'delta': -1.338e-13, 'gamma': -1.9037189917344295e-14, 'theta': -0.19774195063757755, 'vega': 2.0000113384843898e-05, 'rho': 0.0005479309221920519, 'phi': -0.006882528396090493, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 1.134, 'updated_at': '2024-02-15 20:59:59'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 1, 'trade_date': 1705501802447, 'prevclose': 0.05, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 0, 'bidexch': 'C', 'bid_date': 1708032417000, 'asksize': 0, 'askexch': 'C', 'ask_date': 1708045200000, 'open_interest': 1080, 'contract_size': 100, 'expiration_date': '2024-02-16', 'expiration_type': 'standard', 'option_type': 'put', 'root_symbol': 'SPX'}
-def getGEX(options, chartType = 0):  #New test code
+def getGEX(options):  #New test code
 	index = 0
 	strikes = []
 	def findIndex( strike ): #loop from end of list, confirm we are using correct index
@@ -202,14 +202,15 @@ def getGEX(options, chartType = 0):  #New test code
 		if option['greeks'] is not None:
 			gamma = option['greeks']['gamma']
 			iv = option['greeks']['mid_iv']
+			delta = option['greeks']['delta']
 		volume = option['volume']
 		oi = option['open_interest'] 
 
-		if chartType == 1: 
-			oi = volume #For Volume charts
-			gex = oi * call
-		else:
-			gex = oi * gamma * call
+		#if chartType == 1: # WTF Delete this soon ********
+		#	oi = volume #For Volume charts
+		#	gex = oi * call
+		#else:
+		gex = oi * gamma * call
 		#exDate = option['expiration_date']
 		bid = option['bid']
 		ask = option['ask']
@@ -218,17 +219,17 @@ def getGEX(options, chartType = 0):  #New test code
 		symbol = option['symbol']
 		#if strike == 4350 : print( option )
 		if (len(strikes) == 0) or (strikes[index][0] != strike): #fast, assumes strikes are in order
-			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None"] ) 
+			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None", 0, 0, 0] ) 
 			index = findIndex(strike) # always make sure we're on the right strike index
-		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL
+		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA
 		tmp = strikes[index]
 		if call == 1: 
-			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_CALL_BID], tmp[GEX_CALL_ASK], tmp[GEX_CALL_VOLUME], tmp[GEX_CALL_BID_SIZE], tmp[GEX_CALL_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
+			tmp[GEX_STRIKE], tmp[GEX_CALL_IV], tmp[GEX_CALL_BID], tmp[GEX_CALL_ASK], tmp[GEX_CALL_VOLUME], tmp[GEX_CALL_BID_SIZE], tmp[GEX_CALL_ASK_SIZE], tmp[GEX_CALL_DELTA] = strike, iv, bid, ask, volume, bidSize, askSize, delta
 			tmp[GEX_CALL_GEX] += gex  #We can have multiple root symbols SPX and SPXW
 			tmp[GEX_CALL_OI]+= oi
 			tmp[GEX_CALL_SYMBOL] = symbol
 		else: 
-			tmp[GEX_STRIKE], tmp[GEX_IV], tmp[GEX_PUT_BID], tmp[GEX_PUT_ASK], tmp[GEX_PUT_VOLUME], tmp[GEX_PUT_BID_SIZE], tmp[GEX_PUT_ASK_SIZE] = strike, iv, bid, ask, volume, bidSize, askSize
+			tmp[GEX_STRIKE], tmp[GEX_PUT_IV], tmp[GEX_PUT_BID], tmp[GEX_PUT_ASK], tmp[GEX_PUT_VOLUME], tmp[GEX_PUT_BID_SIZE], tmp[GEX_PUT_ASK_SIZE], tmp[GEX_PUT_DELTA] = strike, iv, bid, ask, volume, bidSize, askSize, delta
 			tmp[GEX_PUT_GEX] += gex
 			tmp[GEX_PUT_OI]+= oi
 			tmp[GEX_PUT_SYMBOL] = symbol

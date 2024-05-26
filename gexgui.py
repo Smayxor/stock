@@ -316,7 +316,7 @@ def timerThread():
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
 		#print(f'From Timer {fileToday}')
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
 		#tmp = dc.drawCustomChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
 		
 		pcData = tmp[1]
@@ -452,57 +452,60 @@ def initVChart(strikes, ticker):
 def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 	calcVals = []
 	for strike in strikes:
-		if True == False :
-			coi = abs( strike[dp.GEX_CALL_OI] - strike[dp.GEX_CALL_VOLUME] )
-			poi = abs( strike[dp.GEX_PUT_OI] - strike[dp.GEX_PUT_VOLUME] )
-			cv = 0
-			pv = 0
-		else :
-			coi = strike[dp.GEX_CALL_OI]
-			poi = strike[dp.GEX_PUT_OI]
-			cv = strike[dp.GEX_CALL_VOLUME]
-			pv = strike[dp.GEX_PUT_VOLUME]
+		coi = strike[dp.GEX_CALL_OI]
+		poi = strike[dp.GEX_PUT_OI]
+		cv = strike[dp.GEX_CALL_VOLUME]
+		pv = strike[dp.GEX_PUT_VOLUME]
+		
+		coiv = coi + cv
+		poiv = poi + pv
+		
+		coi *= cv #Exponential Volume reading for Gamma Skew
+		poi *= pv
+		
 		cb = strike[dp.GEX_CALL_BID]
 		pb = strike[dp.GEX_PUT_BID]
-		calcVals.append( (strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, pb) )
-		#if strike[dp.GEX_STRIKE] == 4995 : print(strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, strike[dp.GEX_PUT_BID] )
-	#print(1)
+		calcVals.append( (strike[dp.GEX_STRIKE], coi, poi, cv, pv, cb, pb, coiv, poiv) )
+
 	maxCallOI = max(calcVals, key=lambda i: i[1])[1]
-	maxPutOI = abs( min(calcVals, key=lambda i: i[2])[2] )
+	#maxPutOI = abs( min(calcVals, key=lambda i: i[2])[2] )
+	maxPutOI = max(calcVals, key=lambda i: i[2])[2]
 	maxCallPutOI = max( (maxCallOI, maxPutOI) )
-	#print(2)
 	maxCallVolume = max(calcVals, key=lambda i: i[3])[3]
-	maxPutVolume = abs( min(calcVals, key=lambda i: i[4])[4] )
+	#maxPutVolume = abs( min(calcVals, key=lambda i: i[4])[4] )
+	maxPutVolume = max(calcVals, key=lambda i: i[4])[4]
 	maxCallPutVolume = max( (maxCallVolume, maxPutVolume) )
-	#print(3)
 	maxCallPutOI = max( [maxCallPutOI, maxCallPutVolume] )
-	#print(4)
+	maxCOIV = max( calcVals, key=lambda i: i[7])[7]
+	maxPOIV = max( calcVals, key=lambda i: i[8])[8]
 	maxSize = 50
-	#print(calcVals)
-#	absVolumeList = [ (x[dp.GEX_STRIKE], x[dp.GEX_CALL_VOLUME] + x[dp.GEX_PUT_VOLUME]) for x in strikes]
-#	mostABSVolume = max( absVolumeList, key=lambda i: i[1] )[0]
-#	print( mostABSVolume )
 	
 	half_size = 6
 	for vcItem in vcStrikes:
 		strike = next((x for x in calcVals if x[0] == vcItem.Strike), None)
 		if strike == None: continue
-		#print('a')
+		
+		cStrike = 0
+		if strike[7] * 1.20 >= maxCOIV : cStrike = 1
+		if strike[8] * 1.20 >= maxPOIV : cStrike += 2
+		VOL_COLORS = ["white", "green", "red", "blue"]
+		vcanvas.itemconfig(vcItem.strikeText, fill=VOL_COLORS[cStrike])
+
 		callSize = (strike[1] / maxCallPutOI) * maxSize
 		putSize = (strike[2] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size + half_size)
 		vcanvas.coords(vcItem.putCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size + half_size)
-		#print('b')
+
 		callSize = (strike[3] / maxCallPutOI) * maxSize
 		putSize = (strike[4] / maxCallPutOI) * maxSize
 		vcanvas.coords(vcItem.callVolCanvas, 50-callSize, vcItem.Y, 50, vcItem.Y + half_size)
 		vcanvas.coords(vcItem.putVolCanvas, 90, vcItem.Y, 90 + putSize, vcItem.Y + half_size)
-		#print('c')
+
 		vcanvas.itemconfig(vcItem.callPriceText, text=str(round((strike[5]), 2)))
 		vcanvas.itemconfig(vcItem.putPriceText, text=str(round((strike[6]), 2)))
-		#print('d')
+
 		vcanvas.itemconfig(vcItem.strikeText, text=str(round((strike[0]), 2)))
-		#print('e')
+
 
 def clickLeftButton():
 	global fileIndex, fileList, fileToday
@@ -527,7 +530,9 @@ def on_closing():
 	win.destroy()
 
 win = tk.Tk()
-win.geometry(str(2200) + "x" + str(IMG_H + 45))
+#win.geometry(str(2200) + "x" + str(IMG_H + 45))
+width, height = 2200, IMG_H + 45
+win.geometry('%dx%d+%d+%d' % (width, height, 0, 50))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
 e1 = tk.Entry(win, width=6)
@@ -564,6 +569,16 @@ e4.place(x=355, y=0)
 sliderValue = tk.DoubleVar() 
 s1 = tk.Scale( win, variable = sliderValue, from_ = 0, to = 100, orient = tk.HORIZONTAL, length=500)
 s1.place(x=650, y=0)
+
+startTime = tk.StringVar() 
+startTime.set("0") 
+eStartTime = tk.Entry(win, width=8, textvariable=startTime)
+eStartTime.place(x=800, y=0)
+
+stopTime = tk.StringVar() 
+stopTime.set("1300") 
+eStopTime = tk.Entry(win, width=8, textvariable=stopTime)
+eStopTime.place(x=850, y=0)
 
 btnFetch = tk.Button(win, text="Buy/Sell", command=clickButton, width=8)
 btnFetch.place(x=0, y=700)

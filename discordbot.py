@@ -430,8 +430,8 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 			r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
 			
 			with open(f'./{fileName}', "wb") as outfile:
-				#outfile.write(r.content)
-				print(f'{fileName} Downloaded at {outfile.name}' )
+				outfile.write(r.content)
+				print(f'{fileName} Downloaded at {os.path.abspath(outfile.name)}/{outfile.name}' )
 		print('All files updated.  Restarting service')
 		exit(9)
 		await bot.close()

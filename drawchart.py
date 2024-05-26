@@ -86,11 +86,16 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	if chartType == 1 :
 		for strike in strikes :
 			gamma = strike[dp.GEX_CALL_GEX] / strike[dp.GEX_CALL_OI] if strike[dp.GEX_CALL_OI] > 0 else 0
-			strike[dp.GEX_CALL_GEX] = gamma * (strike[dp.GEX_CALL_VOLUME] + strike[dp.GEX_CALL_OI]) # EGEX conversion
+			strike[dp.GEX_CALL_GEX] = gamma * (strike[dp.GEX_CALL_VOLUME] + strike[dp.GEX_CALL_OI])
 			gamma = strike[dp.GEX_PUT_GEX] / strike[dp.GEX_PUT_OI] if strike[dp.GEX_PUT_OI] > 0 else 0
 			strike[dp.GEX_PUT_GEX] = gamma * (strike[dp.GEX_PUT_VOLUME] + strike[dp.GEX_PUT_OI]) 
 			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
-	
+	if chartType == 4 :
+		for strike in strikes :
+			strike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_VOLUME] * strike[dp.GEX_CALL_GEX] # EGEX conversion
+			strike[dp.GEX_PUT_GEX] = strike[dp.GEX_PUT_VOLUME] * strike[dp.GEX_PUT_GEX]
+			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
+		
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
 	minTotalGEX = abs(min(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX])
 	maxTotalGEX = max( (maxTotalGEX, minTotalGEX) )
@@ -160,6 +165,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	y = 0
 	x = 260
 	if chartType == 1: txt = f'Volume Exp {expDate}' 
+	elif chartType == 4: txt = f'EGEX {expDate}' 
 	else : txt = f'GEX Exp {expDate}'
 	drawText(draw, x=x, y=y, txt=txt, color="#3FF")
 	drawText(draw, x=x, y=y + (FONT_SIZE), txt="Zero Gamma "+"${:,.2f}".format(zeroG), color="orange")

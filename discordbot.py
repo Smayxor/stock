@@ -24,12 +24,12 @@ TENOR_API_KEY = init['TENOR_API_KEY']
 UPDATE_CHANNEL = init['UPDATE_CHANNEL']    #Channel ID stored as Integer not string
 
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "GEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "EGEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
 CHART_DAILYIV = 3
-CHART_ROTATE = 4
+CHART_EGEX = 4
 CHART_JSON = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
@@ -50,7 +50,7 @@ try :
 		{ "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
 		{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
 			{ "name": "Normal", "value": "Normal"  }, 
-			{ "name": "Rotated", "value": "R" }, 
+			{ "name": "EGEX", "value": "E" }, 
 			{ "name": "Volume", "value": "V" }, 
 			{ "name": "JSON", "value": "JSON"  }, 
 			{ "name": "HEATMAP", "value": "HEATMAP"  }
@@ -273,7 +273,7 @@ def getChartType( arg ):
 	if arg == 'V': return CHART_VOLUME
 	elif arg == 'IV': return CHART_IV
 	elif arg == 'DAILYIV': return CHART_DAILYIV
-	elif arg == 'R': return CHART_ROTATE
+	elif arg == 'E': return CHART_EGEX
 	elif arg == 'JSON': return CHART_JSON
 	elif arg == 'ATR': return CHART_ATR
 	elif arg == 'LD': return CHART_LASTDTE
@@ -339,7 +339,7 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 				print("GEX BOOM - ", er)
 				await  intr.followup.send("Error pulling data!")
 		else:
-			fn = dc.drawGEXChart(ticker, count, dte, getChartType(chart))
+			fn = dc.drawGEXChart(ticker, count, dte, chartType=chartType)
 	if fn == "error.png": await intr.followup.send("Failed to get data")
 	else:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
@@ -432,7 +432,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 			
 			with open(f'./{fileName}', "wb") as outfile:
 				outfile.write(r.content)
-				print(f'{fileName} Downloaded at {os.path.realpath(outfile.name)}/{outfile.name}' )
+				print(f'{fileName} Downloaded at {os.path.realpath(outfile.name)} - {outfile.name}' )
 		print('All files updated.  Restarting service')
 		exit(9)
 		await bot.close()

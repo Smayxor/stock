@@ -13,7 +13,7 @@ TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 blnRun = False
 timer =  None
-
+CurrentCalendar = None
 SPX0DTEdayData = {}
 SPX1DTEdayData = {}
 SPXLastData = {}
@@ -98,7 +98,9 @@ def appendData():
 		options = dp.getOptionsChain("SPX", 0, date=SPX0DTEDate)
 		gex = dp.getGEX( options[1] )
 		price = dp.getPrice('SPX', gex) #gex[0][dp.GEX_STRIKE] + ((gex[0][dp.GEX_CALL_BID] + gex[0][dp.GEX_CALL_ASK]) / 2)
-		if SPXopenPrice == -1: SPXopenPrice = price
+		if SPXopenPrice == -1: 
+			#Should LOAD FILE to GET the OpenPrice.   In case service is started, computer reboots/crashes,  then program is resumed
+			SPXopenPrice = price
 		gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 		if gex == "": print('GEX Empty String')
 		
@@ -149,25 +151,24 @@ def appendData():
 		#print( f'During Error State - {state}' )
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate
-	try:  # In the event of an error, just start the day anyways......
-		state = dp.getMarketHoursToday()
-		"""if 'closed' in state['state'] : #Seems to not apply to sunday!!!
-			#{'date': '2023-12-17', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1702808042, 'next_change': '07:00', 'next_state': 'premarket'}
-			#Saturday Morning - {'date': '2024-04-06', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1712392287, 'next_change': '07:00', 'next_state': 'premarket'}
-			print( 'Market Closed Today')
-			return"""
-		if "for" in state['description'] : 
-			print( state )
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate, CurrentCalendar
+	
+	try :
+		#state = dp.getMarketHoursToday()
+		today = getToday()[0]
+		if CurrentCalendar == None : CurrentCalendar = dp.getCalendar()
+		month0dte = int(today.split('-')[1])
+		monthCurCal = CurrentCalendar['month']
+		if month0dte != monthCurCal : CurrentCalendar = dp.getCalendar()
+		days = CurrentCalendar['days']['day']
+		if next((x for x in days if x['date'] == today), None)['status'] == 'closed' :	
+			print('Market is closed today')
 			return
-		#print( dp.getCalendar() )
-		#{'date': '2024-05-27', 'status': 'closed', 'description': 'Market is closed for Memorial Day'}, 
-		#{'date': '2024-05-28', 'status': 'open', 'description': 'Market is open', 'premarket': {'start': '07:00', 'end': '09:24'}, 'open': {'start': '09:30', 'end': '16:00'}, 'postmarket': {'start': '16:00', 'end': '19:55'}}, {'date': '2024-05-29', 'status': 'open', 'description': 'Market is open', 'premarket': {'start': '07:00', 'end': '09:24'}, 'open': {'start': '09:30', 'end': '16:00'}
-
+		#for d in days:
+		#	if d['status'] == 'closed' : print(d)
 	except Exception as error:
-		print(f'StartDay - An error occoured: {error}')
-		
-	if datetime.datetime.now().weekday() > 4 : return
+		print( error )
+		return
 	
 	blnRun = True
 	SPX0DTEdayData = {}
@@ -177,10 +178,10 @@ def startDay():
 	skipPreMarket = 0
 	lowSPX = None
 	highSPX = None
-	
 	SPX0DTEDate = dp.getExpirationDate('SPX', 0)
 	SPX1DTEDate = dp.getExpirationDate('SPX', 1)
 	print(SPX0DTEDate, SPX1DTEDate)
+	
 	print( f'{SPX0DTEDate} - Day started' )
 	
 def endDay():

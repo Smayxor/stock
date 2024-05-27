@@ -220,7 +220,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	firstStrikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels( firstStrikes )
 	#print( sigs )
-	strat = sig.SignalPercentages(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
+	EMA_PERIOD = int(deadprice * 100)
+	EMA_PERIOD2 = int((deadprice*10000)%100)
+	strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
 	dataIndex = 9999
 	#strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
 	for arg in userArgs:
@@ -287,18 +289,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	
 	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
-	EMA_PERIOD = int(deadprice * 100)
-	EMA_PERIOD2 = int((deadprice*10000)%100)
 	for j in range(lenDisplays):
 		prices = allPrices[j]
-		smays = sig.calcEMA( sig.calcSMA(prices, EMA_PERIOD), EMA_PERIOD )
-		smays2 = None if EMA_PERIOD2 == 0 else sig.calcEMA( sig.calcSMA(prices, EMA_PERIOD2), EMA_PERIOD2 )
-		#smas = [ sig.appendSMA(prices[:EMA_PERIOD], EMA_PERIOD) ] #Sample code to append new EMA live
-		#smays = [smas[-1]]
-		#for si in range(len(prices)) :
-		#	if si >= EMA_PERIOD :
-		#		smas.append( sig.appendSMA(prices[:si], EMA_PERIOD) )
-		#		smays.append( sig.appendEMA(smas, smays, EMA_PERIOD) )	
+		smays = strat.EMAs1
+		smays2 = strat.EMAs2
 		
 		lenPrices = len(prices)
 		if lenPrices < 2 : break
@@ -355,7 +349,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				
 			flag = flags[x]
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
-			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='green', outline='blue')
+			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='lime', outline='green')
 			
 			if x == openTimeIndex : 
 				draw.line([x, 50, x, 600], fill="purple", width=1)

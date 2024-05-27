@@ -287,8 +287,19 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	
 	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
+	EMA_PERIOD = int(deadprice * 100)
+	EMA_PERIOD2 = int((deadprice*10000)%100)
 	for j in range(lenDisplays):
 		prices = allPrices[j]
+		smays = sig.calcEMA( sig.calcSMA(prices, EMA_PERIOD), EMA_PERIOD )
+		smays2 = None if EMA_PERIOD2 == 0 else sig.calcEMA( sig.calcSMA(prices, EMA_PERIOD2), EMA_PERIOD2 )
+		#smas = [ sig.appendSMA(prices[:EMA_PERIOD], EMA_PERIOD) ] #Sample code to append new EMA live
+		#smays = [smas[-1]]
+		#for si in range(len(prices)) :
+		#	if si >= EMA_PERIOD :
+		#		smas.append( sig.appendSMA(prices[:si], EMA_PERIOD) )
+		#		smays.append( sig.appendEMA(smas, smays, EMA_PERIOD) )	
+		
 		lenPrices = len(prices)
 		if lenPrices < 2 : break
 		maxPrice, maxSPX = max( prices ), 0
@@ -332,6 +343,16 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 
+
+			def drawEMA( emas, period, ema_color ): #*************** Draw EMA ******************
+				pp = emas[x-period-1] - minPrice
+				p = emas[x-period] - minPrice
+				y3 = convertY( pp, maxPrice ) + addY
+				y4 = convertY( p, maxPrice ) + addY
+				draw.line([x-1, y3, x, y4], fill=ema_color, width=1)
+			if x > EMA_PERIOD : drawEMA( smays, EMA_PERIOD, "purple" )
+			if x > EMA_PERIOD2 and smays2 != None : drawEMA( smays2, EMA_PERIOD2, "aqua" )
+				
 			flag = flags[x]
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
 			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='green', outline='blue')

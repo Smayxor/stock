@@ -651,11 +651,43 @@ class SignalPercentages(Signal): #Blank Signal example
 		return result
 
 
+		#smas = [ sig.appendSMA(prices[:EMA_PERIOD], EMA_PERIOD) ] #Sample code to append new EMA live
+		#emas = [smas[-1]]
+		#for si in range(len(prices)) :
+		#	if si >= EMA_PERIOD :
+		#		smas.append( sig.appendSMA(prices[:si], EMA_PERIOD) )
+		#		emas.append( sig.appendEMA(smas, emas, EMA_PERIOD) )
+
+def calcSMA(prices, period): return [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) )]
+def calcEMA(smas, period):	#EMA_THIS = a_0 * [2 / (n + 1)] + EMA_PREV * [1 - [2 / (n + 1)]]
+	emas = [smas[0]]
+	for i in range(1, len(smas)):
+		emas.append( (smas[i] * (2/(period+1))) + (emas[-1] * (1-(2/(period+1)))) )
+	return emas
+
+def appendSMA(prices, period): return sum(prices[-period:]) / period
+def appendEMA(smas, emas, period): return (smas[-1] * (2/(period+1))) + (emas[-1] * (1-(2/(period+1))))
+
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 #https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c
 #EMA = Closing price * multiplier + EMA (previous day) * (1-multiplier). The multiplier is calculated using the formula 2 / (number of observations +1)
 #EMA_1 = close_curr * [2 / (20 + 1)] + EMA_prev * [1 - [2 / (20 + 1)]]
 
+#An increase in IV hints at Retail Buying = High IV is Handicapping
+#Bounce at PutSupport = MarketMaker Long Gamma = Will be support
+#Break at a Range Expansion = Those are long puts if we're going down
+"""
+Top S&P 500 index funds in 2024
+Fund (ticker)	5-year annual returns	Expense ratio	Minimum investment
+Source: Morningstar, as of April 4, 2024
+Fidelity ZERO Large Cap Index (FNILX)	14.6%	0%	None
+Vanguard S&P 500 ETF (VOO)	14.5%	0.03%	None
+SPDR S&P 500 ETF Trust (SPY)	14.5%	0.095%	None
+iShares Core S&P 500 ETF (IVV)	14.5%	0.03%	None
+Schwab S&P 500 Index (SWPPX)	14.5%	0.02%	None
+Vanguard 500 Index Fund (VFIAX)	14.5%	0.04%	$3,000
+Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
+"""
 """
 Day 0 - Open 4900 - Nlargest 4900, 4875, 4925.   BestPlay 11:45  - No PVN or it is 4900?
 		4875p High $13.90 -> 11:45 -> $2.05 - 14.7%

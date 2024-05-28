@@ -624,7 +624,7 @@ def grabFridayCombo():
 			#oStrike[dp.GEX_] += strike[dp.GEX_]
 	#drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, RAM=False):
 	price = dp.getPrice("SPX", combinedData )
-	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=lastDate, price=price)
+	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=f'{lastDate}-C', price=price)
 	return fn
 
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

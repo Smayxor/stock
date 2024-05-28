@@ -24,13 +24,13 @@ TENOR_API_KEY = init['TENOR_API_KEY']
 UPDATE_CHANNEL = init['UPDATE_CHANNEL']    #Channel ID stored as Integer not string
 
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "EGEX ", "JSON ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "EGEX ", "FRIDAY ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
 CHART_DAILYIV = 3
 CHART_EGEX = 4
-CHART_JSON = 5
+CHART_FRIDAY = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
 CHART_LOG = 8
@@ -52,7 +52,7 @@ try :
 			{ "name": "Normal", "value": "Normal"  }, 
 			{ "name": "EGEX", "value": "E" }, 
 			{ "name": "Volume", "value": "V" }, 
-			{ "name": "JSON", "value": "JSON"  }, 
+			{ "name": "FRIDAY", "value": "FRIDAY"  }, 
 			{ "name": "HEATMAP", "value": "HEATMAP"  }
 		]}   
 	] }
@@ -274,7 +274,7 @@ def getChartType( arg ):
 	elif arg == 'IV': return CHART_IV
 	elif arg == 'DAILYIV': return CHART_DAILYIV
 	elif arg == 'E': return CHART_EGEX
-	elif arg == 'JSON': return CHART_JSON
+	elif arg == 'FRIDAY': return CHART_FRIDAY
 	elif arg == 'ATR': return CHART_ATR
 	elif arg == 'LD': return CHART_LASTDTE
 	elif arg == 'CHANGE': return CHART_CHANGE
@@ -316,7 +316,11 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 		fn = dc.drawWeeklyChart()
 	else:
 		fn = ""
-		if "SPX." in ticker: # Pull the data from PC Server,  needs to check if server is even available
+		
+		if chartType == CHART_FRIDAY:
+			fn = grabFridayCombo()
+			
+		elif "SPX." in ticker: # Pull the data from PC Server,  needs to check if server is even available
 			try :
 				tmp = ticker.split(".")
 				ticker = tmp[0]
@@ -581,27 +585,46 @@ async def ph(ctx, *args):  #Grabs Morning GEX Chart for Xdte
 	except:
 		await ctx.send( "Error drawing price chart" )
 
-def logFutureDTEs():
+def getDateOfFriday():
+	today = datetime.date.today()
+	return str(today + datetime.timedelta( (4-today.weekday()) % 7 ))
+	
+def grabFridayCombo():
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]
-	fileName = f'./heatmap/SPX-{today}.json'
-	if today == exps[0] : exps.pop(0)
-	exps = exps[:5]
-	
-	date1 = datetime.datetime.strptime(today, "%Y-%m-%d")  #dp.getOptionsChain figures out date from a Xdte........
-	def convertDate2DTE(strDate):
-		date2 = datetime.datetime.strptime(strDate, "%Y-%m-%d")
-		timedelta = str(date2 - date1).split(" ")[0]
-		print( timedelta )
-		return timedelta
-	days = {}
+	#if today == exps[0] : exps.pop(0)
+	fridayIndex = exps.index(getDateOfFriday())
+	exps = exps[:fridayIndex + 1]
+	days = []
+	startDate = None
+	lastDate = ""
 	for day in exps:
-		strDTE = convertDate2DTE( day )
-		opts = dp.getOptionsChain("SPX", strDTE)
-		days[day] = dp.getGEX( opts[1] )
-
-	with open(fileName,'w') as f: 
-		json.dump(days, f)
-	dp.cleanHeatmaps()
+		opts = dp.getOptionsChain("SPX", 0, date=day )
+		lastDate = opts[0]
+		if startDate == None : startDate = opts[0]
+		days.append( dp.getGEX( opts[1] ) )
+		
+	combinedData = days[0]
+	for d in range( 1, len(days) ):
+		nd = days[d]
+		for strike in nd :
+			oStrike = next((x for x in combinedData if x[dp.GEX_STRIKE] == strike[dp.GEX_STRIKE]), None)
+			if oStrike == None :	
+				combinedData.append( strike )
+				continue
+			oStrike[dp.GEX_TOTAL_GEX] += strike[dp.GEX_TOTAL_GEX]
+			oStrike[dp.GEX_TOTAL_OI] += strike[dp.GEX_TOTAL_OI]
+			oStrike[dp.GEX_CALL_GEX] += strike[dp.GEX_CALL_GEX]
+			oStrike[dp.GEX_PUT_GEX] += strike[dp.GEX_PUT_GEX]
+			oStrike[dp.GEX_CALL_OI] += strike[dp.GEX_CALL_OI]
+			oStrike[dp.GEX_PUT_OI] += strike[dp.GEX_PUT_OI]
+			oStrike[dp.GEX_CALL_VOLUME] += strike[dp.GEX_CALL_VOLUME]
+			oStrike[dp.GEX_PUT_VOLUME] += strike[dp.GEX_PUT_VOLUME]
+			#oStrike[dp.GEX_] += strike[dp.GEX_]
+			#oStrike[dp.GEX_] += strike[dp.GEX_]
+	#drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0, price = 0, RAM=False):
+	price = dp.getPrice("SPX", combinedData )
+	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=lastDate, price=price)
+	return fn
 
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

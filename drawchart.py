@@ -93,7 +93,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	if chartType == 4 :
 		for strike in strikes :
 			strike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_VOLUME]# EGEX conversion
-			strike[dp.GEX_PUT_GEX] = strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_VOLUME]
+			strike[dp.GEX_PUT_GEX] = -(strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_VOLUME])
 			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
 		
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]

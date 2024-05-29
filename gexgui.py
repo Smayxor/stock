@@ -266,14 +266,12 @@ def timerThread():
 		fileIndex = dte
 		fileToday = fileList[fileIndex]
 		triggerReset()
-		
+		return
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
-		#print( fileToday, ' - ', len(gexData.keys()) )
 		minute = 0
 		times = list(gexData.keys())
 		lastTimes = len(times) - 1
-		#print(1)
 		if fileIndex==lastFileIndex :
 			minute = times[-1]
 			gexList = gexData[minute]
@@ -284,7 +282,6 @@ def timerThread():
 				placeOrder(0)
 			if price > pPrice :
 				placeOrder(1)
-		#print(2)
 		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
 		minute = times[dataIndex]  #Sets the Minute to a time mouse is hovering
 		minute = str( minute )
@@ -312,21 +309,25 @@ def timerThread():
 				newStrikes[-1][dp.GEX_PUT_BID] = strike[dp.GEX_PUT_BID]
 		
 		#***************************************************************************************************
-		#print(3)
+	
 		refreshVCanvas(strikes=gexList if newStrikes==None else newStrikes)
-		#print(4)
 		price = dp.getPrice( "SPX", gexList, 0 )
 		win.title( f'Price ${price}')
-		#print(f'From Timer {fileToday}')
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
-		#tmp = dc.drawCustomChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+
+		minute = float(times[dataIndex])
+		firstTime = min( gexData.keys(), key=lambda i: abs(minute - float(i)))
+		gexList = gexData[firstTime]
+		exp = fileToday.replace("-0dte-datalog.json", "")
+		image = dc.drawGEXChart("SPX", 40, dte=0, chartType=4, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True)
+		resize_image = image.resize((340,605))
+		tk_image = ImageTk.PhotoImage(resize_image)
+		canvas.configure(image=tk_image)
+		canvas.image = tk_image
 		
+		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
 		pcData = tmp[1]
 		pcY = tmp[2]
-		
 		filename = tmp[0]
-		#print(6)
-		#if 'error' in filename: return
 		pc_image = filename# Image.open("./" + filename)
 		pc_tk_image = ImageTk.PhotoImage(pc_image)
 		strikecanvas.itemconfig(strikeCanvasImage, image=pc_tk_image)

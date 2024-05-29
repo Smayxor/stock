@@ -77,6 +77,8 @@ def getAccountData(newCon = ""):
 	openOrders = dp.getOrders() if newCon == "" else newCon
 	if newCon == "" : myPositions = dp.getPositions()
 	#openOrders = dp.getOrders()
+	#print( openOrders )
+	#print( dp.getAccountBalance(), dp.getOrders(), dp.getPositions())
 	lblOpenOrders.configure(text=f'Open orders - {openOrders} - Positions - {myPositions}')
 
 

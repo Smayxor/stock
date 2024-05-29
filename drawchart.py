@@ -202,8 +202,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	allPrices = []
 	displayStrikes = []
 	flags = []
-	totalCallVolume = []
-	totalPutVolume = []
+	#totalCallVolume = []
+	#totalPutVolume = []
 	openTimeIndex = 0
 
 	try :
@@ -257,14 +257,6 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		spxPrice = dp.getPrice("SPX", strikes)
 		flags.append( strat.addTime(minute, strikes) )
 		if timeMinute == t : dataIndex = len(flags)
-		#allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > prices[-1]] )
-		#allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < prices[-1]] )
-		#allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t]] )
-		#allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t]] )
-		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in gexData[t]] )
-		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in gexData[t]] )
-		totalCallVolume.append( allCallVol )
-		totalPutVolume.append( allPutVol )
 		if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : 
 			prices1.append(spxPrice)
 		else:
@@ -372,12 +364,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					ovnl = ovnl - minPrice
 					ovnh = ovnh - minPrice
 				y = convertY( ovnl, maxPrice ) + addY
-				#draw.line([0, y, x, y], fill="orange", width=1)
+				
 				drawLongPriceLine(draw, y, 'orange', 0, openTimeIndex)
 				drawText( draw, 0, y, txt=txtl, color='orange', anchor="lt")
 
 				y = convertY( ovnh, maxPrice ) + addY
-				#draw.line([0, y, x, y], fill="orange", width=1)
+				
 				drawLongPriceLine(draw, y, 'orange', 3, openTimeIndex)
 				drawText( draw, 0, y, txt=txth, color='orange', anchor="lt")
 			
@@ -443,15 +435,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				drawRect(draw, 1400 - mcp[1], y, 1400, y2, color="#00f", border='')
 			"""
 	h = 650
-	for x in range( len( totalCallVolume ) ) :  # *****************Volume Chart under the SPX chart****************************
-		if x > 30 :
-			cDif = totalCallVolume[x] - totalCallVolume[x - 30]
-			pDif = totalPutVolume[x] - totalPutVolume[x-30]
-			#y2 = cDif / 1000 #y3 = pDif / 1000 #draw.line([x, h-y2, x, h], fill='green', width=1) #draw.line([x, h+y3, x, h], fill='red', width=1)
-			dif = cDif - pDif
-			cr = 'green' if dif > 0 else 'red'
-			y2 = abs(dif) / 500
-			draw.line([x, 700-y2, x, 700], fill=cr, width=1)
+	for x in range( 30, strat.getVolumeDeltaLen() ) :  # *****************Volume Chart under the SPX chart****************************
+		dif = strat.getVolumeDelta(x)
+		cr = 'green' if dif > 0 else 'red'
+		y2 = abs(dif) / 500
+		draw.line([x, 700-y2, x, 700], fill=cr, width=1)
 	
 	if isSPX == 5 :	#*****************************************Displays volume chart above *************************************
 		timeMinute = float(timeMinute)

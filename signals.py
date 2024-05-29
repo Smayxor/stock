@@ -262,8 +262,16 @@ class Signal:
 		self.EMAs1 = None
 		self.SMAs2 = None
 		self.EMAs2 = None
+		self.totalCallVolume = []
+		self.totalPutVolume = []
 		self.Signals = [SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
-		
+		#self.Signals = [SignalDeadPrices(self, strikes, price) ]
+		#self.Signals = [SignalEMA(self, strikes)]
+
+	def getVolumeDeltaLen(self): return len(self.totalCallVolume)
+	def getVolumeDelta(self, index):
+		return (self.totalCallVolume[index] - self.totalCallVolume[index-30]) - (self.totalPutVolume[index] - self.totalPutVolume[index-30]) if index > 29 else 0
+
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
 		self.Prices.append(price)
@@ -271,6 +279,12 @@ class Signal:
 		self.PrevData[minute] = strikes	
 		lastPriceIndex = len(self.Prices)-1
 		
+		
+		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
+		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
+		self.totalCallVolume.append( allCallVol )
+		self.totalPutVolume.append( allPutVol )
+
 		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price
 			if price > self.OVNH : self.OVNH = price
@@ -280,25 +294,29 @@ class Signal:
 				if wick > self.LargestCandle : self.LargestCandle = wick
 			for siggy in self.Signals :
 				result = siggy.addTime(minute, strikes, price)
-			return price
 		
-		if self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
+		elif self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
 			self.isPreMarket = False
 			self.OpenPrice = price
 			self.Low = price
 			self.High = price
 		
 		if self.EMAs1 == None and self.EMA_PERIOD_1 != None and lastPriceIndex > self.EMA_PERIOD_1 :
+	
 			self.SMAs1 = calcSMA( self.Prices, self.EMA_PERIOD_1 )
 			self.EMAs1 = calcEMA( self.SMAs1, self.EMA_PERIOD_1 )
-		if self.EMAs2 == None and self.EMA_PERIOD_2 != None and lastPriceIndex > self.EMA_PERIOD_2 :
+		
+			if self.EMAs2 == None and self.EMA_PERIOD_2 != None and lastPriceIndex > self.EMA_PERIOD_2 :
 				self.SMAs2 = calcSMA( self.Prices, self.EMA_PERIOD_2 )
 				self.EMAs2 = calcEMA( self.SMAs2, self.EMA_PERIOD_2 )
+
 		else :
-			if self.EMA_PERIOD_1 != None :
+			
+			if self.EMAs1 != None and self.EMA_PERIOD_1 != None :
 				self.SMAs1.append( appendSMA( self.Prices, self.EMA_PERIOD_1 ) )
 				self.EMAs1.append( appendEMA( self.SMAs1, self.EMAs1, self.EMA_PERIOD_1 ) )
-			if self.EMA_PERIOD_2 != None :
+		
+			if self.EMAs2 != None and self.EMA_PERIOD_2 != None :
 				self.SMAs2.append( appendSMA( self.Prices, self.EMA_PERIOD_2 ) )
 				self.EMAs2.append( appendEMA( self.SMAs2, self.EMAs2, self.EMA_PERIOD_2 ) )
 			
@@ -508,8 +526,9 @@ class SignalEMA:
 		if self.Owner.EMAs1 == None or self.Owner.EMAs2 == None : return 0
 		result = 0
 		
-		
+		#print(1)
 		if minute < 710 :
+		#	print(2)
 			emaDif = abs(self.Owner.EMAs1[-1] - self.Owner.EMAs2[-1])
 			emaOver = self.Owner.EMAs1[-1] > self.Owner.EMAs2[-1]
 			if emaOver == False : emaOver = -1
@@ -522,7 +541,9 @@ class SignalEMA:
 				result = 0
 			if self.LastResult != result and result != 0 : self.LastResult = result
 			else : result = 0
+		#	print(3)
 		else:
+		#	print(4)
 			emaOver = self.Owner.EMAs1[-1] > self.Owner.EMAs2[-1]
 			#topEMA = self.Owner.EMAs1 if emaOver else self.Owner.EMAs2
 			#bottomEMA = self.Owner.EMAs2 if emaOver else self.Owner.EMAs1
@@ -548,7 +569,8 @@ class SignalEMA:
 			#	self.LastResult = 3
 			#	print( self.Owner.EMAs2[-1] )
 				
-		
+			#print(5)
+		#print(6)
 		return result
 
 """
@@ -578,17 +600,24 @@ class SignalEMA:
 """
 
 
-def calcSMA(prices, period): return [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) )]
+def calcSMA(prices, period): 
+	result = [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) +1 )]
+	return result
 	
 def calcEMA(smas, period):	#EMA_THIS = a_0 * [2 / (n + 1)] + EMA_PREV * [1 - [2 / (n + 1)]]
 	emas = [smas[0]]
-	for i in range(1, len(smas)):
+	for i in range(1, len(smas) ):
 		emas.append( (smas[i] * (2/(period+1))) + (emas[-1] * (1-(2/(period+1)))) )
 	return emas
 
 def appendSMA(prices, period): return sum(prices[-period:]) / period
 
 def appendEMA(smas, emas, period): return (smas[-1] * (2/(period+1))) + (emas[-1] * (1-(2/(period+1))))
+
+#prd = 5
+#test = [0, 1, 1, 1, 5, 6, 7, 2, 3, 9, 9, 5, 6, 3, 5, 4, 3, 2, 1]
+#print( test[-prd:] )
+#print([test[i-prd:i] for i in range( prd, len(test) + 1 )] )
 
 #strike = next((x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50), None)
 #https://studylib.net/doc/26075953/recognizing-over-50-candlestick-patterns-with-python-by-c

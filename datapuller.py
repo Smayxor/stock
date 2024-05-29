@@ -166,7 +166,7 @@ def getOptionsChain(ticker, dte, date=None):
 	response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
 	#print( response.status_code )
 	options = response.json()['options']['option']
-	
+	#print( options )
 	return (expDate, options)
 
 def getMultipleDTEOptionChain(ticker, days):

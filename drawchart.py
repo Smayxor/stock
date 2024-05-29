@@ -92,8 +92,8 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
 	if chartType == 4 :
 		for strike in strikes :
-			strike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_VOLUME] * strike[dp.GEX_CALL_GEX] # EGEX conversion
-			strike[dp.GEX_PUT_GEX] = strike[dp.GEX_PUT_VOLUME] * strike[dp.GEX_PUT_GEX]
+			strike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_VOLUME]# EGEX conversion
+			strike[dp.GEX_PUT_GEX] = strike[dp.GEX_PUT_OI] * strike[dp.GEX_PUT_VOLUME]
 			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
 		
 	maxTotalGEX = max(strikes, key=lambda i: i[dp.GEX_TOTAL_GEX])[dp.GEX_TOTAL_GEX]
@@ -205,6 +205,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	totalCallVolume = []
 	totalPutVolume = []
 	openTimeIndex = 0
+
 	try :
 		startTime = int(startTime)
 		stopTime = int(stopTime)
@@ -225,6 +226,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
 	dataIndex = 9999
 	#strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
+	
 	for arg in userArgs:
 		if arg == 'spx' :
 			displayStrikes.append( ('spx', 0) )
@@ -235,6 +237,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		strikeText = int(arg[:-1])
 		strikeStrike = next((x for x in firstStrikes if x[dp.GEX_STRIKE] == strikeText), ['spx'])[dp.GEX_STRIKE]
 		displayStrikes.append( (strikeStrike, 'call' if arg[-1] == 'c' else 'put') )
+	
 	lenDisplays = len(displayStrikes)
 	if lenDisplays == 0: return 'error.png'
 	dStrike1 = displayStrikes[0]
@@ -242,6 +245,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	#print( dStrike1, dStrike2 )
 	prices1 = []
 	prices2 = []
+	
 	for t, strikes in gexData.items():
 		minute = float(t)
 		if not (startTime < minute < stopTime) : continue
@@ -286,20 +290,21 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		peaksValleys = sig.findPeaksAndValleys( spxPrices )
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
-	
+
 	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
 	for j in range(lenDisplays):
 		prices = allPrices[j]
 		smays = strat.EMAs1
 		smays2 = strat.EMAs2
-		
+	
 		lenPrices = len(prices)
 		if lenPrices < 2 : break
 		maxPrice, maxSPX = max( prices ), 0
 		minPrice, minSPX = min( prices ), 0
 		colr = 'yellow' 
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
+		
 		if isSPX :
 			maxPrice = max( (*prices, sigs[0][1]) ) + 5
 			minPrice = min( (*prices, sigs[0][0]) ) - 5
@@ -315,7 +320,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		for x in range( 1, lenPrices ) :
 			price = prices[x]
 			prevPrice = prices[x-1]
-			
+		
 			if isSPX :
 				price = price - minPrice
 				prevPrice = prevPrice - minPrice
@@ -336,7 +341,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					drawText( draw, x, y2, txt=str( p[0] ), color=cr, anchor="rt")
 			
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
-
+			
 
 			def drawEMA( emas, period, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-period-1] - minPrice
@@ -344,9 +349,9 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				y3 = convertY( pp, maxPrice ) + addY
 				y4 = convertY( p, maxPrice ) + addY
 				draw.line([x-1, y3, x, y4], fill=ema_color, width=1)
-			if x > EMA_PERIOD : drawEMA( smays, EMA_PERIOD, "purple" )
+			if x > EMA_PERIOD and smays != None : drawEMA( smays, EMA_PERIOD, "purple" )
 			if x > EMA_PERIOD2 and smays2 != None : drawEMA( smays2, EMA_PERIOD2, "aqua" )
-				
+			
 			flag = flags[x]
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
 			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='lime', outline='green')
@@ -375,7 +380,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				#draw.line([0, y, x, y], fill="orange", width=1)
 				drawLongPriceLine(draw, y, 'orange', 3, openTimeIndex)
 				drawText( draw, 0, y, txt=txth, color='orange', anchor="lt")
-				
+			
 			if x in lows : draw.line((x-20, y2, x+20, y2), fill='red', width=2)
 			if x in highs : draw.line((x-20, y2, x+20, y2), fill='green', width=2)
 
@@ -414,7 +419,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			drawLongPriceLine(draw, y, 'orange', sspiX-50, sspiX+50)
 			drawText( draw, sspiX, y, txt=txt, color='orange', anchor=anch)
 		drawHighLow( preData.index(min(preData)), "rt")
-		drawHighLow( preData.index(max(preData)), "lb")
+		drawHighLow( preData.index(max(preData)), "rb")
 		#************************************* END High Low Display ************************************
 		
 		#self.Straddles = sigs[2] 	#self.PutWalls = sigs[3]    #self.CallWalls = sigs[4]    #self.AllNodes = sigs[2] + sigs[3] + sigs[4]	
@@ -485,17 +490,6 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	img.save("price-chart.png")
 	if includePrices : return ("price-chart.png", allPrices)
 	else : return "price-chart.png"  #Below is normal Option Price Chart
-
-	#Used to display OTM Premium Totals ******************************
-	"""price = dp.getPrice("SPX", gexData[t])
-	if strike[1] == 'call':
-		allCallPrem = sum( [x[dp.GEX_CALL_BID] for x in gexData[t] if x[dp.GEX_STRIKE] > price] )
-		prices.append( allCallPrem )
-	if strike[1] == 'put':
-		allPutPrem = sum( [x[dp.GEX_PUT_BID] for x in gexData[t] if x[dp.GEX_STRIKE] < price] )
-		prices.append( allPutPrem )
-	continue #Temporary adjustment to view TimeValue above
-	"""#******************************************************************
 
 
 def drawHeatMap(ticker, strikeCount, dayTotal): #Works on any ticker, doesnt use historical data

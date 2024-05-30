@@ -299,14 +299,16 @@ def timerThread():
 				if strike[dp.GEX_STRIKE] != prevStrike[dp.GEX_STRIKE] :
 					print('Error comparing strikes')
 					break
-				newStrikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None"] ) 
-				newStrikes[-1][dp.GEX_CALL_VOLUME] = strike[dp.GEX_CALL_VOLUME] - prevStrike[dp.GEX_CALL_VOLUME]
-				newStrikes[-1][dp.GEX_PUT_VOLUME] = strike[dp.GEX_PUT_VOLUME] - prevStrike[dp.GEX_PUT_VOLUME]
-				newStrikes[-1][dp.GEX_STRIKE] = strike[dp.GEX_STRIKE]
-				newStrikes[-1][dp.GEX_CALL_OI] = 0#strike[dp.GEX_CALL_OI]
-				newStrikes[-1][dp.GEX_PUT_OI] = 0#strike[dp.GEX_PUT_OI]
-				newStrikes[-1][dp.GEX_CALL_BID] = strike[dp.GEX_CALL_BID]
-				newStrikes[-1][dp.GEX_PUT_BID] = strike[dp.GEX_PUT_BID]
+				tmpStrike = [strike[dp.GEX_STRIKE], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None"]
+				tmpStrike[dp.GEX_CALL_BID] = strike[dp.GEX_CALL_BID]
+				tmpStrike[dp.GEX_PUT_BID] = strike[dp.GEX_PUT_BID]
+				tmpStrike[dp.GEX_CALL_VOLUME] = strike[dp.GEX_CALL_VOLUME] - prevStrike[dp.GEX_CALL_VOLUME]
+				tmpStrike[dp.GEX_PUT_VOLUME] = strike[dp.GEX_PUT_VOLUME] - prevStrike[dp.GEX_PUT_VOLUME]
+				tmpStrike[dp.GEX_CALL_OI] = strike[dp.GEX_CALL_OI] #- prevStrike[dp.GEX_CALL_OI]
+				tmpStrike[dp.GEX_PUT_OI] = strike[dp.GEX_PUT_OI] #- prevStrike[dp.GEX_PUT_OI]
+				#tmpStrike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_GEX] - prevStrike[dp.GEX_CALL_GEX]
+				#tmpStrike[dp.GEX_PUT_GEX] = strike[dp.GEX_PUT_GEX] + prevStrike[dp.GEX_PUT_GEX]
+				newStrikes.append( tmpStrike )
 		
 		#***************************************************************************************************
 	
@@ -318,7 +320,7 @@ def timerThread():
 		firstTime = min( gexData.keys(), key=lambda i: abs(minute - float(i)))
 		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, chartType=4, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True)
+		image = dc.drawGEXChart("SPX", 40, dte=0, chartType=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)

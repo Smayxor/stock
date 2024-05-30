@@ -233,3 +233,6 @@ while True: # Checks whether a scheduled task is pending to run or not
 	schedule.run_pending()
 	time.sleep(1)
 print( 'Finished logging data' )
+
+#os.system("Powercfg -H OFF")
+#os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")

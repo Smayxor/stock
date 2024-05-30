@@ -27,34 +27,17 @@ def identifyKeyLevels(strikes):
 	priceUpper50 = priceLower50 + 50
 	priceBounds = [priceLower50, priceUpper50]
 	
-	hasValueList = [x for x in strikes if (x[dp.GEX_STRIKE] > price and x[dp.GEX_CALL_BID] > 0.5) or (x[dp.GEX_STRIKE] < price and x[dp.GEX_PUT_BID] > 0.5)]
-	mainNodes = heapq.nlargest( 10, hasValueList, key=lambda x: x[dp.GEX_TOTAL_OI])
-	#print( [x[dp.GEX_STRIKE] for x in main5] )
-	mostCallOI = max(strikes, key=lambda i: i[dp.GEX_CALL_OI])[dp.GEX_CALL_OI]
-	mostPutOI = max(strikes, key=lambda i: i[dp.GEX_PUT_OI])[dp.GEX_PUT_OI]
-	mostCallPutOI = max( (mostCallOI, mostPutOI) )
-	mostTotalOI = max(strikes, key=lambda i: i[dp.GEX_TOTAL_OI])[dp.GEX_TOTAL_OI]
-	
-	totalOTMCallPremium = sum( [x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_BID] for x in strikes if x[dp.GEX_STRIKE] > price] )
-	totalOTMPutPremium = sum( [x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_BID] for x in strikes if x[dp.GEX_STRIKE] < price] )
-	#print( f'{int(totalOTMCallPremium):,}' , f'{int(totalOTMPutPremium):,}'  )
-	
-	sumCallOI = sum( [x[dp.GEX_CALL_OI] for x in strikes] )
-	sumPutOI = sum( [x[dp.GEX_PUT_OI] for x in strikes] )
-	sumTotalOI = sum( [x[dp.GEX_CALL_OI] + x[dp.GEX_PUT_OI] for x in strikes] )
-	
-	averageCallOI = sumCallOI / lenStrikes
-	averagePutOI = sumPutOI / lenStrikes
-	averageTotalOI = sumTotalOI / lenStrikes
-	
-	straddles = []
-	callWalls = []
-	putWalls = []
-	zeroG = dp.calcZeroGEX( strikes )
-	straddles.append( zeroG )
+	straddles = [dp.calcZeroGEX( strikes )]  #****** EGEX conveersion
+	callEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME]) for x in strikes]
+	putEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME]) for x in strikes]
+	mostCallEGEX = max(callEGEX, key=lambda i: i[1])[1] * 0.5
+	mostPutEGEX = max(putEGEX, key=lambda i: i[1])[1] *0.5
+	callWalls = [x[0] for x in callEGEX if x[1] > mostCallEGEX]
+	putWalls = [x[0] for x in putEGEX if x[1] > mostPutEGEX]
+	return (priceBounds, DAY_RANGE, straddles, putWalls, callWalls)
 	
 	lastPutVolume = 0
-	for x in reversed(strikes):
+	for x in reversed(strikes):  #Detect PVN Nodes
 		putVolume = x[dp.GEX_PUT_VOLUME]
 		#if x[dp.GEX_STRIKE] == 5170 or x[dp.GEX_STRIKE] == 5165 : print( f'{x[dp.GEX_STRIKE]} - {putVolume}' )
 		if lastPutVolume > 300 and lastPutVolume * 0.2 > putVolume :#and putVolume < 50 :
@@ -264,13 +247,16 @@ class Signal:
 		self.EMAs2 = None
 		self.totalCallVolume = []
 		self.totalPutVolume = []
+		self.VolumeDelta = []
 		self.Signals = [SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalEMA(self, strikes)]
 
-	def getVolumeDeltaLen(self): return len(self.totalCallVolume)
+	def getVolumeDeltaLen(self): return len(self.VolumeDelta) #len(self.totalCallVolume)
 	def getVolumeDelta(self, index):
-		return (self.totalCallVolume[index] - self.totalCallVolume[index-30]) - (self.totalPutVolume[index] - self.totalPutVolume[index-30]) if index > 29 else 0
+		#return (self.totalCallVolume[index] - self.totalCallVolume[index-30]) - (self.totalPutVolume[index] - self.totalPutVolume[index-30]) if index > 29 else 0
+		if index < 30 : return 0
+		return self.VolumeDelta[index] - self.VolumeDelta[index-30]
 
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
@@ -282,8 +268,9 @@ class Signal:
 		
 		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
 		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
-		self.totalCallVolume.append( allCallVol )
-		self.totalPutVolume.append( allPutVol )
+		#self.totalCallVolume.append( allCallVol )
+		#self.totalPutVolume.append( allPutVol )
+		self.VolumeDelta.append( allCallVol - allPutVol )
 
 		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price

@@ -159,9 +159,10 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 			draw.line([p1[0], p1[1], p2[0], p2[1]], fill="red", width=1)
 	x = 0
 	drawText(draw, x=x, y=0, txt=f'{ticker} ' + "${:,.2f}".format(price, 2), color="#3FF")
-	drawText(draw, x=x, y=FONT_SIZE * 1, txt="Calls "+"${:,.2f}".format(callDollars), color="#0f0")
-	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Puts "+"${:,.2f}".format(putDollars), color="#f00")
-	drawText(draw, x=x, y=FONT_SIZE * 3, txt="Total "+"${:,.2f}".format(callDollars-putDollars), color="yellow")
+	drawText(draw, x=x, y=FONT_SIZE * 1, txt="Call OI "+"{:,.2f}".format(totalCalls), color="#0f0")
+	drawText(draw, x=x, y=FONT_SIZE * 2, txt="Put OI "+"{:,.2f}".format(totalPuts), color="#f00")
+	#drawText(draw, x=x, y=FONT_SIZE * 3, txt="Total "+"{:,.2f}".format(totalCalls-totalPuts), color="yellow")
+	drawText(draw, x=x, y=FONT_SIZE * 3, txt=f'PCR {round(totalPuts/totalCalls, 2)}%', color="yellow")
 	y = 0
 	x = 260
 	if chartType == 1: txt = f'Volume Exp {expDate}' 

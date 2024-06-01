@@ -30,10 +30,14 @@ def identifyKeyLevels(strikes):
 	straddles = [dp.calcZeroGEX( strikes )]  #****** EGEX conveersion
 	callEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME]) for x in strikes]
 	putEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME]) for x in strikes]
-	mostCallEGEX = max(callEGEX, key=lambda i: i[1])[1] * 0.5
-	mostPutEGEX = max(putEGEX, key=lambda i: i[1])[1] *0.5
+	
+	mostCallEGEX = max(callEGEX, key=lambda i: i[1])[1] * 0.8
+	mostPutEGEX = max(putEGEX, key=lambda i: i[1])[1] *0.8
+	
 	callWalls = [x[0] for x in callEGEX if x[1] > mostCallEGEX]
 	putWalls = [x[0] for x in putEGEX if x[1] > mostPutEGEX]
+	straddles = straddles + [x for x in callWalls if x in putWalls]
+	
 	return (priceBounds, DAY_RANGE, straddles, putWalls, callWalls)
 	
 	lastPutVolume = 0
@@ -193,14 +197,14 @@ def findPeaksAndValleys( prices ):
 	low = 0
 	def checkNextHigh(index):
 		#last = index + 30 if index + 30 < lenavgs else lenavgs
-		last = index + 30
+		last = index + 50
 		if last > lenavgs : return False
 		for i in range(index, last):
 			if prices[i] > prices[index] : return False
 		return True
 	def checkNextLow(index):
 		#last = index + 30 if index + 30 < lenavgs else lenavgs
-		last = index + 30
+		last = index + 50
 		if last > lenavgs : return False
 		for i in range(index, last):
 			if prices[i] < prices[index] : return False
@@ -239,16 +243,13 @@ class Signal:
 		self.callTimes = [] # [[strike, time],[next, -1]]
 		self.putTimes = []
 		self.ExtraDisplayText = ""
-		self.EMA_PERIOD_1 = ema1 if ema1 > 2 else None
-		self.EMA_PERIOD_2 = ema2 if ema2 > 2 else None
-		self.SMAs1 = None
-		self.EMAs1 = None
-		self.SMAs2 = None
-		self.EMAs2 = None
+		self.EMA_PERIOD_1 = 10#ema1 if ema1 > 2 else None
+		self.EMA_PERIOD_2 = 150#ema2 if ema2 > 2 else None
+		self.SMAs1,self.EMAs1,self.SMAs2,self.EMAs2 = None,None,None,None
 		self.totalCallVolume = []
 		self.totalPutVolume = []
 		self.VolumeDelta = []
-		self.Signals = [SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
+		self.Signals = [SignalGEX(self, strikes, price), SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalEMA(self, strikes)]
 
@@ -279,51 +280,70 @@ class Signal:
 			if len(self.Prices) > 1:
 				wick = abs(self.Prices[lastPriceIndex] - self.Prices[lastPriceIndex-1])
 				if wick > self.LargestCandle : self.LargestCandle = wick
-			for siggy in self.Signals :
-				result = siggy.addTime(minute, strikes, price)
-		
+			#for siggy in self.Signals :
+			#	result = siggy.addTime(minute, strikes, price)
 		elif self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
 			self.isPreMarket = False
 			self.OpenPrice = price
 			self.Low = price
 			self.High = price
-		
-		if self.EMAs1 == None and self.EMA_PERIOD_1 != None and lastPriceIndex > self.EMA_PERIOD_1 :
-	
-			self.SMAs1 = calcSMA( self.Prices, self.EMA_PERIOD_1 )
-			self.EMAs1 = calcEMA( self.SMAs1, self.EMA_PERIOD_1 )
-		
-			if self.EMAs2 == None and self.EMA_PERIOD_2 != None and lastPriceIndex > self.EMA_PERIOD_2 :
-				self.SMAs2 = calcSMA( self.Prices, self.EMA_PERIOD_2 )
-				self.EMAs2 = calcEMA( self.SMAs2, self.EMA_PERIOD_2 )
-
-		else :
-			
-			if self.EMAs1 != None and self.EMA_PERIOD_1 != None :
+		"""
+		if self.EMA_PERIOD_1 != None :
+			if self.EMAs1 == None :
+				if lastPriceIndex +1 == self.EMA_PERIOD_1 :
+					self.SMAs1 = calcSMA( self.Prices, self.EMA_PERIOD_1 )
+					self.EMAs1 = calcEMA( self.SMAs1, self.EMA_PERIOD_1 )
+			else :
 				self.SMAs1.append( appendSMA( self.Prices, self.EMA_PERIOD_1 ) )
 				self.EMAs1.append( appendEMA( self.SMAs1, self.EMAs1, self.EMA_PERIOD_1 ) )
-		
-			if self.EMAs2 != None and self.EMA_PERIOD_2 != None :
+		if self.EMA_PERIOD_2 != None :
+			if self.EMAs2 == None :
+				if lastPriceIndex +1 == self.EMA_PERIOD_2 :
+					self.SMAs2 = calcSMA( self.Prices, self.EMA_PERIOD_2 )
+					self.EMAs2 = calcEMA( self.SMAs2, self.EMA_PERIOD_2 )
+			else :
 				self.SMAs2.append( appendSMA( self.Prices, self.EMA_PERIOD_2 ) )
 				self.EMAs2.append( appendEMA( self.SMAs2, self.EMAs2, self.EMA_PERIOD_2 ) )
-			
+		"""
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
 		
 		result = 0
 		for siggy in self.Signals :
-			result = siggy.addTime(minute, strikes, price)
-			break
+			result += siggy.addTime(minute, strikes, price)
 		
 		return result
+
+class SignalGEX():
+	def __init__(self, owner, strikes, price):
+		self.Owner = owner
+		self.PivotNodes = None
+		#self.assignPivotNodes( strikes )
+		#print( f'init Nodes {self.PivotNodes}')
+		
+	def assignPivotNodes(self, strikes):
+		sigs = identifyKeyLevels( strikes )
+		levels = sigs[2] + [x for x in sigs[3] if x not in sigs[2]]
+		levels = levels + [x for x in sigs[4] if x not in levels]
+		self.PivotNodes = levels # sigs[2] + sigs[3] + sigs[4]
+		self.PivotNodes.sort()
+	
+	def addTime(self, minute, strikes, price):
+		lastPriceIndex = len(self.Owner.Prices)-1
+
+		if self.Owner.isPreMarket : return 0
+		if self.PivotNodes == None :
+			self.assignPivotNodes( strikes )
+			print( f'init Nodes {self.PivotNodes}')
+
+		return 0
 		
 class SignalDeadPrices():	
 	def __init__(self, owner, strikes, price):
 		self.Owner = owner
-		self.PrevDataTimes = []
-		self.PrevData = {}
-		self.Owner.callTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if (x[dp.GEX_CALL_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
-		self.Owner.putTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if (x[dp.GEX_PUT_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 5 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
+
+		self.Owner.callTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if (x[dp.GEX_CALL_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
+		self.Owner.putTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if (x[dp.GEX_PUT_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		self.LargestCandle = 0
 		wholePrice = int(price)
 
@@ -331,16 +351,16 @@ class SignalDeadPrices():
 		bid = next((x[cp] for x in strikes if x[dp.GEX_STRIKE] == o[0]), None)
 		if bid == None : 
 			o[1] == -2
+			#print('Null')
 			return
-		if bid > o[3] : o[3] = bid
-		if bid <= o[3] * self.Owner.deadprice :
-			txt = f'{"{:.0%}".format(bid / o[3])} - {o[0]}'
-			o[1] = lastPriceIndex if abs(price - o[0]) < 3 else -2  #Only show flags when SPX Spot Price is near Strike Price
-			o[0] = txt
+		#if bid > o[3] : o[3] = bid
+		if bid <= self.Owner.deadprice : #o[3] * 
+			#txt = f'{"{:.0%}".format(bid / o[3])} - {o[0]}'
+			o[1] = lastPriceIndex #if abs(price - o[0]) < 3 else -1  #Only show flags when SPX Spot Price is near Strike Price
+			#o[0] = txt
+			#print(f'Set {o[0]} at Index {o[1]}')
 				
 	def addTime(self, minute, strikes, price):
-		#self.PrevDataTimes.append( minute )
-		#self.PrevData[minute] = strikes	
 		lastPriceIndex = len(self.Owner.Prices)-1
 		
 		if self.Owner.isPreMarket: # Fill list of contracts with OVNL and OVNH data
@@ -351,92 +371,7 @@ class SignalDeadPrices():
 
 		return 0
 		
-class SignalDPT(Signal):
-	def __init__(self, firstTime, strikes, deadprice):
-		super().__init__(firstTime, strikes, deadprice)
-		self.lastOptionIndex = 0
-		self.lastModulusIndex = 0
-		self.bullFlag = 0
-		self.callTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_CALL_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
-		self.putTimes = [[x[dp.GEX_STRIKE], -1] for x in strikes if (x[dp.GEX_PUT_BID] > deadprice) and (x[dp.GEX_STRIKE] % 25 == 0)]
 
-	def addTime(self, minute, strikes):
-		super().addTime(minute, strikes)
-		
-		x = len(self.Prices) - 1
-		price = self.Prices[x]
-		if abs((price % 25) - 12.5) > 9: self.lastModulusIndex = x#Store index of last time price neared price%25
-		#print(f'Price {price} - abs {abs((price % 25) - 12.5)}')
-		
-		for strike in strikes :
-			for c in self.callTimes:
-				if c[1] == -1 and c[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_CALL_BID] <= self.deadprice: 
-					c[1] = x
-					self.lastOptionIndex = x
-					self.bullFlag = 1
-			for p in self.putTimes:
-				if p[1] == -1 and p[0] == strike[dp.GEX_STRIKE] and strike[dp.GEX_PUT_BID] <= self.deadprice: 
-					p[1] = x
-					self.lastOptionIndex = x
-					self.bullFlag = -1
-	
-		result = (self.lastOptionIndex == x and x - self.lastModulusIndex < 5) \
-			  or (self.lastModulusIndex == x and x - self.lastOptionIndex < 5)
-		return self.bullFlag if result else 0
-
-class Signal2x50():
-	def __init__(self, owner, firstTime, strikes, deadprice):
-		self.Owner = owner
-		self.pickNodes(strikes)
-		self.FindNodes = True
-
-	def pickNodes(self, strikes):
-		self.FindNodes = False
-		strike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.Upper50)
-		self.callTimes = [[self.Upper50, 0, strike[dp.GEX_CALL_BID], strike[dp.GEX_CALL_BID]]]
-		strike = next(x for x in strikes if x[dp.GEX_STRIKE] == self.Lower50)
-		self.putTimes = [ [self.Lower50, 0, strike[dp.GEX_PUT_BID], strike[dp.GEX_PUT_BID]]]
-		
-	def addTime(self, minute, strikes):
-		price = super().addTime(minute, strikes)
-		x = len(self.Prices) - 1
-		
-		if self.OpenPrice > -1 and self.FindNodes : self.pickNodes(strikes)
-
-		result = 0
-		for c in self.callTimes:
-			strike = next((x for x in strikes if x[dp.GEX_STRIKE] == c[0]), None)
-			if strike == None: continue
-			bid = strike[dp.GEX_CALL_BID]
-			
-			if bid > c[3] : c[3] = bid
-			if bid < c[2] : 
-				c[2] = bid
-				if c[3] < c[2] * 2 : c[3] = c[2]
-			if not (0.2 < c[3]) : continue
-			if bid <= c[3] * 0.5 : 
-				result = 1
-				c[1] = x
-				c[3] = bid
-		
-		for p in self.putTimes:
-			strike = next((x for x in strikes if x[dp.GEX_STRIKE] == p[0]), None)
-			if strike == None: continue
-			#if minute < 635 and strike[dp.GEX_STRIKE] == 4850 : print( f'Low {p[2]} - High {p[3]}')
-			bid = strike[dp.GEX_PUT_BID]
-			
-			if bid > p[3] : p[3] = bid
-			if bid < p[2] : 
-				p[2] = bid
-				if p[3] < p[2] * 2 : p[3] = p[2]
-			if not (0.2 < p[3]) : continue
-			if bid <= p[3] * 0.5 :
-				#if strike[dp.GEX_STRIKE] == 5225 : print( f'Minute {minute} - Low {p[2]} - High {p[3]}')
-				result = -1
-				p[1] = x
-				p[3] = bid
-		
-		return result
 
 FIBS = [0.786, 0.618, 0.5, 0.33, 0.236, -1]
 #FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -509,15 +444,13 @@ class SignalEMA:
 		self.MostEMADif = 0
 		
 	def addTime(self, minute, strikes, price):
-		if self.Owner.isPreMarket: return 0
+		#if self.Owner.isPreMarket: return 0
 		if self.Owner.EMAs1 == None or self.Owner.EMAs2 == None : return 0
 		result = 0
 		
-		#print(1)
 		if minute < 710 :
-		#	print(2)
 			emaDif = abs(self.Owner.EMAs1[-1] - self.Owner.EMAs2[-1])
-			emaOver = self.Owner.EMAs1[-1] > self.Owner.EMAs2[-1]
+			emaOver = self.Owner.EMAs1[-1] < self.Owner.EMAs2[-1]
 			if emaOver == False : emaOver = -1
 			
 			if emaDif > self.MostEMADif : self.MostEMADif = emaDif
@@ -528,12 +461,8 @@ class SignalEMA:
 				result = 0
 			if self.LastResult != result and result != 0 : self.LastResult = result
 			else : result = 0
-		#	print(3)
 		else:
-		#	print(4)
 			emaOver = self.Owner.EMAs1[-1] > self.Owner.EMAs2[-1]
-			#topEMA = self.Owner.EMAs1 if emaOver else self.Owner.EMAs2
-			#bottomEMA = self.Owner.EMAs2 if emaOver else self.Owner.EMAs1
 			
 			def calcTopAngle( emas ):
 				result = 0 #nonlocal result
@@ -549,49 +478,23 @@ class SignalEMA:
 				if p2v > 1.5 and e2v > 1.5 : result = -1
 				return result
 			
-			#result = calcTopAngle( self.Owner.EMAs2 )
-			
-			#if 743 < minute < 752 :
-			#	if self.LastResult != 3 : print('start')
-			#	self.LastResult = 3
-			#	print( self.Owner.EMAs2[-1] )
-				
-			#print(5)
-		#print(6)
 		return result
 
-"""
-5292.667821026301
-5292.591853566973
-5292.494243827524
-5292.336199495247
-5292.1341632233825
-5291.9079517282225
-5291.6483241412725
-5291.375901570132
-5291.06482855738
-5290.778496092401
-5290.526951348327
-5290.325687466813
-5290.194653381937
-5290.1501709488575
-5290.159230776338
-5290.212097907912
-5290.3189891973825
-5290.478263888767
-5290.731306818082
-5291.011069214795
-5291.302692993922
-5291.593112449572
-5291.875273822377
-"""
+#points = [5292.667821026301,5292.591853566973,5292.494243827524,5292.336199495247,5292.1341632233825,5291.9079517282225,5291.6483241412725,5291.375901570132,5291.06482855738,5290.778496092401,5290.526951348327,5290.325687466813,5290.194653381937,5290.1501709488575,5290.159230776338,5290.212097907912,5290.3189891973825,5290.478263888767,5290.731306818082,5291.011069214795,5291.302692993922,5291.593112449572,5291.875273822377]
+
 
 
 def calcSMA(prices, period): 
-	result = [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) +1 )]
+#	result = [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) +1 )]
+	summy = sum( prices ) / len( prices )
+	result = [summy for x in range(period)]
 	return result
-	
+
+#test = [1,1,1,1,1,1,1,1,1,2,3,4,5,6,7,8,9]
+#print( calcSMA( test, 9 ) )
+
 def calcEMA(smas, period):	#EMA_THIS = a_0 * [2 / (n + 1)] + EMA_PREV * [1 - [2 / (n + 1)]]
+	return [smas[0] for x in range(period)]
 	emas = [smas[0]]
 	for i in range(1, len(smas) ):
 		emas.append( (smas[i] * (2/(period+1))) + (emas[-1] * (1-(2/(period+1)))) )
@@ -627,35 +530,10 @@ Vanguard 500 Index Fund (VFIAX)	14.5%	0.04%	$3,000
 Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 """
 """
-Day 0 - Open 4900 - Nlargest 4900, 4875, 4925.   BestPlay 11:45  - No PVN or it is 4900?
-		4875p High $13.90 -> 11:45 -> $2.05 - 14.7%
-		4925c High $8.60 -> $1.20 - 13.9%
-		4900p OVNL $8.60 -> $31.30 -> 11:45 -> $8.80 - 28%
-		4900c OVNH $20.20 -> $3.90 - 19.3% -> $12.10 - 310%
-		
-Day 1 - Open 4866 - 4850, 4890   BestPlay 8:12  - No PVN
-		4850c OVNH $26.90 -> $12.40 - 46% -> $54.90 - 442%
-		4850p OVNH $8.20 -> 7:30 - $2.15 - 26% -> $9.40 - 437%
-		
-Day 2 - Open 4910 - 4900 - Volume>OI - 4950 - No PVN
-
-Day 3 - Open 4945 - 4925, 4985, 4990.  Best Play 6:55 -> 7:45 -> 9:42.   Late PVN 4980, 4990
-		4950c OVNH $13.10
-		4925p HOD $13.20 -> Enter Call
-
-Day 4 - Open 4950 - 4900, 4960, 4980.  Best Play 6:45.  PVN 4980
-
-Day 5 - Open 4975 - 4950,  4930, 5000.  Best Play 7:04.    PVN 4990, 5000  Breach
-
-Day 6 - Open 4995 - 5000.  Best Play NA.  PVN 5030, 5035
-
-Day 7 - Open 5000 - 5000 5100. Best Play 6:50.  No PVN
-
-Day 8 - Open 5025 - 5000 5050. Best Play 7:14.  PVN 5060, 5065, 5070
-
-Day 9 - Open 4950 - 5050.  Best Play 9:45.  No PVN
-
-Day 10 - Open 4980 - 4950 5000.  Best Play 7:26 -> 9:05 -> EOD.  No PVN
-
+Day 84 - %25 + 34 - > %25 - 32 -> %25 -> %25 +50
+Day 83 - %25 -13 -> %25 + 10 -> %25 - 25
+Day 82 - %25 + 15 - > %25 -12 -> crabby
+Day 81 - %25 + 20 - > %25 -----> %25 - 21
+Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
 
 """

@@ -83,13 +83,11 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	strikes = dp.shrinkToCount(strikes, price, count)
 	count = len(strikes)
 	
-	if chartType == 1 :
+	if chartType == 1 : #Modifying list not good on a timer
 		for strike in strikes :
-			gamma = strike[dp.GEX_CALL_GEX] / strike[dp.GEX_CALL_OI] if strike[dp.GEX_CALL_OI] > 0 else 0
-			strike[dp.GEX_CALL_GEX] = gamma * (strike[dp.GEX_CALL_VOLUME] + strike[dp.GEX_CALL_OI])
-			gamma = strike[dp.GEX_PUT_GEX] / strike[dp.GEX_PUT_OI] if strike[dp.GEX_PUT_OI] > 0 else 0
-			strike[dp.GEX_PUT_GEX] = gamma * (strike[dp.GEX_PUT_VOLUME] + strike[dp.GEX_PUT_OI]) 
-			strike[dp.GEX_TOTAL_GEX] = strike[dp.GEX_CALL_GEX] - strike[dp.GEX_PUT_GEX] #Makes it ABS GEX
+			cGamma = strike[dp.GEX_CALL_GEX] / strike[dp.GEX_CALL_OI] if strike[dp.GEX_CALL_OI] > 0 else 0
+			pGamma = strike[dp.GEX_PUT_GEX] / strike[dp.GEX_PUT_OI] if strike[dp.GEX_PUT_OI] > 0 else 0
+			strike[dp.GEX_TOTAL_GEX] = (cGamma * (strike[dp.GEX_CALL_VOLUME] + strike[dp.GEX_CALL_OI])) - (pGamma * (strike[dp.GEX_PUT_VOLUME] + strike[dp.GEX_PUT_OI])) #Makes it ABS GEX
 	if chartType == 4 :
 		for strike in strikes :
 			strike[dp.GEX_CALL_GEX] = strike[dp.GEX_CALL_OI] * strike[dp.GEX_CALL_VOLUME]# EGEX conversion
@@ -164,7 +162,7 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	#drawText(draw, x=x, y=FONT_SIZE * 3, txt="Total "+"{:,.2f}".format(totalCalls-totalPuts), color="yellow")
 	#drawText(draw, x=x, y=FONT_SIZE * 1, txt=f'Call OI {totalCalls}', color="#0f0")
 	#drawText(draw, x=x, y=FONT_SIZE * 2, txt=f'Put OI {totalPuts}', color="#f00")
-	drawText(draw, x=x, y=FONT_SIZE * 3, txt=f'PCR {round(totalPuts/totalCalls, 2)}%', color="yellow")
+	drawText(draw, x=x, y=FONT_SIZE * 3, txt=f'PCR {round((totalPuts/totalCalls) * 100, 2)}', color="yellow")
 	y = 0
 	x = 260
 	if chartType == 1: txt = f'Volume Exp {expDate}' 
@@ -259,7 +257,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			continue
 		spxPrice = dp.getPrice("SPX", strikes)
 		flags.append( strat.addTime(minute, strikes) )
-		if timeMinute == t : dataIndex = len(flags)
+		if timeMinute == minute : dataIndex = len(flags)
 		if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : 
 			prices1.append(spxPrice)
 		else:
@@ -338,14 +336,21 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 
-			def drawEMA( emas, period, ema_color ): #*************** Draw EMA ******************
-				pp = emas[x-period-1] - minPrice
-				p = emas[x-period] - minPrice
+			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
+				pp = emas[x-1] - minPrice
+				p = emas[x] - minPrice
 				y3 = convertY( pp, maxPrice ) + addY
 				y4 = convertY( p, maxPrice ) + addY
 				draw.line([x-1, y3, x, y4], fill=ema_color, width=1)
-			if x > EMA_PERIOD and smays != None : drawEMA( smays, EMA_PERIOD, "purple" )
-			if x > EMA_PERIOD2 and smays2 != None : drawEMA( smays2, EMA_PERIOD2, "aqua" )
+			def drawEMATest( emas, emas2, period1, period2, ema_color ): #*************** Draw EMA ****************** Dif between the EMAs
+				p = emas[x-period1] - emas2[x-period2]
+				y4 = (p * 10)
+				draw.line([x-1, 200, x, 200+y4], fill=ema_color, width=1)
+				draw.line([x-1, 200, x, 200], fill="red", width=1)
+			#bothPeriod = max( (EMA_PERIOD, EMA_PERIOD2) )
+			#if x > bothPeriod : drawEMATest( smays, smays2, EMA_PERIOD, EMA_PERIOD2, "orange")
+			if smays != None : drawEMA( smays, "teal" )#x > EMA_PERIOD and 
+			if smays2 != None : drawEMA( smays2, "aqua" )#x > EMA_PERIOD2 and 
 			
 			flag = flags[x]
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
@@ -361,8 +366,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				ovnPrices = prices[:openTimeIndex]
 				ovnl = min( ovnPrices )
 				ovnh = max( ovnPrices )
+				ovnRange = ovnh - ovnl
 				txtl = ' ${0:.2f}'.format(ovnl)
 				txth = ' ${0:.2f}'.format(ovnh)
+				txtr = ' ${0:.2f}'.format(ovnRange)
 				if isSPX : 
 					ovnl = ovnl - minPrice
 					ovnh = ovnh - minPrice
@@ -370,6 +377,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				
 				drawLongPriceLine(draw, y, 'orange', 0, openTimeIndex)
 				drawText( draw, 0, y, txt=txtl, color='orange', anchor="lt")
+				drawText( draw, 0, y + FONT_SIZE + 2, txt=txtr, color='orange', anchor="lt")
 
 				y = convertY( ovnh, maxPrice ) + addY
 				
@@ -392,7 +400,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		drawLongPriceLine(draw, y, colr, 3, 1400)
 		drawText( draw, 1200 + (j*50), y, txt=txt, color=colr, anchor="rb")
 		
-		if isSPX : # Draw lines every 25 points on SPX
+		if isSPX : # ********************************** Draw lines every 25 points on SPX ***************************
 			maxMultiple = (int(maxSPX // 25) +1) * 25
 			minMultiple = (int(minSPX // 25) +1) * 25
 			for spxVal in range( minMultiple, maxMultiple, 25 ) : 
@@ -404,6 +412,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		sliceStart = dataIndex - 30 if dataIndex - 30 > 0 else 0
 		if sliceStart > lenPrices - 30 : sliceStart = 0#lenPrices - 30
 		sliceStop = dataIndex + 30 if dataIndex + 30 < lenPrices else lenPrices
+		#print(f'{timeMinute} - {dataIndex} - {sliceStart} to {sliceStop}')
 		preData = prices[sliceStart:sliceStop]
 		def drawHighLow(hlIndex, anch):
 			txt = '${0:.2f}'.format(preData[hlIndex])

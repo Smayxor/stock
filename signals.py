@@ -28,16 +28,37 @@ def identifyKeyLevels(strikes):
 	priceBounds = [priceLower50, priceUpper50]
 	
 	straddles = [dp.calcZeroGEX( strikes )]  #****** EGEX conveersion
-	callEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME]) for x in strikes]
-	putEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME]) for x in strikes]
+	#callEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME]) for x in strikes]
+	#putEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME]) for x in strikes]
+	bothEGEX = [(x[dp.GEX_STRIKE], x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME]) for x in strikes]
 	
-	mostCallEGEX = max(callEGEX, key=lambda i: i[1])[1] * 0.8
-	mostPutEGEX = max(putEGEX, key=lambda i: i[1])[1] *0.8
+	mostCallEGEX = max(bothEGEX, key=lambda i: i[1])[1] * 0.8
+	mostPutEGEX = max(bothEGEX, key=lambda i: i[2])[2] *0.8
 	
-	callWalls = [x[0] for x in callEGEX if x[1] > mostCallEGEX]
-	putWalls = [x[0] for x in putEGEX if x[1] > mostPutEGEX]
-	straddles = straddles + [x for x in callWalls if x in putWalls]
+	callWalls = [x[0] for x in bothEGEX if x[1] > mostCallEGEX]
+	putWalls = [x[0] for x in bothEGEX if x[2] > mostPutEGEX]
 	
+	mostCallEGEX *= 0.6
+	mostPutEGEX *= 0.6
+	straddles = straddles + [x[0] for x in bothEGEX if x[1] > mostCallEGEX and x[2] > mostPutEGEX]
+
+	
+	creditSpreads = 0
+	i = 0 # Trim the CCS and PCS nodes to show outter node
+	while i < len(callWalls) :
+		node = callWalls[i]
+		if node + 5 in callWalls :
+			callWalls.pop(i)
+			creditSpreads += 1
+		else : i += 1
+	i = 0
+	while i < len(putWalls) :
+		node = putWalls[i]
+		if node - 5 in putWalls :
+			putWalls.pop(i)
+			creditSpreads += 1
+		else : i += 1
+		
 	return (priceBounds, DAY_RANGE, straddles, putWalls, callWalls)
 	
 	lastPutVolume = 0
@@ -228,16 +249,16 @@ def getStrike( strike, strikes ): return next((x for x in strikes if x[dp.GEX_ST
 class Signal:	
 	def __init__(self, firstTime, strikes, deadprice, ema1, ema2):
 		self.deadprice = deadprice
+		price = dp.getPrice("SPX", strikes)
 		self.OVNH = 0
 		self.OVNL = 99999
 		self.OpenPrice = -1
-		self.Low = -1
-		self.High = -1
+		self.Low = price
+		self.High = price
 		self.Prices = []
 		self.PrevData = {}
 		self.PrevDataTimes = []
 		self.PrevData[firstTime] = strikes
-		price = dp.getPrice("SPX", strikes)
 		self.LargestCandle = 0
 		self.isPreMarket = True
 		self.callTimes = [] # [[strike, time],[next, -1]]
@@ -258,6 +279,20 @@ class Signal:
 		#return (self.totalCallVolume[index] - self.totalCallVolume[index-30]) - (self.totalPutVolume[index] - self.totalPutVolume[index-30]) if index > 29 else 0
 		if index < 30 : return 0
 		return self.VolumeDelta[index] - self.VolumeDelta[index-30]
+		
+	def findBestPrice(self, cost, cp ):
+		cp = dp.GEX_CALL_ASK if cp == 1 else dp.GEX_PUT_ASK
+		strikes = self.PrevData[ self.PrevDataTimes[-1] ]
+		nearestStrike = min(strikes, key=lambda i: abs(i[cp] - cost) )
+		conStrike = nearestStrike[dp.GEX_STRIKE]
+		lowPrice = nearestStrike[cp]
+		highPrice = nearestStrike[cp]
+		for t, strikes in self.PrevData.items() :
+			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == conStrike)
+			bid = strike[cp]
+			if bid < lowPrice : lowPrice = bid
+			if bid > highPrice : highPrice = bid
+		return (conStrike, highPrice * 0.1)
 
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
@@ -285,8 +320,8 @@ class Signal:
 		elif self.isPreMarket:# Fill list of contracts with OVNL and OVNH data
 			self.isPreMarket = False
 			self.OpenPrice = price
-			self.Low = price
-			self.High = price
+			#self.Low = price
+			#self.High = price
 		"""
 		if self.EMA_PERIOD_1 != None :
 			if self.EMAs1 == None :
@@ -318,6 +353,8 @@ class SignalGEX():
 	def __init__(self, owner, strikes, price):
 		self.Owner = owner
 		self.PivotNodes = None
+		self.LastPivotNode = 0
+		self.LastSignalIndex = 0
 		#self.assignPivotNodes( strikes )
 		#print( f'init Nodes {self.PivotNodes}')
 		
@@ -331,12 +368,33 @@ class SignalGEX():
 	def addTime(self, minute, strikes, price):
 		lastPriceIndex = len(self.Owner.Prices)-1
 
+		result = 0
 		if self.Owner.isPreMarket : return 0
+		if minute < 635 : return 0
+		
 		if self.PivotNodes == None :
 			self.assignPivotNodes( strikes )
-			print( f'init Nodes {self.PivotNodes}')
+			#print( f'init Nodes {self.PivotNodes}')
 
-		return 0
+		for node in self.PivotNodes :
+			if self.LastPivotNode != node and abs(price - node) < 5 and lastPriceIndex - self.LastSignalIndex > 30 : # and self.Owner.High - self.Owner.Low > 15:
+				#self.assignPivotNodes( strikes )
+#				vd = self.Owner.getVolumeDelta(lastPriceIndex)
+#				if vd < 3000 : break
+				self.LastPivotNode = node
+				self.LastSignalIndex = lastPriceIndex
+				
+				sumPrices = (sum(self.Owner.Prices[-10:]) / 10)
+				trend = sumPrices > node
+				if trend == 0 : trend = -1
+				
+#				print( f'{price} - {vd} - {node}')
+				
+				result = trend
+
+		if result != 0 : self.PivotNodes.remove( self.LastPivotNode )
+
+		return result
 		
 class SignalDeadPrices():	
 	def __init__(self, owner, strikes, price):

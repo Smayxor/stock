@@ -72,10 +72,9 @@ for file in fileList:
 	
 	#prices.append( openPrice )
 	priceDif = 0
-	firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))  #Data sucks at 630, and could catch time before at data fault
-	strikes = gexData[firstTime]
-	sigs = sig.identifyKeyLevels(strikes)
-	strat = sig.SignalDataRelease(firstTime=firstTime, strikes=strikes, deadprice=0.30)
+	#firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))  #Data sucks at 630, and could catch time before at data fault
+	#strikes = gexData[firstTime]
+	strat = sig.Signal(firstTime=firstTime, strikes=strikes, deadprice=0.30, ema1=20, ema2=150)
 	flags = []
 	lastFlag = 0
 	lenData = len(gexData) - 1
@@ -116,20 +115,21 @@ for file in fileList:
 			if lastFlag == 1 and callEntered == 0 : callEntered = 1
 			if lastFlag == -1  and putEntered == 0 : putEntered = 1
 
-
 		if callEntered == 1:
 			#callStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price - 20) )[dp.GEX_STRIKE]
-			strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )
-			callStrike = strike[dp.GEX_STRIKE]
-			callEntryPrice = strike[dp.GEX_CALL_ASK]
+			#strike = min(strikes, key=lambda i: abs(i[dp.GEX_CALL_ASK] - 2) )
+			tmp = strat.findBestPrice( 2, 1 )
+			callStrike = tmp[0] #strike[dp.GEX_STRIKE]
+			callEntryPrice = tmp[1] #strike[dp.GEX_CALL_ASK]
 			callEntered = 2
 			#print( f'Price of {price} - Planning call {callStrike} @ ${callEntryPrice}' )
 			
 		if putEntered == 1:
 			#putStrike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - price + 20) )[dp.GEX_STRIKE]
-			strike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 2) )
-			putStrike = strike[dp.GEX_STRIKE]
-			putEntryPrice = strike[dp.GEX_PUT_ASK]
+			#strike = min(strikes, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 2) )
+			tmp = strat.findBestPrice( 2, 2 )
+			putStrike = tmp[0] #strike[dp.GEX_STRIKE]
+			putEntryPrice = tmp[1] #strike[dp.GEX_PUT_ASK]
 			putEntered = 2
 			#print( f'Price of {price} - Planning put {putStrike} @ ${putEntryPrice}' )
 			
@@ -139,7 +139,7 @@ for file in fileList:
 			if ask <= callEntryPrice :
 				callEntered = 3
 				pnl -= callEntryPrice
-				callExitPrice = callEntryPrice + 1
+				callExitPrice = callEntryPrice * 3
 				print(f'{end} Entered {callStrike} Call for ${callEntryPrice} - {minute}')
 		
 		if putEntered == 2:
@@ -148,7 +148,7 @@ for file in fileList:
 			if ask <= putEntryPrice :
 				putEntered = 3
 				pnl -= putEntryPrice
-				putExitPrice = putEntryPrice + 1
+				putExitPrice = putEntryPrice * 3
 				print(f'{end} Entered {putStrike} Put for ${putEntryPrice} - {minute}')
 		
 		if callEntered == 3:		

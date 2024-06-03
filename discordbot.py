@@ -24,13 +24,13 @@ TENOR_API_KEY = init['TENOR_API_KEY']
 UPDATE_CHANNEL = init['UPDATE_CHANNEL']    #Channel ID stored as Integer not string
 
 WEEKDAY = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
-CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "EGEX ", "FRIDAY ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
+CHARTS_TEXT = ["GEX ", "GEX Volume ", "IV ", "DAILY IV ", "EGEX ", "COMBINED ", "ATR+FIB ", "LAST DTE ", "LOG-DATA ", "CHANGE IN GEX ", "SKEWED GEX ", "HEAT MAP "]
 CHART_GEX = 0
 CHART_VOLUME = 1
 CHART_IV = 2
 CHART_DAILYIV = 3
 CHART_EGEX = 4
-CHART_FRIDAY = 5
+CHART_COMBO = 5
 CHART_ATR = 6
 CHART_LASTDTE = 7
 CHART_LOG = 8
@@ -52,7 +52,7 @@ try :
 			{ "name": "Normal", "value": "Normal"  }, 
 			{ "name": "EGEX", "value": "E" }, 
 			{ "name": "Volume", "value": "V" }, 
-			{ "name": "FRIDAY", "value": "FRIDAY"  }, 
+			{ "name": "COMBO", "value": "COMBO"  }, 
 			{ "name": "HEATMAP", "value": "HEATMAP"  }
 		]}   
 	] }
@@ -274,7 +274,7 @@ def getChartType( arg ):
 	elif arg == 'IV': return CHART_IV
 	elif arg == 'DAILYIV': return CHART_DAILYIV
 	elif arg == 'E': return CHART_EGEX
-	elif arg == 'FRIDAY': return CHART_FRIDAY
+	elif arg == 'COMBO': return CHART_COMBO
 	elif arg == 'ATR': return CHART_ATR
 	elif arg == 'LD': return CHART_LASTDTE
 	elif arg == 'CHANGE': return CHART_CHANGE
@@ -317,8 +317,8 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 	else:
 		fn = ""
 		
-		if chartType == CHART_FRIDAY:
-			fn = grabFridayCombo()
+		if chartType == CHART_COMBO:
+			fn = grabFridayCombo(dte)
 			
 		elif "SPX." in ticker: # Pull the data from PC Server,  needs to check if server is even available
 			try :
@@ -589,12 +589,14 @@ def getDateOfFriday():
 	today = datetime.date.today()
 	return str(today + datetime.timedelta( (4-today.weekday()) % 7 ))
 	
-def grabFridayCombo():
+def grabFridayCombo(dte):
 	exps = dp.getExpirations('SPX')
 	today = str(datetime.date.today()).split(":")[0]
 	#if today == exps[0] : exps.pop(0)
 	fridayIndex = exps.index(getDateOfFriday())
 	exps = exps[:fridayIndex + 1]
+	if 0 < dte < 5 : exps = exps[:dte+1]
+	
 	days = []
 	startDate = None
 	lastDate = ""

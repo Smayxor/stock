@@ -181,7 +181,17 @@ def startDay():
 	SPX0DTEDate = dp.getExpirationDate('SPX', 0)
 	SPX1DTEDate = dp.getExpirationDate('SPX', 1)
 	print(SPX0DTEDate, SPX1DTEDate)
-	
+    
+    try:
+		fileName = f'./logs/{SPX0DTEDate}-0dte-datalog.json'
+		tmpData = json.load(open(f'{fileName}'))
+		firstStrike = tmpData[next(iter(tmpData))]
+		tmpPrice = dp.getPrice("SPX",firstStrike)
+		SPXopenPrice = tmpPrice
+		SPX0DTEdayData.update( tmpData )
+	except Exception as error:
+		print( error )
+
 	print( f'{SPX0DTEDate} - Day started' )
 	
 def endDay():
@@ -233,6 +243,3 @@ while True: # Checks whether a scheduled task is pending to run or not
 	schedule.run_pending()
 	time.sleep(1)
 print( 'Finished logging data' )
-
-#os.system("Powercfg -H OFF")
-#os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")

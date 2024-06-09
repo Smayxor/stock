@@ -126,12 +126,13 @@ def appendData():
 			gex = dp.shrinkToCount(gex, SPXopenPrice, 50)  #Must be centered around same price all day long!!!
 			SPX1DTEdayData[minute] = gex
 		
-		skip1DTE = (skip1DTE + 1) % 15
-		save0dte(skip1DTE == 0, thisDate = myTime[0])
+		if minute > 600:  #GME prolly wont change OVN
+			options = dp.getOptionsChain("GME", 0, date=GMEDate)
+			gex = dp.getGEX( options[1] )
+			GMEData[minute] = gex
 		
-		options = dp.getOptionsChain("GME", 0, date=GMEDate)
-		gex = dp.getGEX( options[1] )
-		GMEData[minute] = gex		
+		skip1DTE = (skip1DTE + 1) % 15
+		save0dte(skip1DTE == 0, thisDate = myTime[0])		
 	except Exception as error:
 		print(f'{minute} AppendData - An error occoured: {error}')
 		#state = dp.getMarketHoursToday()   #DONT DO THIS.   If network connection fails, unhandled exception stops timer

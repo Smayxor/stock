@@ -23,10 +23,33 @@ skipPreMarket = 0
 lowSPX = None
 highSPX = None
 
-GMEData = {}
+"""# start of the script   ***** How to cache local file
+# load the current value
+import ast
+status, status_file = False, "state.txt"
+with open(status_file) as stat_file:
+    status = ast.literal_eval(next(stat_file()))
+
+# keep on looping, check against *known value*
+while True:
+    current_status = get_door_status()
+    if current_status != status:  # only update on changes
+        status = current_status  # update internal variable
+        # open for writing overwrites previous value
+        with open(status_file, 'w') as stat_file:
+            stat_file.write(status)"""
+
+"""
+'r' Read only: the default
+'w' Write: Create a new file or overwrite the contents of an existing file.
+'a' Append: Write data to the end of an existing file.
+'r+' Both read and write to an existing file. The file pointer will be at the beginning of the file.
+'w+' Both read and write to a new file or overwrite the contents of an existing file.
+'a+' Both read and write to an existing file or create a new file. The file pointer will be at the end of the file.
+"""
 
 def save0dte(bln1dte, thisDate):
-	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData, GMEData
+	global SPX0DTEdayData, SPX1DTEdayData, SPXLastData
 	#today = getToday()[0] #str(datetime.date.today()).split(":")[0]
 	
 	def saveDataFile(bigData, appendData, myFile):
@@ -56,8 +79,6 @@ def save0dte(bln1dte, thisDate):
 	fileName = f'./logs/{thisDate}-0dte-datalog.json'
 	saveDataFile( SPX0DTEdayData, SPXLastData, fileName )
 
-
-
 	if bln1dte :
 		fileName = f'./logs/{thisDate}-1dte-datalog.json'
 		with open(fileName,'w') as f: 
@@ -66,13 +87,9 @@ def save0dte(bln1dte, thisDate):
 	fileName = f'./logs/last-datalog.json'  #cheating on networking client-server.   the last update is always here
 	with open(fileName,'w') as f: 
 		json.dump(SPXLastData, f)
-		
-	fileName = f'./logs/{thisDate}-GME.json'
-	with open(fileName,'w') as f: 
-		json.dump(GMEData, f)
 
 def appendData():
-	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate, GMEDate, GMEData
+	global SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, SPXLastData, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate
 	myTime = getToday()
 	minute = myTime[1] #getStrTime()
 	if minute > 614 and minute < 630: return #Dont record the time frame where prices glitch
@@ -128,17 +145,13 @@ def appendData():
 		
 		skip1DTE = (skip1DTE + 1) % 15
 		save0dte(skip1DTE == 0, thisDate = myTime[0])
-		
-		options = dp.getOptionsChain("GME", 0, date=GMEDate)
-		gex = dp.getGEX( options[1] )
-		GMEData[minute] = gex		
 	except Exception as error:
 		print(f'{minute} AppendData - An error occoured: {error}')
 		#state = dp.getMarketHoursToday()   #DONT DO THIS.   If network connection fails, unhandled exception stops timer
 		#print( f'During Error State - {state}' )
 
 def startDay():
-	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate, CurrentCalendar, GMEDate, GMEData
+	global blnRun, SPX0DTEdayData, SPX1DTEdayData, SPXopenPrice, skip1DTE, skipPreMarket, lowSPX, highSPX, SPX0DTEDate, SPX1DTEDate, CurrentCalendar
 	
 	try :
 		#state = dp.getMarketHoursToday()
@@ -161,17 +174,15 @@ def startDay():
 	SPX0DTEdayData = {}
 	SPXopenPrice = -1
 	SPX1DTEdayData = {}
-	GMEData = {}
 	skip1DTE = 0
 	skipPreMarket = 0
 	lowSPX = None
 	highSPX = None
 	SPX0DTEDate = dp.getExpirationDate('SPX', 0)
 	SPX1DTEDate = dp.getExpirationDate('SPX', 1)
-	GMEDate = dp.getExpirationDate('GME', 0)
-	print(SPX0DTEDate, SPX1DTEDate, GMEDate)
+	print(SPX0DTEDate, SPX1DTEDate)
     
-	try:
+    try:
 		fileName = f'./logs/{SPX0DTEDate}-0dte-datalog.json'
 		tmpData = json.load(open(f'{fileName}'))
 		firstStrike = tmpData[next(iter(tmpData))]
@@ -181,7 +192,7 @@ def startDay():
 	except Exception as error:
 		print( error )
 
-	print( f'{SPX0DTEDate} - Day started + GME' )
+	print( f'{SPX0DTEDate} - Day started' )
 	
 def endDay():
 	global blnRun, SPX0DTEdayData, SPX1DTEdayData

@@ -106,7 +106,7 @@ class DaysData():
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
-				self.FoldLastData.remove( 'final', None ) #Signals Client that the Candle has ended
+				self.FoldLastData.pop( 'final', None ) #Signals Client that the Candle has ended
 				self.Data.update( self.FoldLastData )
 				self.appendData( self.FoldLastData )
 

@@ -65,16 +65,13 @@ class DaysData():
 					with open(myFile, 'rb+') as f:
 						f.seek(-1,os.SEEK_END)
 						outData = json.dumps(appendData).replace('{', ',')
-						f.write( outData.encode() )
-						
+						f.write( outData.encode() )		
 			saveDataFile( self.Data, gex, self.FileName )
-			
-			with open(self.LastDataFileName,'w') as f: 
-				json.dump(gex, f)
 		except Exception as error:
 			print( f'AppendData Error - {error}' )
 			
 	def grabData(self, minute):
+		if 615 < minute < 630 : return True
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
 			gex = dp.getGEX( options[1] )
@@ -82,42 +79,44 @@ class DaysData():
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
 				print(f'OpenPrice assigned {self.OpenPrice}')
 			gex = dp.shrinkToCount(gex, self.OpenPrice, self.StrikeCount)
-			
-			if minute > self.FoldTime :
-				self.Data[minute] = gex
-				self.appendData(gex)
-			else : #Fold Data
-				if self.FoldCount != -1 : return
-				self.FoldCount += 1
-				price = dp.getPrice(self.Ticker, gex)
-				if price > self.FoldHighPrice :
-					self.FoldHighPrice = price
-					self.FoldHigh = gex
-					#print(f'{minute} - assigned High Price {price}')
-				if price < self.FoldLowPrice :
-					self.FoldLowPrice = price
-					self.FoldLow = gex
-					#print(f'{minute} - assigned Low Price {price}')
-			
-				if self.FoldCount == 20 :
-					self.FoldCount = 0
-					self.FoldHighPrice = 0
-					self.FoldLowPrice = 9999999
-					self.FoldLastData = {}
-					self.FoldLastData[minute] = self.FoldLow
-					self.FoldLastData[minute+0.01] = self.FoldHigh
-					self.Data.update( self.FoldLastData )
-					self.appendData( self.FoldLastData )
-					if minute > 610 : self.FoldCount = -1  # Ensures we grab the last folded recording
+			price = dp.getPrice(self.Ticker, gex)
+			self.FoldCount += 1
 
+			if price > self.FoldHighPrice :
+				self.FoldHighPrice = price
+				self.FoldHigh = gex
+				#print(f'{minute} - assigned High Price {price}')
+			if price < self.FoldLowPrice :
+				self.FoldLowPrice = price
+				self.FoldLow = gex
+				#print(f'{minute} - assigned Low Price {price}')
+		
+			self.FoldLastData = {}
+			self.FoldLastData[minute] = self.FoldLow
+			self.FoldLastData[minute+0.01] = self.FoldHigh
+
+			candleLength = 80 if minute < 630 else 5
+			if self.FoldCount >= candleLength :
+				self.FoldCount = 0
+				self.FoldHighPrice = 0
+				self.FoldLowPrice = 9999999
+				self.Data.update( self.FoldLastData )
+				self.appendData( self.FoldLastData )
+				self.FoldLastData = {} #Signals Client that the Candle has ended
+
+			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
+				json.dump(self.FoldLastData, f)
 		except Exception as error:
 			print( f'Grab Data - {error}' )
 		
 	def addTime(self):
 		myTime = getToday()
 		minute = myTime[1]
-		#print( f'Fetching {minute}')
-		self.grabData(minute)
+		try:
+			self.grabData(minute)
+		except Exception as error:
+			print(f'Addtime error - {error}')
+		return minute < 1300
 
 def startDay():
 	global blnRun, CurrentCalendar, SPXData
@@ -137,15 +136,7 @@ def startDay():
 	
 	blnRun = True
 	SPXData = DaysData( "SPX", 0, 50, 0,  630 )
-
 	print( f'{SPXData.RecordDate} - Day started' )
-	
-def endDay():
-	global blnRun, SPXData
-	if not blnRun : return
-	blnRun = False
-	today = getToday()[0] # str(datetime.date.today()).split(":")[0]
-	print('Finished saving options data')
 
 def getStrTime(): 
 	now = datetime.datetime.now()
@@ -161,13 +152,14 @@ def timerThread():
 	global blnRun, SPXData
 	if not blnRun : return
 	try:
-		SPXData.addTime()
+		blnRun = SPXData.addTime()
 	except Exception as error:
 		print( f'TimerThread error - {error}' )
+	if blnRun == False : print('Finished saving options data')
 		
-print("Running Version 4.0 OOPS + Folded OVN Data")
+print("Running Version 4.0 OOPS + Faster with Candles")
 schedule.every().day.at("00:00").do(startDay)  #Currently set to PST
-schedule.every().day.at("13:00").do(endDay)
+#schedule.every().day.at("13:00").do(endDay)   # Can be handled through the main Timer
 
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()

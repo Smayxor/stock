@@ -91,21 +91,25 @@ class DaysData():
 				self.FoldLow = gex
 				#print(f'{minute} - assigned Low Price {price}')
 		
+			candleLength = 80 if minute < 630 else 5
+			blnWrite = self.FoldCount >= candleLength
+		
 			self.FoldLastData = {}
+			self.FoldLastData['final'] = blnWrite
 			self.FoldLastData[minute] = self.FoldLow
 			self.FoldLastData[minute+0.01] = self.FoldHigh
 
-			candleLength = 80 if minute < 630 else 5
-			if self.FoldCount >= candleLength :
+			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
+				json.dump(self.FoldLastData, f)
+
+			if blnWrite :
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
+				self.FoldLastData.remove( 'final', None ) #Signals Client that the Candle has ended
 				self.Data.update( self.FoldLastData )
 				self.appendData( self.FoldLastData )
-				self.FoldLastData = {} #Signals Client that the Candle has ended
 
-			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
-				json.dump(self.FoldLastData, f)
 		except Exception as error:
 			print( f'Grab Data - {error}' )
 		

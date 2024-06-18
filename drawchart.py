@@ -252,9 +252,11 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		if not (startTime < minute < stopTime) : continue
 		callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID] #filtering out bad data
 		if callPutPrice == 0 : continue
+		
+		if minute < 631 : openTimeIndex = len(prices1)
 		if minute > 614 and minute < 631 : 
-			openTimeIndex = len(prices1)
 			continue
+			
 		spxPrice = dp.getPrice("SPX", strikes)
 		flags.append( strat.addTime(minute, strikes) )
 		if timeMinute == minute : dataIndex = len(flags)
@@ -296,6 +298,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		maxPrice, maxSPX = max( prices ), 0
 		minPrice, minSPX = min( prices ), 0
 		colr = 'yellow' 
+		lastCandleAvg = (prices[0] + prices[1]) /2
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
 		
 		if isSPX :
@@ -310,17 +313,20 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		addY = 30 + (j * 302)
 		if displaySize == 600 : addY = 30
 		yValues[j].append( prices[0] - minPrice)
-		for x in range( 1, lenPrices ) :
+		for x in range( 0, lenPrices, 2 ) :
 			price = prices[x]
-			prevPrice = prices[x-1]
-		
+			prevPrice = prices[x+1]
+			candleAvg = (prices[x] + prices[x+1]) / 2
+			
 			if isSPX :
 				price = price - minPrice
 				prevPrice = prevPrice - minPrice
 			
 			y1 = convertY( prevPrice, maxPrice ) + addY
 			y2 = convertY( price, maxPrice ) + addY
+			yValues[j].append(y1)
 			yValues[j].append(y2)
+
 			
 			for c in strat.callTimes:
 				if c[1] == x:
@@ -333,9 +339,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
 					drawText( draw, x, y2, txt=str( p[0] ), color=cr, anchor="rt")
 			
-			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+			colr = "green" if candleAvg > lastCandleAvg else "red"
+			lastCandleAvg = candleAvg
+			drawRect(draw, x, y1, x+1, y2, color=colr, border='')
 			
-
 			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-1] - minPrice
 				p = emas[x] - minPrice
@@ -356,7 +363,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			if flag == -1: draw.polygon( [x,y2-20, x-5,y2-30, x+5,y2-30, x,y2-20], fill='red', outline='blue')
 			if flag == 1: draw.polygon( [x,y2+20, x-5,y2+30, x+5,y2+30, x,y2+20], fill='lime', outline='green')
 			
-			if x == openTimeIndex : 
+			if x == openTimeIndex or x+1 == openTimeIndex: 
 				draw.line([x, 50, x, 600], fill="purple", width=1)
 				#if sigs[1] == sig.DAY_PUMP :
 				#	draw.polygon( [x, 250, x-50, 300, x+50, 300, x,250], fill="green", outline='blue')
@@ -453,7 +460,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		y2 = abs(dif) / 500
 		draw.line([x, 700-y2, x, 700], fill=cr, width=1)
 	
-	if isSPX == 5 :	#*****************************************Displays volume chart above *************************************
+	"""if isSPX == 5 :	#*****************************************Displays volume chart above *************************************
 		timeMinute = float(timeMinute)
 		times = gexData.keys()
 		lenTimes = len( times )
@@ -476,13 +483,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			txt = '\n'.join([*str(strike[dp.GEX_STRIKE]).split('.')[0]])
 			x = (i * FONT_SIZE) + FONT_SIZE
 			y = 50
-			draw.multiline_text((x,y), txt)	
-			#callV = strike[dp.GEX_CALL_VOLUME]
-			#putV = strike[dp.GEX_PUT_VOLUME]
-			#totalV = (callV + putV) / 100
+			draw.multiline_text((x,y), txt)
 			y = ((newList[i] / maxNL) * 100)
 			draw.line([x, 110, x, 110+y], fill='blue', width=10)
-		
+	"""	
 	if len(strat.ExtraDisplayText) > 0 :
 		draw.multiline_text((1200,50), strat.ExtraDisplayText)	
 			

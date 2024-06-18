@@ -167,7 +167,7 @@ def getOptionsChain(ticker, dte, date=None):
 	#print( response.status_code )
 	options = response.json()['options']['option']
 	#print( options )
-	return (expDate, options)
+	return (expDate, options, response.headers)
 
 def getMultipleDTEOptionChain(ticker, days):
 	exps = getExpirations(ticker)
@@ -449,13 +449,23 @@ def pullLogFileList():
 	del response[0]
 	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
 	return result
+
+def pullLogFileListGME():
+	# For python3 -m http.server
+	response = str(requests.get('http://192.168.1.254:8080').content).split('GME.json">')
+	del response[0]
+	result = [f.split('</a>')[0] for f in response]
+	return result
 	
 lastFileName = ""
 lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
 dateAndTime = str(datetime.datetime.now()).split(" ")[0]
 cacheFiles = os.listdir('./logs')
+lastFileKeyList = []
+blnWasFinal = False
+
 def pullLogFile(fileName, cachedData=False, discordBot=False) :
-	global lastFileName, lastFileContents
+	global lastFileName, lastFileContents, lastFileKeyList, blnWasFinal
 	url = f'http://192.168.1.254:8080/{fileName}'
 	urlLast = f'http://192.168.1.254:8080/last-datalog.json'
 	
@@ -476,15 +486,26 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 		if (lastFileName == fileName or fileName == "SPX") and not discordBot :
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = requests.get(urlLast)
-			#print(1)
+			
 			if tmp.status_code == 404 : return lastFileContents
-			#print(2)
 			tmp = tmp.json()
-			#print(3)
-			if fileName == "SPX" : return tmp[next(iter(tmp))]
-			#print(4)
+			blnFinal = tmp['final']
+			tmp.pop('final', None )
+			
+			if blnWasFinal and blnFinal == True : return lastFileContents
+				
+			for keys in lastFileKeyList :
+				lastFileContents.pop( keys, None )
+				if keys in list(lastFileContents.keys()) : print( 'Fail')
+			lastFileKeyList = [] if blnFinal else list(tmp.keys())
+
+			
+			blnWasFinal = blnFinal
+			#if fileName == "SPX" : return tmp[next(iter(tmp))]   #WTF Is this even for??!?!?!??!
 			lastFileContents.update( tmp )
-			#print(5)
+
+				
+			
 			return lastFileContents
 		else :
 			lastFileName = fileName
@@ -533,3 +554,8 @@ def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity
 	return response.json()
 
 #def closeOptionOrder(symbol, price, ticker, side="sell_to_close"
+
+
+#   https://fred.stlouisfed.org/    use symbol DGS3MO    DGS6MO    DGS1    DGS2   DGS3   DGS5    DGS7    DGS10
+# import  pandas_datareader.data  as web         __get_rate__
+

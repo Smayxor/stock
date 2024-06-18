@@ -302,7 +302,8 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 			await intr.response.send_message("Hey, /gex only works in #commands")
 			return	
 	minute = getStrTime()
-	if 615 < minute < 630 :
+
+	if 615 < minute < 630 and BOT_USER_FOR_KILL != str(intr.user) :
 		randomMessage = ["Charting down for server maintenance during 15 minutes before Market Open.",
 						"Bot is refreshing, go run one out, those are rookie numbers",
 						"Smaybot is updating, please boost server for more info",

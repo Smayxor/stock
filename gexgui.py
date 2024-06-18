@@ -31,6 +31,8 @@ pcData = []
 pcY = []
 dataIndex = -1
 
+fileListGME = [x for x in dp.pullLogFileListGME()]
+
 accountBalance = 0
 unsettledFunds = 0
 openOrders = 'null'
@@ -197,24 +199,22 @@ def placeOrder(callput):
 #import signals as sig
 def triggerReset():
 	global canvas, ticker, blnReset, strikeCanvasImage, pc_tk_image, pc_image, fileToday
-	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, pcFloatingText2
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingDot, pcFloatingText2, ticker
 	blnReset = False
-	ticker = e1.get().upper()
+	ticker = editTicker.get().upper()
 	
 	try:
+		#if ticker == "GME" :
+		#	print( fileToday )
+		#	gexData = dp.pullLogFileGME(fileToday, cachedData=False)
+		#else :
 		gexData = dp.pullLogFile(fileToday, cachedData=False)
 		firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))
 		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		#print(f'GEXGui  {firstTime}' )
-		#sigs = sig.identifyKeyLevels( gexList )
-		#print( f'Before GEX {sigs}' )
-		#print( fileToday, ' - ', len(gexData.keys()) )
-		#print(f'reset - {len( gexData )}' )
-		price = dp.getPrice("SPX", gexList)   #Mega important!!!   If Price returns 0, dp.getPrice would  use a LastPrice for faulty return
+		price = dp.getPrice(ticker, gexList)   #Mega important!!!   If Price returns 0, dp.getPrice would  use a LastPrice for faulty return
 		if price == 0 : print( firstTime , ' - ', gexList[0])
-		image = dc.drawGEXChart("SPX", 40, dte=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
-		#image = Image.open("./" + filename)
+		image = dc.drawGEXChart(ticker, 40, dte=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)
@@ -225,19 +225,12 @@ def triggerReset():
 				if float(minute) >= 640 :
 					gexList = gexData[minute]
 					break
-			#firstTime = min( gexData.keys(), key=lambda i: abs(630 - float(i)))
-			#firstStrikes = gexData[firstTime]		
 					
-					
-		initVChart( gexList, "SPX" )
+		initVChart( gexList, ticker )
 	
-		price = dp.getPrice(ticker="SPX", strikes=gexList)
-		#priceMod = int(price - (price % 5))
-		#e3Text.set('all')
-		#e4Text.set(f'{priceMod}p')
-		#print( minute )
-		#print(f'From Reset {fileToday}')
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+		price = dp.getPrice(ticker=ticker, strikes=gexList)
+
+		tmp = dc.drawPriceChart(ticker, fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
 		pcData = tmp[1]
 		pcY = tmp[2]
 		filename = tmp[0]
@@ -257,7 +250,8 @@ def triggerReset():
 		print("An exception occurred:", error)
 
 def timerThread():
-	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingText2, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image, dataIndex, fileIndex, fileList, fileToday
+	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingText2, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image
+	global dataIndex, fileIndex, fileList, fileToday, ticker
 	if blnReset: triggerReset()
 	dte = dteText.get()
 	if not dte.isnumeric(): dte = 0
@@ -267,6 +261,18 @@ def timerThread():
 		fileToday = fileList[fileIndex]
 		triggerReset()
 		return
+		
+	newTicker = editTicker.get()
+	if newTicker == "GME" and ticker == "SPX" :
+		ticker = newTicker
+		fileList = fileListGME
+		fileIndex = 0
+		fileToday = fileListGME[fileIndex]
+		dteText.set('0')
+		triggerReset()
+		print(f'GME Switch ')
+		return
+	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
 		minute = 0
@@ -275,7 +281,7 @@ def timerThread():
 		if fileIndex==lastFileIndex :
 			minute = times[-1]
 			gexList = gexData[minute]
-			price = dp.getPrice("SPX", gexList, 0)
+			price = dp.getPrice(ticker, gexList, 0)
 			cPrice = float(callPrice.get())
 			pPrice = float(putPrice.get())
 			if price < cPrice :
@@ -313,21 +319,21 @@ def timerThread():
 		#***************************************************************************************************
 	
 		refreshVCanvas(strikes=gexList if newStrikes==None else newStrikes)
-		price = dp.getPrice( "SPX", gexList, 0 )
+		price = dp.getPrice(ticker, gexList, 0 )
 		win.title( f'Price ${price}')
 
 		minute = float(times[dataIndex])
 		firstTime = min( gexData.keys(), key=lambda i: abs(minute - float(i)))
 		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
-		image = dc.drawGEXChart("SPX", 40, dte=0, chartType=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True)
+		image = dc.drawGEXChart(ticker, 40, dte=0, chartType=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True)
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
 		canvas.configure(image=tk_image)
 		canvas.image = tk_image
 		
 		#print( f'Input - {minute}' )
-		tmp = dc.drawPriceChart("SPX", fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
+		tmp = dc.drawPriceChart(ticker, fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
 		pcData = tmp[1]
 		pcY = tmp[2]
 		filename = tmp[0]
@@ -541,9 +547,9 @@ width, height = 2200, IMG_H + 45
 win.geometry('%dx%d+%d+%d' % (width, height, 0, 50))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
-e1 = tk.Entry(win, width=6)
-e1.insert(0, ticker)
-e1.place(x=2, y=0)
+editTicker = tk.Entry(win, width=6)
+editTicker.insert(0, ticker)
+editTicker.place(x=2, y=0)
 
 lblTicker = tk.Label(win, text="Ticker", width=10, anchor="w")
 lblTicker.place(x=30, y=0)

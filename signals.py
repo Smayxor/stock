@@ -246,6 +246,44 @@ def findPeaksAndValleys( prices ):
 
 def getStrike( strike, strikes ): return next((x for x in strikes if x[dp.GEX_STRIKE] == strike), None)
 
+class OptionPosition : #Class used for backtesting
+	BID_E = [dp.GEX_PUT_BID, dp.GEX_CALL_BID]  # Call is 1,  so Put is 0
+	ASK_E = [dp.GEX_PUT_ASK, dp.GEX_CALL_ASK]
+	def __init__(self, isCall, strike, entryPrice, SL=-1, TP=-1, isFilled=False):
+		self.isCall = isCall == 1
+		self.Strike = strike
+		self.isFilled = isFilled
+		self.isClosed = False
+		self.EntryPrice = entryPrice
+		self.SL = SL
+		self.TP = TP
+	def addTime(self, minute, strikes, price):
+		strike = getStrike( self.Strike, strikes )
+		pnlChange = 0
+		if strike == None :
+			print( f'Option {self.Strike} not found')
+			return
+		bid = strike[self.BID_E[self.isCall]]
+		ask = strike[self.ASK_E[self.isCall]]
+		if self.isFilled :
+			if bid >= self.TP :
+				self.TP += 0.5
+				self.SL = self.TP - 0.4
+			
+				#self.isClosed = True
+				#pnlChange = self.TP
+				#print(f'{minute} - ******** WINNER ******* {"Call" if self.isCall else "Put"} at {self.TP}')
+			if bid <= self.SL or minute > 1259 :
+				self.isClosed = True
+				pnlChange = bid
+				print(f'{minute} - Stopped Out of {"Call" if self.isCall else "Put"} at {bid}')
+		else : #not filled
+			if ask <= self.EntryPrice :
+				self.isFilled = True
+				pnlChange = -self.EntryPrice
+				print(f'{minute} - Filled {"Call" if self.isCall else "Put"} at {self.EntryPrice}')
+		return pnlChange
+
 class Signal:	
 	def __init__(self, firstTime, strikes, deadprice, ema1, ema2):
 		self.deadprice = deadprice
@@ -270,9 +308,14 @@ class Signal:
 		self.totalCallVolume = []
 		self.totalPutVolume = []
 		self.VolumeDelta = []
-		self.Signals = [SignalGEX(self, strikes, price), SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
-		#self.Signals = [SignalDeadPrices(self, strikes, price) ]
+		#self.Signals = [SignalGEX(self, strikes, price), SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
+		self.Signals = [SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalEMA(self, strikes)]
+		#self.Signals = [SignalGEX(self, strikes, price)]
+		
+		#*****  Strike, LastPrice, Low, High
+		self.CallPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_ASK]] for x in strikes if 0.3 < x[dp.GEX_CALL_BID] < 20]
+		self.PutPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_ASK]] for x in strikes if 0.3 < x[dp.GEX_PUT_BID] < 20]
 
 	def getVolumeDeltaLen(self): return len(self.VolumeDelta) #len(self.totalCallVolume)
 	def getVolumeDelta(self, index):
@@ -280,19 +323,34 @@ class Signal:
 		if index < 30 : return 0
 		return self.VolumeDelta[index] - self.VolumeDelta[index-30]
 		
-	def findBestPrice(self, cost, cp ):
-		cp = dp.GEX_CALL_ASK if cp == 1 else dp.GEX_PUT_ASK
-		strikes = self.PrevData[ self.PrevDataTimes[-1] ]
-		nearestStrike = min(strikes, key=lambda i: abs(i[cp] - cost) )
-		conStrike = nearestStrike[dp.GEX_STRIKE]
-		lowPrice = nearestStrike[cp]
-		highPrice = nearestStrike[cp]
-		for t, strikes in self.PrevData.items() :
-			strike = next(x for x in strikes if x[dp.GEX_STRIKE] == conStrike)
-			bid = strike[cp]
-			if bid < lowPrice : lowPrice = bid
-			if bid > highPrice : highPrice = bid
-		return (conStrike, highPrice * 0.1)
+	def findLowPrice(self, cost, cp ):
+		# round(((n // 0.05) + 1) * 0.05, 2)
+		cons = self.CallPrices if cp == 1 else self.PutPrices
+		myCon = None
+		"""for x in cons:
+			val = round(((x[3] * 0.1 // 0.05) + 1) * 0.05, 2)
+			if 0.5 < val < 1.5 : 
+				myCon = x
+				break"""
+		if myCon == None : myCon = min(cons, key=lambda i: abs(i[2] - cost) )
+		#print( f'Found contract {myCon}' )
+		return (myCon[0], myCon[2])
+
+	def findCurrentPrice(self, cost, cp):
+		cons = self.CallPrices if cp == 1 else self.PutPrices
+		myCon = None
+		if myCon == None : myCon = min(cons, key=lambda i: abs(i[1] - cost) )
+		return (myCon[0], myCon[1])	
+
+	def updateLowHighPrices(self, strikes):
+		def updateCons( cpPrices, element ):
+			for cp in cpPrices :
+				strike = next(x for x in strikes if x[dp.GEX_STRIKE] == cp[0])
+				cp[1] = strike[element]
+				if cp[1] < cp[2] : cp[2] = cp[1]
+				if cp[1] > cp[3] : cp[3] = cp[1]
+		updateCons( self.CallPrices, dp.GEX_CALL_ASK )
+		updateCons( self.PutPrices, dp.GEX_PUT_ASK )
 
 	def addTime(self, minute, strikes):
 		price = dp.getPrice("SPX", strikes)
@@ -300,7 +358,7 @@ class Signal:
 		self.PrevDataTimes.append( minute )
 		self.PrevData[minute] = strikes	
 		lastPriceIndex = len(self.Prices)-1
-		
+		self.updateLowHighPrices(strikes)
 		
 		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
 		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
@@ -349,6 +407,48 @@ class Signal:
 		
 		return result
 
+class SignalEGEX():
+	def __init__(self, owner, strikes, price):
+		self.Owner = owner
+		self.PivotNodes = None
+		self.LastPivotNode = 0
+		self.LastSignalIndex = 0
+		
+	def assignPivotNodes(self, strikes):
+		callPutEGEX = [ [ x[dp.GEX_STRIKE], 0, x[dp.GEX_CALL_OI] * x[dp.GEX_CALL_VOLUME], x[dp.GEX_PUT_OI] * x[dp.GEX_PUT_VOLUME] ] for x in strikes]
+		for x in callPutEGEX : x[1] = x[2] + x[3]
+		mostCallEGEX = max( callPutEGEX, key=lambda i: i[2] )[2]
+		mostPutEGEX = max( callPutEGEX, key=lambda i: i[3] )[3]
+		
+		mostEGEX = max( callPutEGEX, key=lambda i: i[1] ) [1]
+		
+	
+		majorEGEX = mostEGEX * 0.6
+		
+		sumCalls = sum( [x[2] for x in callPutEGEX] )
+		sumPuts = sum( [x[3] for x in callPutEGEX] )
+		
+		levels = [x for x in callPutEGEX if x[1] > majorEGEX]
+		print( [x[0] for x in levels] )
+		self.PivotNodes = levels
+		self.PivotNodes.sort()
+		#print( levels )
+		
+	def addTime(self, minute, strikes, price):
+		lastPriceIndex = len(self.Owner.Prices)-1
+
+		result = 0
+		if self.Owner.isPreMarket : return 0
+		if minute < 631 : return 0
+		
+		if self.PivotNodes == None : self.assignPivotNodes( strikes )
+		tmp = 9999999
+		if tmp != self.LastSignalIndex :
+			result = tmp
+			self.LastSignalIndex = tmp
+		
+		return 0#result
+			
 class SignalGEX():
 	def __init__(self, owner, strikes, price):
 		self.Owner = owner
@@ -370,32 +470,47 @@ class SignalGEX():
 
 		result = 0
 		if self.Owner.isPreMarket : return 0
-		if minute < 635 : return 0
+		if minute < 631 : return 0
 		
 		if self.PivotNodes == None :
 			self.assignPivotNodes( strikes )
 			#print( f'init Nodes {self.PivotNodes}')
 
 		for node in self.PivotNodes :
-			if self.LastPivotNode != node and abs(price - node) < 5 and lastPriceIndex - self.LastSignalIndex > 30 : # and self.Owner.High - self.Owner.Low > 15:
-				#self.assignPivotNodes( strikes )
+			if self.LastPivotNode != node and abs(price - node) < 5 and lastPriceIndex - self.LastSignalIndex > 30 :
 #				vd = self.Owner.getVolumeDelta(lastPriceIndex)
 #				if vd < 3000 : break
 				self.LastPivotNode = node
 				self.LastSignalIndex = lastPriceIndex
 				
-				sumPrices = (sum(self.Owner.Prices[-10:]) / 10)
-				trend = sumPrices > node
-				if trend == 0 : trend = -1
+				topNode = max( self.PivotNodes )
+				bottomNode = min ( self.PivotNodes )
 				
-#				print( f'{price} - {vd} - {node}')
+				if node == topNode : 
+					trend = -1
+					#print( node, topNode, self.PivotNodes )
+				elif node == bottomNode : 
+					trend =1
+					#print( node, bottomNode, self.PivotNodes )
+				else :
+					sumPrices = []
+					if minute < 650 :
+						sumPrices = (sum(self.Owner.Prices) / lastPriceIndex+1)
+					else :
+						sumPrices = (sum(self.Owner.Prices[-10:]) / 10)
+					trend = sumPrices > node
+					if trend == 0 : trend = -1
 				
 				result = trend
 
-		if result != 0 : self.PivotNodes.remove( self.LastPivotNode )
+		#if result != 0 : self.PivotNodes.remove( self.LastPivotNode )
 
 		return result
 		
+def get_match():
+    analog_value = 5134.2948392
+    return analog_value // 0.25 * 0.25		
+
 class SignalDeadPrices():	
 	def __init__(self, owner, strikes, price):
 		self.Owner = owner
@@ -403,20 +518,20 @@ class SignalDeadPrices():
 		self.Owner.callTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if (x[dp.GEX_CALL_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		self.Owner.putTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if (x[dp.GEX_PUT_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		self.LargestCandle = 0
+		self.LastFlag = -1
 		wholePrice = int(price)
 
 	def testContract( self, o, cp, lastPriceIndex, strikes, price ):
 		bid = next((x[cp] for x in strikes if x[dp.GEX_STRIKE] == o[0]), None)
+		result = 0
 		if bid == None : 
 			o[1] == -2
-			#print('Null')
 			return
-		#if bid > o[3] : o[3] = bid
-		if bid <= self.Owner.deadprice : #o[3] * 
-			#txt = f'{"{:.0%}".format(bid / o[3])} - {o[0]}'
-			o[1] = lastPriceIndex #if abs(price - o[0]) < 3 else -1  #Only show flags when SPX Spot Price is near Strike Price
-			#o[0] = txt
-			#print(f'Set {o[0]} at Index {o[1]}')
+		if bid <= self.Owner.deadprice :
+			o[1] = lastPriceIndex
+			self.LastFlag = lastPriceIndex
+			result = 1
+		return result
 				
 	def addTime(self, minute, strikes, price):
 		lastPriceIndex = len(self.Owner.Prices)-1
@@ -424,10 +539,27 @@ class SignalDeadPrices():
 		if self.Owner.isPreMarket: # Fill list of contracts with OVNL and OVNH data
 			pass
 		else : pass
-		for c in [c for c in self.Owner.callTimes if c[1] == -1] : self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
-		for p in [p for p in self.Owner.putTimes if p[1] == -1] : self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
+		
+		result = 0
+		for c in [c for c in self.Owner.callTimes if c[1] == -1] : result += self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
+		for p in [p for p in self.Owner.putTimes if p[1] == -1] : result += self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
 
-		return 0
+		if result != 0 and lastPriceIndex - self.LastFlag < 5 : 
+			result = 0
+			priceMod = (price % 25)
+			if priceMod > 12.5 : priceMod = 25 - priceMod
+			if priceMod < 5 : 
+				self.LastFlag = -1
+				#print( minute, price, priceMod )
+				priceSlice = self.Owner.Prices[-10:]
+				unders = 0
+				for p in priceSlice :
+					if price > p : unders += 1
+					
+				result = -1 if unders > 5 else 1
+		else : result = 0
+		
+		return result
 		
 
 
@@ -594,4 +726,11 @@ Day 82 - %25 + 15 - > %25 -12 -> crabby
 Day 81 - %25 + 20 - > %25 -----> %25 - 21
 Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
 
+"""
+
+"""
+=cbackpack sell --rarity normal rare epic legendary ascended --cha <30 --luck <30
+=atransfer player 1000 @KAMIL
+=bp eset SetName
+=loadout equip nameOfGears
 """

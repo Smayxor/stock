@@ -36,7 +36,7 @@ class DaysData():
 		self.FoldHigh = {}
 		self.FoldLowPrice = 9999999
 		self.FoldHighPrice = 0
-		self.FoldCount = 0 if minute < foldTime else -1
+		self.FoldCount = 0 # if minute < foldTime else -1
 		self.FoldLastData = {}
 		
 		try:  #Check for existing data
@@ -71,9 +71,12 @@ class DaysData():
 			print( f'AppendData Error - {error}' )
 			
 	def grabData(self, minute):
-		if 615 < minute < 630 : return True
+		if 614 < minute < 630 : 
+			if self.FoldCount == 0 : return True
+			self.FoldCount == 99999 # Make sure we separate OVN from RTH
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
+			#print( f'Response headers - { options[2]}' )
 			gex = dp.getGEX( options[1] )
 			if self.OpenPrice == None :
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
@@ -91,7 +94,7 @@ class DaysData():
 				self.FoldLow = gex
 				#print(f'{minute} - assigned Low Price {price}')
 		
-			candleLength = 80 if minute < 630 else 5
+			candleLength = 120 if minute < 630 else 5
 			blnWrite = self.FoldCount >= candleLength
 		
 			self.FoldLastData = {}

@@ -729,7 +729,7 @@ Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
 """
 
 """
-=cbackpack sell --rarity normal rare epic legendary ascended --cha <30 --luck <30
+=cbackpack sell --rarity normal rare epic legendary ascended --cha <25 --luck <25
 =atransfer player 1000 @KAMIL
 =bp eset SetName
 =loadout equip nameOfGears

@@ -497,14 +497,13 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			for keys in lastFileKeyList :
 				lastFileContents.pop( keys, None )
 				if keys in list(lastFileContents.keys()) : print( 'Fail')
-			lastFileKeyList = [] if blnFinal else list(tmp.keys())
-
+				
+			tmpKeys = list(tmp.keys())
+			lastFileKeyList = [tmpsKeys[-1], tmpKeys[-2]] if blnFinal else tmpKeys #We still need to pop the CurrentClose
 			
 			blnWasFinal = blnFinal
 			#if fileName == "SPX" : return tmp[next(iter(tmp))]   #WTF Is this even for??!?!?!??!
 			lastFileContents.update( tmp )
-
-				
 			
 			return lastFileContents
 		else :

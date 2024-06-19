@@ -101,6 +101,9 @@ class DaysData():
 			self.FoldLastData['final'] = blnWrite
 			self.FoldLastData[minute] = self.FoldLow
 			self.FoldLastData[minute+0.01] = self.FoldHigh
+			#if blnWrite == False : # We dont want to commit this to the main file
+			self.FoldLastData[minute+0.02] = gex # The CurrentClose data
+			self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
 
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
@@ -109,7 +112,9 @@ class DaysData():
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
-				self.FoldLastData.pop( 'final', None ) #Signals Client that the Candle has ended
+				self.FoldLastData.pop( 'final', None ) # Signals Client that the Candle has ended
+				self.FoldLastData.pop( minute+0.02, None ) # We dont want to commit this to the main file
+				self.FoldLastData.pop( minute+0.03, None )
 				self.Data.update( self.FoldLastData )
 				self.appendData( self.FoldLastData )
 

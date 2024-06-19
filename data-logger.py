@@ -70,10 +70,12 @@ class DaysData():
 		except Exception as error:
 			print( f'AppendData Error - {error}' )
 			
-	def grabData(self, minute):
+	def grabData(self, minute, EOD):
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
 			self.FoldCount == 99999 # Make sure we separate OVN from RTH
+		if EOD : self.FoldCount == 99999
+		
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
 			#print( f'Response headers - { options[2]}' )
@@ -101,9 +103,9 @@ class DaysData():
 			self.FoldLastData['final'] = blnWrite
 			self.FoldLastData[minute] = self.FoldLow
 			self.FoldLastData[minute+0.01] = self.FoldHigh
-			#if blnWrite == False : # We dont want to commit this to the main file
-			self.FoldLastData[minute+0.02] = gex # The CurrentClose data
-			self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
+			if EOD == False : # Record the Close Price
+				self.FoldLastData[minute+0.02] = gex # The CurrentClose data
+				self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
 
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
@@ -124,11 +126,12 @@ class DaysData():
 	def addTime(self):
 		myTime = getToday()
 		minute = myTime[1]
+		result = minute < 1300
 		try:
-			self.grabData(minute)
+			self.grabData(minute, result)
 		except Exception as error:
 			print(f'Addtime error - {error}')
-		return minute < 1300
+		return result
 
 def startDay():
 	global blnRun, CurrentCalendar, SPXData

@@ -106,6 +106,10 @@ class DaysData():
 			if EOD == False : # Record the Close Price
 				self.FoldLastData[minute+0.02] = gex # The CurrentClose data
 				self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
+				
+				#print(  [ dp.getPrice("SPX", v) for k, v in self.FoldLastData.items() if k != 'final' ]  )
+				
+				#print('Appending Current Price {dp.getPrice("SPX", gex)}')
 
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)

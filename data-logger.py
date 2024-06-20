@@ -111,6 +111,7 @@ class DaysData():
 				
 				#print('Appending Current Price {dp.getPrice("SPX", gex)}')
 
+			#print( EOD, [k for k, v in self.FoldLastData.items()] )
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
 
@@ -130,7 +131,7 @@ class DaysData():
 	def addTime(self):
 		myTime = getToday()
 		minute = myTime[1]
-		result = minute < 1300
+		result = minute > 1300
 		try:
 			self.grabData(minute, result)
 		except Exception as error:

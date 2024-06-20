@@ -47,7 +47,7 @@ class DaysData():
 		except Exception as error:
 			pass #print( f'init error - {error}' )
 		
-		self.grabData(minute)
+		self.grabData(minute, False)
 
 	def appendData(self, gex):
 		try:

@@ -111,7 +111,7 @@ class DaysData():
 				
 				#print('Appending Current Price {dp.getPrice("SPX", gex)}')
 
-			#print( EOD, [k for k, v in self.FoldLastData.items()] )
+			print( EOD, [k for k, v in self.FoldLastData.items()] )
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
 
@@ -136,7 +136,7 @@ class DaysData():
 			self.grabData(minute, result)
 		except Exception as error:
 			print(f'Addtime error - {error}')
-		return result
+		return not result
 
 def startDay():
 	global blnRun, CurrentCalendar, SPXData

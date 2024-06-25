@@ -729,8 +729,92 @@ Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
 """
 
 """
-=cbackpack sell --rarity normal rare epic legendary ascended --cha <25 --luck <25
+=cbackpack sell --rarity normal rare epic legendary ascended --cha <30 --luck <30
 =atransfer player 1000 @KAMIL
 =bp eset SetName
 =loadout equip nameOfGears
+
+
+
+Skrrtis Set Pieces
+Luck:                  [+2] XP Multiplier:         [+40%]
+========================== ======= ===== ===== ===== ===== ===== ===== =========
+ Name                       Slot    ATT   CHA   INT   DEX   LUC   LVL   SET     
+========================== ======= ===== ===== ===== ===== ===== ===== =========
+ {Set:'Skrrtis Radiance'}   Head    -2    10    -4    -6    0     1     Skrrtis 
+ {Set:'Skrrtis Sandals'}    Boots   -2    10    -4    -6    0     1     Skrrtis 
+========================== ======= ===== ===== ===== ===== ===== ===== =========
+
+The Groovinator Set Pieces
+Charisma: [+30]  Stat Mulitplier: [+10%] XP Multiplier: [+10%] Currency Multiplier: [+10%]
+================================= ======= ===== ===== ===== ===== ===== ===== =================
+ Name                              Slot    ATT   CHA   INT   DEX   LUC   LVL   SET             
+================================= ======= ===== ===== ===== ===== ===== ===== =================
+ {Set:'Polished Duranium Axe'}     Right   0     0     0     0     54    26    The Groovinator 
+ {Set:'Polished Duranium Shard'}   Charm   8     0     0     12    28    22    The Groovinator 
+================================= ======= ===== ===== ===== ===== ===== ===== =================
+
+Thunderfury Set Pieces              Thunderfury - 3 Part Bonus
+Attack: Charisma: Intelligence: Dexterity: Luck: [-10] Stat Mulitplier: [+20%] XP Multiplier: [+100%] Currency Multiplier: [-100%]
+===================================== ====== ===== ===== ===== ===== ===== ===== =============
+ Name                                  Slot   ATT   CHA   INT   DEX   LUC   LVL   SET         
+===================================== ====== ===== ===== ===== ===== ===== ===== =============
+ {Set:'Heavenly Unobtanium Belt'}      Belt   -18   20    26    30    10    46    Thunderfury    *****Need
+ {Set:'Heavenly Unobtanium Ringlet'}   Ring   0     0     38    -26   0     8     Thunderfury 
+ {Set:'Heavenly Unobtanium Scarf'}     Neck   -10   0     30    0     0     6     Thunderfury 
+===================================== ====== ===== ===== ===== ===== ===== ===== =============
+
+Slobberknocker Set Pieces 3 Part Bonus    -    XP Multiplier: [+10%]   Currency Multiplier:   [+10%]
+====================================== ======= ===== ===== ===== ===== ===== ===== ================
+ Name                                   Slot    ATT   CHA   INT   DEX   LUC   LVL   SET            
+====================================== ======= ===== ===== ===== ===== ===== ===== ================
+ {Set:'Heavenly Dragonbone Cap'}        Head    8     18    0     0     6     10    Slobberknocker 
+ {Set:'Heavenly Dragonbone Figurine'}   Charm   28    0     0     -4    0     6     Slobberknocker 
+ {Set:'Heavenly Dragonbone Leggings'}   Legs    28    -10   0     6     0     9     Slobberknocker 
+ {Set:'Heavenly Dragonbone Ringlet'}    Ring    0     30    6     0     0     13    Slobberknocker 
+ {Set:'Heavenly Dragonbone Sandals'}    Boots   -52   60    0     0     0     18    Slobberknocker 
+ {Set:'Heavenly Dragonbone Sword'}      Right   -10   60    -6    0     0     27    Slobberknocker 
+ {Set:'Heavenly Dragonbone Wand'}       Left    0     0     60    0     0     31    Slobberknocker 
+====================================== ======= ===== ===== ===== ===== ===== ===== ================
+
+Demonbane Armor Set Pieces    3 Part Bonus
+Attack: [-50] Charisma: [+50] Intelligence: [+25] Dexterity: [+25] Luck: [+25] Stat Mulitplier: [+5%] XP Multiplier: [+10%] Currency Multiplier:   [+30%]
+============================ ============ ===== ===== ===== ===== ===== ===== =================
+ Name                         Slot         ATT   CHA   INT   DEX   LUC   LVL   SET             
+============================ ============ ===== ===== ===== ===== ===== ===== =================
+ {Set:'Demonbane Necklace'}   Neck         30    0     0     0     24    26    Demonbane Armor 
+ {Set:'Demonbane Katana'}     Two Handed   40    0     0     0     24    67    Demonbane Armor 
+ {Set:'Demonbane Sabatons'}   Boots        50    0     0     0     24    41    Demonbane Armor 
+ {Set:'Demonbane Charm'}      Charm        60    0     0     0     24    49    Demonbane Armor 
+ {Set:'Demonbane Leggings'}   Legs         70    0     0     0     24    56    Demonbane Armor 
+ {Set:'Ring Of Demonbane'}    Ring         80    0     0     0     24    64    Demonbane Armor 
+============================ ============ ===== ===== ===== ===== ===== ===== =================
+
+Heavenswheel Set Pieces  -  2 Part Bonus    Currency Multiplier:   [+50%]     5 Part Luck: [+23] Currency Multiplier:   [+100%]    #Potentially bugged?
+=================================== ======= ===== ===== ===== ===== ===== ===== ==============
+ Name                                Slot    ATT   CHA   INT   DEX   LUC   LVL   SET          
+=================================== ======= ===== ===== ===== ===== ===== ===== ==============
+ {Set:'Golden Dragonplate Boots'}    Boots   4     -4    -4    30    20    24    Heavenswheel 
+ {Set:'Golden Dragonplate Chain'}    Belt    -2    30    0     4     -8    9     Heavenswheel 
+ {Set:'Golden Dragonplate Hat'}      Head    22    8     0     0     0     8     Heavenswheel 
+ {Set:'Golden Dragonplate Pants'}    Legs    0     18    4     0     -8    1     Heavenswheel 
+ {Set:'Golden Dragonplate Thread'}   Neck    0     58    0     0     0     29    Heavenswheel 
+=================================== ======= ===== ===== ===== ===== ===== ===== ==============
+
+The Paninator Set Pieces
+==================================== ======== ====== ===== ===== ===== ===== ===== ===============
+ Name                                 Slot     ATT    CHA   INT   DEX   LUC   LVL   SET           
+==================================== ======== ====== ===== ===== ===== ===== ===== ===============
+ {Set:'Masterwork Ebony Chain'}       Belt     -120   0     0     58    2     1     The Paninator 
+ {Set:'Masterwork Ebony Cuirass'}     Chest    58     0     0     0     0     29    The Paninator 
+ {Set:'Masterwork Ebony Gauntlets'}   Gloves   0      -36   0     -10   60    19    The Paninator 
+ {Set:'Masterwork Ebony Hat'}         Head     40     6     -10   0     0     18    The Paninator 
+ {Set:'Masterwork Ebony Necklace'}    Neck     0      -2    0     60    0     30    The Paninator 
+ {Set:'Masterwork Ebony Ringlet'}     Ring     -2     10    0     12    0     2     The Paninator 
+ {Set:'Masterwork Ebony Sandals'}     Boots    22     2     -48   18    4     8     The Paninator 
+ {Set:'Masterwork Ebony Shard'}       Charm    0      4     10    0     44    29    The Paninator 
+ {Set:'Masterwork Ebony Skins'}       Legs     14     0     2     0     36    25    The Paninator 
+ {Set:'Masterwork Ebony Wand'}        Left     22     0     0     12    -2    11    The Paninator 
+ {Set:'Masterwork Ebony War Axe'}     Right    24     2     0     0     0     5     The Paninator 
+==================================== ======== ====== ===== ===== ===== ===== ===== ===============
 """

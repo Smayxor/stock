@@ -7,6 +7,7 @@ import heapq
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
+SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -445,14 +446,14 @@ def loadPastDTE(daysAhead):
 #Switched to using HFS File Server
 def pullLogFileList():
 	# For python3 -m http.server
-	response = str(requests.get('http://192.168.1.254:8080').content).split('-datalog.json">')
+	response = str(requests.get(SERVER_IP).content).split('-datalog.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
 	return result
 
 def pullLogFileListGME():
 	# For python3 -m http.server
-	response = str(requests.get('http://192.168.1.254:8080').content).split('GME.json">')
+	response = str(requests.get(SERVER_IP).content).split('GME.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response]
 	return result
@@ -464,10 +465,12 @@ cacheFiles = os.listdir('./logs')
 lastFileKeyList = []
 blnWasFinal = False
 
+#SERVER_IP = None
+
 def pullLogFile(fileName, cachedData=False, discordBot=False) :
 	global lastFileName, lastFileContents, lastFileKeyList, blnWasFinal
-	url = f'http://192.168.1.254:8080/{fileName}'
-	urlLast = f'http://192.168.1.254:8080/last-datalog.json'
+	url = f'{SERVER_IP}/{fileName}'
+	urlLast = f'{SERVER_IP}/last-datalog.json'
 	
 	blnSaveACopy = False #Store a copy of data locally
 	if not dateAndTime in fileName : # Only grab cached files for previous days
@@ -491,7 +494,7 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			tmp = tmp.json()
 			blnFinal = tmp['final']
 			tmp.pop('final', None )
-			
+			#print( [getPrice("SPX", v) for k, v in tmp.items() ] )
 			if blnWasFinal and blnFinal == True : return lastFileContents
 				
 			for keys in lastFileKeyList :
@@ -499,8 +502,8 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 				if keys in list(lastFileContents.keys()) : print( 'Fail')
 				
 			tmpKeys = list(tmp.keys())
-			lastFileKeyList = [tmpsKeys[-1], tmpKeys[-2]] if blnFinal else tmpKeys #We still need to pop the CurrentClose
-			
+			lastFileKeyList = [tmpKeys[-1], tmpKeys[-2]] if blnFinal else tmpKeys #We still need to pop the CurrentClose
+
 			blnWasFinal = blnFinal
 			#if fileName == "SPX" : return tmp[next(iter(tmp))]   #WTF Is this even for??!?!?!??!
 			lastFileContents.update( tmp )

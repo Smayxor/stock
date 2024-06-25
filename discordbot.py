@@ -538,6 +538,17 @@ async def news(ctx):
 	#chnl = bot.get_channel(UPDATE_CHANNEL)
 	await ctx.send( buildNews("WEEK")[0] )
 
+#    @commands.cooldown(rate=1, per=5, type=commands.BucketType.guild)
+#    @commands.hybrid_command(name="adventure", aliases=["a"])
+#    @commands.bot_has_permissions(add_reactions=True)
+@bot.command(name="test")
+async def news(ctx):
+	#chnl = bot.get_channel(UPDATE_CHANNEL)
+	print( ctx.author )
+	print( ctx.author.id )
+	txt = ctx.author + " - " + str(ctx.author.id)
+	await ctx.send( txt )
+
 @bot.command(name="list")
 async def list(ctx):
 	await ctx.send( str(dp.pullLogFileList()) )

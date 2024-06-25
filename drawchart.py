@@ -312,11 +312,13 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			else: colr = 'red'
 		addY = 30 + (j * 302)
 		if displaySize == 600 : addY = 30
-		yValues[j].append( prices[0] - minPrice)
-		for x in range( 0, lenPrices, 2 ) :
-			price = prices[x]
-			prevPrice = prices[x+1]
-			candleAvg = (prices[x] + prices[x+1]) / 2
+		
+		#yValues[j].append( prices[0] - minPrice) #***********?????????******************
+		yValues[j].append(  convertY(prices[0] - (minPrice if isSPX else 0), maxPrice) + addY ) 
+		for x in range( 0, lenPrices - 1, 1 ) :
+			price = prices[x + 1]
+			prevPrice = prices[x]
+			#candleAvg = (prices[x] + prices[x+1]) / 2
 			
 			if isSPX :
 				price = price - minPrice
@@ -324,9 +326,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			
 			y1 = convertY( prevPrice, maxPrice ) + addY
 			y2 = convertY( price, maxPrice ) + addY
-			yValues[j].append(y1)
+			#yValues[j].append(y1)
 			yValues[j].append(y2)
-
 			
 			for c in strat.callTimes:
 				if c[1] == x:
@@ -339,9 +340,10 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
 					drawText( draw, x, y2, txt=str( p[0] ), color=cr, anchor="rt")
 			
-			colr = "green" if candleAvg > lastCandleAvg else "red"
-			lastCandleAvg = candleAvg
-			drawRect(draw, x, y1, x+1, y2, color=colr, border='')
+			#colr = "green" if candleAvg > lastCandleAvg else "red"
+			#lastCandleAvg = candleAvg
+			#drawRect(draw, x, y1, x+1, y2, color=colr, border='')
+			draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-1] - minPrice

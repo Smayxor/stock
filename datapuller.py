@@ -8,6 +8,7 @@ init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
 SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')
+IS_SERVER = SERVER_IP == 'http://127.0.0.1:8080'
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -446,6 +447,7 @@ def loadPastDTE(daysAhead):
 #Switched to using HFS File Server
 def pullLogFileList():
 	# For python3 -m http.server
+	if IS_SERVER : return [x for x in os.listdir('./logs') if '-datalog.json' in x and 'last-datalog.json' not in x]
 	response = str(requests.get(SERVER_IP).content).split('-datalog.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
@@ -453,6 +455,7 @@ def pullLogFileList():
 
 def pullLogFileListGME():
 	# For python3 -m http.server
+	if IS_SERVER : return [x for x in os.listdir('./logs') if 'GME.json' in x]
 	response = str(requests.get(SERVER_IP).content).split('GME.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response]
@@ -488,10 +491,14 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 	try:
 		if (lastFileName == fileName or fileName == "SPX") and not discordBot :
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
-			tmp = requests.get(urlLast)
+			tmp = None
 			
-			if tmp.status_code == 404 : return lastFileContents
-			tmp = tmp.json()
+			if IS_SERVER :
+				tmp = json.load(open(f'./logs/last-datalog.json'))
+			else:
+				tmp = requests.get(urlLast)
+				if tmp.status_code == 404 : return lastFileContents
+				tmp = tmp.json()
 			blnFinal = tmp['final']
 			tmp.pop('final', None )
 			#print( [getPrice("SPX", v) for k, v in tmp.items() ] )
@@ -511,17 +518,16 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			return lastFileContents
 		else :
 			lastFileName = fileName
-			#print('a')
-			tmp = requests.get(url).content
-			#print(tmp)
-			if tmp[-1] == 44 : 
-				tmp = tmp.decode("utf-8")[:-1] + "}"
-			#print('c')
-			tmp = json.loads(tmp)
-			#print('d')
+			if IS_SERVER :
+				tmp = json.load(open(f'./logs/{fileName}'))
+			else :
+				tmp = requests.get(url).content
+				if tmp[-1] == 44 : 
+					tmp = tmp.decode("utf-8")[:-1] + "}"
+				tmp = json.loads(tmp)
+		
 			lastFileContents = tmp
-			#print('e')
-			if blnSaveACopy and not discordBot :#Storing a cached copy of all data from previous days (today might be in progress)
+			if blnSaveACopy and not discordBot and IS_SERVER == False :#Storing a cached copy of all data from previous days (today might be in progress)
 				with open(f'./logs/{fileName}', 'w') as f:
 					json.dump(lastFileContents, f)
 			#if discordBot : return lastFileContents

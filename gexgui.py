@@ -10,6 +10,10 @@ import ujson as json
 import asyncio
 import websockets
 
+init = json.load(open('apikey.json'))
+BOT_TOKEN = init.get('DISCORD_BOT_2', None)
+del init
+
 blnRun = True
 IMG_H = 700
 vPrice = 0
@@ -645,5 +649,64 @@ e7.place(x=225, y=710)
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
 timerThread()
+
+
+
+
+
+
+if BOT_TOKEN != None :
+
+	from discord.ext import tasks
+	import discord
+	from discord.ext import commands
+	from discord import app_commands
+	
+	class MyBotHelp(commands.MinimalHelpCommand):
+		async def send_pages(self):
+			strHelp = """No Help"""
+			destination = self.get_destination()
+			for page in self.paginator.pages:
+				await destination.send(strHelp)
+	bot = commands.Bot(command_prefix='}', intents=discord.Intents.all(), help_command=MyBotHelp(), sync_commands=True)
+
+	@bot.command(name="bot")
+	async def command_bot(ctx, *args): 
+		arg = args[0]	
+		if 'all' in arg : 
+			e3Text.set('all')
+			return
+		if len(args) != 1 : await ctx.send( f'One command at a time' )
+		if len(arg) != 5 : await ctx.send( f'Strike + c or p example 5425c - {len(arg)}' )
+		isCall = 'c' in arg
+		isPut = 'p' in arg
+		if isCall == False and isPut == False : 
+			await ctx.send( f'Call {isCall} - Put {isPut}' )
+			return
+		try :
+			strike = int( arg[:4] )
+		except:
+			await ctx.send( f'Couldn\'t decode strike {arg[:4]}' )
+			return
+	
+		if isCall :
+			e3Text.set( str(strike) + 'c' )
+			checkCall.set(1)
+		if isPut :
+			e4Text.set( str(strike) + 'p' )
+			checkCall.set(0)
+	
+		#await ctx.send( f'Sending Command {strike} + Call {isCall} - Put {isPut}' )
+
+	@bot.command(name="stop")
+	async def command_stop(ctx, *args): 
+		await bot.close()
+		await bot.logout()
+		exit(0)
+
+	def run_bot(): bot.run(BOT_TOKEN)
+	thread = threading.Thread(target=run_bot)
+	thread.start()
+	
 
 tk.mainloop()

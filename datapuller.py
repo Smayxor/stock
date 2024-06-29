@@ -543,7 +543,7 @@ def getPositions():
 	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/positions', params={}, headers=TRADIER_HEADER).json()['positions']
 
 def getOrders():
-	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', params={'page': '3', 'includeTags': 'true'}, headers=TRADIER_HEADER).json()['orders']
+	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', params={ 'includeTags': 'true'}, headers=TRADIER_HEADER).json()['orders']
 
 def getAnOrder(orderID):
 	return requests.get(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders/{orderID}', params={'includeTags': 'true'}, headers=TRADIER_HEADER).json()

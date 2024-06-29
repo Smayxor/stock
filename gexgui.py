@@ -80,13 +80,36 @@ def getAccountData(newCon = ""):
 	unsettledFunds = balance['unsettled_funds']
 	lblBalance.config(text = f'Account Balance ${accountBalance}')
 	
-	openOrders = dp.getOrders() if newCon == "" else newCon
-	if newCon == "" : myPositions = dp.getPositions()
-	#openOrders = dp.getOrders()
+	openOrders = dp.getOrders()
+	myPositions = dp.getPositions()
 	#print( openOrders )
-	#print( dp.getAccountBalance(), dp.getOrders(), dp.getPositions())
-	lblOpenOrders.configure(text=f'Open orders - {openOrders} - Positions - {myPositions}')
-
+	#print( myPositions )
+	
+	#{'order': [
+	#{'id': 60524187, 'type': 'limit', 'symbol': 'XSP', 'side': 'buy_to_open', 'quantity': 1.0, 'status': 'canceled', 'duration': 'day', 'price': 0.37, 'avg_fill_price': 0.0, 'exec_quantity': 0.0, 'last_fill_price': 0.0, 'last_fill_quantity': 0.0, 'remaining_quantity': 0.0, 'create_date': '2024-06-27T14:50:12.624Z', 'transaction_date': '2024-06-27T14:51:43.701Z', 'class': 'option', 'option_symbol': 'XSP240627P00547000', 'tag': 'test'}, 
+	#{'position': [{'cost_basis': 39.0, 'date_acquired': '2024-06-27T15:03:14.311Z', 'id': 7572248, 'quantity': 1.0, 'symbol': 'XSP240627C00549000'}, {'cost_basis': 5.0, 'date_acquired': '2024-06-27T15:10:15.888Z', 'id': 7572487, 'quantity': 1.0, 'symbol': 'XSP240627C00551000'}]}
+	orders = []
+	orderTxt = None
+	if openOrders != 'null' :
+		for ord in openOrders['order'] :
+			if ord['status'] == 'open' :
+				cp = 'c' if 'C' in ord['option_symbol'] else 'p'
+				orderTxt = ord['symbol'] + ' - ' + ord['option_symbol'][-6:-3] + cp
+				orders.append( orderTxt )
+	positions = []
+	positionTxt = None
+	if myPositions != 'null' :
+		pos = myPositions['position']
+		print( f'{pos}' )
+		cost = float(pos['cost_basis'])
+		cp = 'c' if 'C' in pos['symbol'] else 'p'
+		positionTxt = pos['symbol'][:3] + ' - ' + pos['symbol'][-6:-3] + cp + ' @ $' + f'{cost}'
+		positions.append( ( positionTxt, cost ) )
+	
+	txt = ""
+	if positionTxt == None and orderTxt == None : txt = "No Orders"
+	else : txt = positionTxt + ' - ' + orderTxt
+	lblOpenOrders.configure(text=txt)
 
 '''
 async def some_IO_func(endpoint):
@@ -181,24 +204,30 @@ def placeOrder(callput):
 	options = dp.getOptionsChain('XSP', 0)
 	gexList = dp.getGEX(options[1])
 	element = CALLORPUTA[callput]
-	strike = min(gexList, key=lambda i: abs(i[element] - 0.40))
+
+	price = float(optionPrice.get())
+	strike = min(gexList, key=lambda i: abs(i[element] - price))
 	bid = strike[CALLORPUTB[callput]]
 	ask = strike[CALLORPUTA[callput]]
 	symbol = strike[CALLORPUTS[callput]]
 	midPrice = (bid + ask) / 2
-
 	
-
 	if 'XSP' in openOrders : print('Yes')
 	if testPosition == 1 : return
 	testPosition = 1
-	print( "Call" if callput==0 else "Put", strike[dp.GEX_STRIKE], " $", midPrice )
-	
+	print( "Call" if callput==0 else "Put", strike[dp.GEX_STRIKE], " $", midPrice, symbol )
 
-	myCon = dp.placeOptionOrder(symbol, midPrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
-	getAccountData(myCon)	
-	myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')
+	try :
+		myCon = dp.placeOptionOrder(symbol, midPrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')  #This prints Response Status code
 
+		#{'order': {'id': 60524187, 'status': 'ok', 'partner_id': '30ea5c89-e029-4da3-a179-5867a8006e07'}}
+		print(f'New Order Placed - {myCon}')
+		#New Order Placed - {'order': {'id': 60530076, 'status': 'ok', 'partner_id': '30ea5c89-e029-4da3-a179-5867a8006e07'}}
+		if myCon['order']['status'] == 'ok' : print('Order placed')
+		getAccountData(myCon)
+		#myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')  # Can not place a close order until filled without OTOCO
+	except Exception as error:
+		print(f'Trade failure - {error}')
 
 #import signals as sig
 def triggerReset():
@@ -661,6 +690,13 @@ if BOT_TOKEN != None :
 	import discord
 	from discord.ext import commands
 	from discord import app_commands
+	
+	#import "C:\Users\hmset\Desktop\tradier\gobcog-master\adventure.py" as Adventure
+	#sys.path.insert(0, 'C:\Users\hmset\Desktop\tradier\gobcog-master\adventure.py')
+	
+	import sys
+	sys.path.insert(0, './gobcog-master/adventure')
+	import adventure
 	
 	class MyBotHelp(commands.MinimalHelpCommand):
 		async def send_pages(self):

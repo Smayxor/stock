@@ -734,7 +734,13 @@ Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
 =bp eset SetName
 =loadout equip nameOfGears
 
-
+Badass Bop Set - 2 Part Bonus - Stat Mulitplier: [-100%]  XP Multiplier: [-100%]  Currency Multiplier: [-100%]
+===================================== ======== ===== ===== ===== ===== ===== ===== ============
+ Name                                  Slot     ATT   CHA   INT   DEX   LUC   LVL   SET        
+===================================== ======== ===== ===== ===== ===== ===== ===== ============
+ {Set:'Shiny Dragonplate Gauntlets'}   Gloves   0     2     8     24    2     12    Badass Bop 
+ {Set:'Shiny Dragonplate Sling'}       Left     40    0     0     16    -78   7     Badass Bop 
+===================================== ======== ===== ===== ===== ===== ===== ===== ============
 
 Skrrtis Set Pieces
 Luck:                  [+2] XP Multiplier:         [+40%]

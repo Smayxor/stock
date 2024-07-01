@@ -9,7 +9,7 @@ import pyscreeze
 
 img = None
 blnTarget = False
-
+im = Image.open('ClickTarget.png')
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
@@ -70,8 +70,8 @@ def clickButton():
 
 win = tk.Tk()
 #win.geometry(str(2200) + "x" + str(IMG_H + 45))
-width, height = 100, 100
-win.geometry('%dx%d+%d+%d' % (width, height, 150, 100))
+width, height = 200, 100
+win.geometry('%dx%d+%d+%d' % (width, height, 200, 100))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
 canvas = tk.Label()

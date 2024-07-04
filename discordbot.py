@@ -518,20 +518,28 @@ async def get_gex(ctx, *args):
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	await chnl.send("Fethcing Weekly Charts")
 	#*********************************************************************************************************************
-	
-@bot.command(name="leaveg")
+
+@bot.command(name="listg")
 @commands.is_owner()
-async def leaveg(ctx, *, guild_name):
-	user = str(intr.user)
+async def listg(ctx, *args):
+	user = str(ctx.author)
 	if BOT_USER_FOR_KILL != user:
 		await intr.response.send_message(user + " you can't kill meme!")
 		return
-	guild = discord.utils.get(bot.guilds, name=guild_name) # Get the guild by name
-	if guild is None:
-		print("No guild with that name found.") # No guild found
-		return
-	await guild.leave() # Guild found
-	await ctx.send(f"I left: {guild.name}!")
+		
+	blnExit = args[0] == 'leave'
+		
+	txt = ""
+	for guild in bot.guilds:
+		if blnExit :
+			blnFound = False
+			for i in range(1, len(args) ):
+				if args[i] in  guild.name : blnFound = True
+			txt += '********** Staying in - ' if blnFound else 'Leaving - '
+			if blnFound == False :
+				await guild.leave() # Guild found
+		txt += guild.name + '\r'
+	await ctx.send(f"{txt}")
 	
 @bot.command(name="news")
 async def news(ctx):

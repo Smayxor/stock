@@ -455,16 +455,18 @@ async def dailyTask():
 	await chnl.send("Fetching Morning Charts")
 	await chnl.send( buildNews("TODAY")[0] )
 	fn = dc.drawGEXChart("SPX", 40, 0)
-	if fn == "error.png": await intr.followup.send("Failed to get data")
+	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
 		try: 
 			chnl = bot.get_channel(UPDATE_CHANNEL)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await intr.followup.send("No image permissions")
+		except: await chnl.send("No image permissions")
 		
 	if datetime.datetime.now().weekday() == 0 : 
 		fn = dc.drawWeeklyChart()
 		chnl = bot.get_channel(1221522301787570256)
+		await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		chnl = bot.get_channel(1258440980529418250)  #Beating Meat Gex Channel
 		await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
 dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
@@ -476,14 +478,14 @@ async def dailyTask2():
 	dp.findSPY2SPXRatio()
 	await chnl.send("Fetching Morning Charts")
 	fn = dc.drawGEXChart("SPX", 40, 0)
-	if fn == "error.png": await intr.followup.send("Failed to get data")
+	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
 		try: 
 			chnl = bot.get_channel(UPDATE_CHANNEL)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			chnl = bot.get_channel(1156977360881586177)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await intr.followup.send("No image permissions")
+		except: await chnl.send("No image permissions")
 	#logFutureDTEs() #For Heatmap
 
 dailyTaskTime3 = datetime.time(hour=13, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
@@ -493,14 +495,16 @@ async def dailyTask3():
 	chnl = bot.get_channel(1193060258088759356)
 	print("Daily Task Execution 3")
 	fn = dc.drawGEXChart("SPX", 40, 0)#, chartType=CHART_VOLUME)
-	if fn == "error.png": await intr.followup.send("Failed to get data")
+	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
 		try: 
 			chnl = bot.get_channel(1193060258088759356)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			chnl = bot.get_channel(UPDATE_CHANNEL)
 			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await intr.followup.send("No image permissions")
+			chnl = bot.get_channel(1258440980529418250)  #Beating Meat gex channel
+			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await chnl.send("No image permissions")
 
 blnFirstTime = True
 @bot.event
@@ -521,7 +525,7 @@ async def get_gex(ctx, *args):
 
 @bot.command(name="listg")
 @commands.is_owner()
-async def listg(ctx, *args):
+async def listg(ctx, *args):  #Needs customized so the arguements remove you from a server etc......meh
 	user = str(ctx.author)
 	if BOT_USER_FOR_KILL != user:
 		await intr.response.send_message(user + " you can't kill meme!")

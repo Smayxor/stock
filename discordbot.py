@@ -555,11 +555,10 @@ async def news(ctx):
 #    @commands.bot_has_permissions(add_reactions=True)
 @bot.command(name="test")
 async def news(ctx):
+	if BOT_USER_FOR_KILL != str(ctx.author): return   #Honestly NEEDS to use   ctx.author.id
 	#chnl = bot.get_channel(UPDATE_CHANNEL)
-	print( ctx.author )
-	print( ctx.author.id )
-	txt = ctx.author + " - " + str(ctx.author.id)
-	await ctx.send( txt )
+	chnl = bot.get_channel(1258440980529418250)  #Beating Meat gex channel
+	await chnl.send(file=discord.File(open('./stock-chart.png', 'rb'), 'stock-chart.png'))
 
 @bot.command(name="list")
 async def list(ctx):

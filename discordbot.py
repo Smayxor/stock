@@ -351,15 +351,15 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 		except: await intr.followup.send("No image permissions")
 
 @bot.command(name="pump")
-async def command_pump(ctx, *args): await ctx.send( getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
+async def command_pump(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
 @bot.command(name="dump")
-async def command_dump(ctx, *args): await ctx.send( getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
+async def command_dump(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(dumps) + enc(" " + ' '.join(args)) ) )
 @bot.command(name="tits")
-async def command_tits(ctx, *args): await ctx.send( getTenorGIF( random.choice(titties) if len( args) == 0 else enc(' '.join(args)) ) )
+async def command_tits(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(titties) if len( args) == 0 else enc(' '.join(args)) ) )
 @bot.command(name="ass")
-async def command_ass(ctx, *args): await ctx.send( getTenorGIF( random.choice(asses) if len( args) == 0 else enc(' '.join(args)) ) )
+async def command_ass(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(asses) if len( args) == 0 else enc(' '.join(args)) ) )
 @bot.command(name="gm")
-async def command_gm(ctx, *args): await ctx.send( getTenorGIF( random.choice(gms) if len( args) == 0 else enc(' '.join(args)) ) )
+async def command_gm(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(gms) if len( args) == 0 else enc(' '.join(args)) ) )
 	
 @bot.tree.command(name="8ball", description="Answers your question?")
 async def slash_command_8ball(intr: discord.Interaction, question: str):
@@ -404,11 +404,10 @@ async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
 		#await intr.response.send_message( finalMessage )
 		await intr.followup.send( finalMessage )
 	except Exception as e: 
-		try: await chnl.send( finalMessage )
+		try: await legacySend( channel=chnl, text=finalMessage )
 		except Exception as er: print("News BOOM", er)
 	if len(nextMessage) != 0:
-			
-		try: await chnl.send( nextMessage )	
+		try: await legacySend( channel=chnl, text=nextMessage )	
 		except Exception as e: print("News 2 BOOM", e)
 
 @bot.tree.command(name="sudo")
@@ -449,43 +448,43 @@ dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#u
 async def dailyTask():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	if datetime.datetime.now().weekday() > 4 : 
-		await chnl.send( buildNews("WEEK")[0] )
+		await legacySend( channel=chnl, text= buildNews("WEEK")[0] )
 		return
-	print("Daily Task Execution")
-	await chnl.send("Fetching Morning Charts")
-	await chnl.send( buildNews("TODAY")[0] )
+	#print("Daily Task Execution")
+	await legacySend( channel=chnl, text="Fetching Morning Charts")
+	await legacySend( channel=chnl, text= buildNews("TODAY")[0] )
 	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
 		try: 
 			chnl = bot.get_channel(UPDATE_CHANNEL)
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await chnl.send("No image permissions")
+			await legacySend( channel=chnl, fileName=fn)#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await legacySend( channel=chnl, text="No image permissions")
 		
 	if datetime.datetime.now().weekday() == 0 : 
 		fn = dc.drawWeeklyChart()
 		chnl = bot.get_channel(1221522301787570256)
-		await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		await legacySend( channel=chnl, fileName=fn)#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		chnl = bot.get_channel(1258440980529418250)  #Beating Meat Gex Channel
-		await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		await legacySend( channel=chnl, fileName=fn)#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 
 dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime2)
 async def dailyTask2():
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(UPDATE_CHANNEL)
-	print("Daily Task Execution 2")
+	#print("Daily Task Execution 2")
 	dp.findSPY2SPXRatio()
-	await chnl.send("Fetching Morning Charts")
+	legacySend( channel=chnl, text="Fetching Morning Charts")
 	fn = dc.drawGEXChart("SPX", 40, 0)
-	if fn == "error.png": await chnl.send("Failed to get data")
+	if fn == "error.png": await legacySend( channel=chnl, text="Failed to get data")# await chnl.send("Failed to get data")
 	else:
 		try: 
 			chnl = bot.get_channel(UPDATE_CHANNEL)
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			await legacySend( channel=chnl, fileName=fn)#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			chnl = bot.get_channel(1156977360881586177)
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await chnl.send("No image permissions")
+			await legacySend( channel=chnl, fileName=fn)#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+		except: await legacySend( channel=chnl, text="No image permissions")#await chnl.send("No image permissions")
 	#logFutureDTEs() #For Heatmap
 
 dailyTaskTime3 = datetime.time(hour=13, minute=11, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
@@ -493,18 +492,22 @@ dailyTaskTime3 = datetime.time(hour=13, minute=11, tzinfo=datetime.timezone.utc)
 async def dailyTask3():
 	if datetime.datetime.now().weekday() > 4 : return
 	chnl = bot.get_channel(1193060258088759356)
-	print("Daily Task Execution 3")
+	#print("Daily Task Execution 3")
 	fn = dc.drawGEXChart("SPX", 40, 0)#, chartType=CHART_VOLUME)
-	if fn == "error.png": await chnl.send("Failed to get data")
+	if fn == "error.png": await legacySend( channel=chnl, text="Failed to get data")
+
 	else:
 		try: 
 			chnl = bot.get_channel(1193060258088759356)
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			await legacySend( channel=chnl, fileName=fn)
 			chnl = bot.get_channel(UPDATE_CHANNEL)
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			await legacySend( channel=chnl, fileName=fn)
 			chnl = bot.get_channel(1258440980529418250)  #Beating Meat gex channel
-			await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
-		except: await chnl.send("No image permissions")
+			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
+			await legacySend( channel=chnl, fileName=fn)
+		except: await legacySend( channel=chnl, text="No image permissions")
 
 blnFirstTime = True
 @bot.event
@@ -520,7 +523,7 @@ async def on_ready():
 @bot.command(name="s")
 async def get_gex(ctx, *args):
 	chnl = bot.get_channel(UPDATE_CHANNEL)
-	await chnl.send("Fethcing Weekly Charts")
+	await legacySend( channel=chnl, text="Testing stuff")
 	#*********************************************************************************************************************
 
 @bot.command(name="listg")
@@ -528,7 +531,7 @@ async def get_gex(ctx, *args):
 async def listg(ctx, *args):  #Needs customized so the arguements remove you from a server etc......meh
 	user = str(ctx.author)
 	if BOT_USER_FOR_KILL != user:
-		await intr.response.send_message(user + " you can't kill meme!")
+		await legacySend( ctx=ctx, text=user + " you can't kill meme!")
 		return
 		
 	blnExit = args[0] == 'leave'
@@ -543,26 +546,47 @@ async def listg(ctx, *args):  #Needs customized so the arguements remove you fro
 			if blnFound == False :
 				await guild.leave() # Guild found
 		txt += guild.name + '\r'
-	await ctx.send(f"{txt}")
+	await legacySend( ctx=ctx, text=f"{txt}")
 	
 @bot.command(name="news")
 async def news(ctx):
 	#chnl = bot.get_channel(UPDATE_CHANNEL)
-	await ctx.send( buildNews("WEEK")[0] )
+	#await ctx.send( buildNews("WEEK")[0] )
+	await legacySend( ctx=ctx, text=buildNews("WEEK")[0] )
 
 #    @commands.cooldown(rate=1, per=5, type=commands.BucketType.guild)
 #    @commands.hybrid_command(name="adventure", aliases=["a"])
 #    @commands.bot_has_permissions(add_reactions=True)
+
 @bot.command(name="test")
-async def news(ctx):
+async def test(ctx):
 	if BOT_USER_FOR_KILL != str(ctx.author): return   #Honestly NEEDS to use   ctx.author.id
-	#chnl = bot.get_channel(UPDATE_CHANNEL)
-	chnl = bot.get_channel(1258440980529418250)  #Beating Meat gex channel
-	await chnl.send(file=discord.File(open('./stock-chart.png', 'rb'), 'stock-chart.png'))
+	channel = ctx.channel
+	#channel = bot.get_channel(1259405215820550255)  #Testing channel
+	permissions = channel.permissions_for(ctx.guild.me)
+	textable = permissions.send_messages == True
+	imageable = permissions.attach_files == True
+	
+	await legacySend( ctx, channel=channel, text=f'Text {textable} and Images {imageable}')
+
+# bot
+#['_BotBase__cogs', '_BotBase__extensions', '_BotBase__tree', '__aenter__', '__aexit__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_after_invoke', '_application', '_async_setup_hook', '_before_invoke', '_call_before_identify_hook', '_call_module_finalizers', '_check_once', '_checks', '_closed', '_connection', '_enable_debug_events', '_get_state', '_get_websocket', '_handle_ready', '_handlers', '_help_command', '_hooks', '_listeners', '_load_from_module_spec', '_ready', '_remove_module_references', '_resolve_name', '_run_event', '_schedule_event', 'activity', 'add_check', 'add_cog', 'add_command', 'add_listener', 'add_view', 'after_invoke', 'all_commands', 'allowed_mentions', 'application', 'application_flags', 'application_id', 'application_info', 'before_identify_hook', 'before_invoke', 'cached_messages', 'can_run', 'case_insensitive', 'change_presence', 'check', 'check_once', 'clear', 'close', 'cogs', 'command', 'command_prefix', 'commands', 'connect', 'create_dm', 'create_guild', 'delete_invite', 'description', 'dispatch', 'emojis', 'event', 'extensions', 'extra_events', 'fetch_channel', 'fetch_guild', 'fetch_guilds', 'fetch_invite', 'fetch_premium_sticker_packs', 'fetch_stage_instance', 'fetch_sticker', 'fetch_template', 'fetch_user', 'fetch_webhook', 'fetch_widget', 'get_all_channels', 'get_all_members', 'get_channel', 'get_cog', 'get_command', 'get_context', 'get_emoji', 'get_guild', 'get_partial_messageable', 'get_prefix', 'get_stage_instance', 'get_sticker', 'get_user', 'group', 'guilds', 'help_command', 'http', 'hybrid_command', 'hybrid_group', 'intents', 'invoke', 'is_closed', 'is_owner', 'is_ready', 'is_ws_ratelimited', 'latency', 'listen', 'load_extension', 'login', 'loop', 'on_command_error', 'on_error', 'on_message', 'on_ready', 'owner_id', 'owner_ids', 'persistent_views', 'private_channels', 'process_commands', 'recursively_remove_all_commands', 'reload_extension', 'remove_check', 'remove_cog', 'remove_command', 'remove_listener', 'run', 'setup_hook', 'shard_count', 'shard_id', 'start', 'status', 'stickers', 'strip_after_prefix', 'tree', 'unload_extension', 'user', 'users', 'voice_clients', 'wait_for', 'wait_until_ready', 'walk_commands', 'ws']
+
+#bot.user
+['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '__weakref__', '_accent_colour', '_avatar', '_banner', '_copy', '_flags', '_public_flags', '_state', '_to_minimal_user_json', '_update', 'accent_color', 'accent_colour', 'avatar', 'banner', 'bot', 'color', 'colour', 'created_at', 'default_avatar', 'discriminator', 'display_avatar', 'display_name', 'edit', 'global_name', 'id', 'locale', 'mention', 'mentioned_in', 'mfa_enabled', 'mutual_guilds', 'name', 'public_flags', 'system', 'verified']
+
+#channel
+#['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_apply_implicit_permissions', '_clone_impl', '_edit', '_fill_overwrites', '_get_channel', '_move', '_overwrites', '_scheduled_event_entity_type', '_sorting_bucket', '_state', '_type', '_update', 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks']
+async def legacySend(ctx=None, channel=None, text=None, fileName=None):  #When not using /commands Check channel permissions before sending ALWAYS
+	if channel == None : channel = ctx.channel
+	permissions = channel.permissions_for(channel.guild.me) 
+	if text != None and permissions.send_messages == True : await channel.send( text )
+	if fileName != None and permissions.attach_files == True :
+		await channel.send(file=discord.File(open('./' + fileName, 'rb'), fileName))
 
 @bot.command(name="list")
 async def list(ctx):
-	await ctx.send( str(dp.pullLogFileList()) )
+	await legacySend( ctx=ctx, text=str(dp.pullLogFileList()) )
 
 @bot.command(name="pc")
 async def pc(ctx, *args):
@@ -577,16 +601,18 @@ async def pc(ctx, *args):
 		gexData = dp.pullLogFile(file, discordBot=True)
 		chart = dc.drawPriceChart( ticker, file, gexData, args )
 	
-		await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+		#await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+		await legacySend( ctx=ctx, fileName = chart )
 	except:
-		await ctx.send( "Error drawing price chart" )
+		await legacySend( ctx=ctx, text="Error drawing price chart" )
+		#await ctx.send( "Error drawing price chart" )
 
 @bot.command(name="heatmap")
 async def heatmap(ctx, *args):
 	print("Fetching % based heatmap")
 	try:
 		fileName = dc.drawPrecentageHeatMap('SPX', 100, 1)
-		await ctx.send( file=discord.File(open(f'./{fileName}', 'rb'), fileName) )
+		await legacySend( ctx=ctx, fileName=fileName )
 	except: pass
 	
 @bot.command(name="ph")
@@ -604,9 +630,9 @@ async def ph(ctx, *args):  #Grabs Morning GEX Chart for Xdte
 		strikes = gexData[minute]['data']
 		chart = dc.drawGEXChart('SPX', 40, 0, chartType = 0, strikes = strikes, expDate = day, price = price)
 	
-		await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+		await legacySend( ctx=ctx, fileName=chart )
 	except:
-		await ctx.send( "Error drawing price chart" )
+		await legacySend( ctx=ctx, text="Error drawing price chart" )
 
 def getDateOfFriday():
 	today = datetime.date.today()
@@ -651,5 +677,5 @@ def grabFridayCombo(dte):
 	price = dp.getPrice("SPX", combinedData )
 	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=f'{lastDate}-C', price=price)
 	return fn
-
+	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

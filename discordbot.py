@@ -39,12 +39,13 @@ CHART_SKEW = 10
 CHART_HEATMAP = 11
 
 try :
+	print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1079101515953868902", headers=headers) )
 
 	#Declarations for slash commands
 	url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 	headers = { "Authorization": "Bot " + BOT_TOKEN}
 	slash_command_json = {
-		"name": "gex", "type": 1, "description": "Draw a GEX/DEX chart", "options": [ 
+		"name": "gex", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Draw a GEX/DEX chart", "options": [ 
 		{ "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, 
 		{ "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, 
 		{ "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
@@ -61,18 +62,19 @@ try :
 	slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
-	slash_command_json = { "name": "sudo", "type": 1, "description": "Stuff you cant do on Smayxor", "options":[{ "name": "command", "description": "Super User ONLY!", "type": 3, "required": True }] }
+	slash_command_json = { "name": "pc", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Have Smayxor display price charts", "options":[
+		{ "name": "strike1", "description": "5560c", "type": 3, "required": True }, 
+		{ "name": "strike2", "description": "5560p", "type": 3, "required": False }] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
-	slash_command_json = { "name": "news", "type": 1, "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "all", "value": "ALL"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
+	slash_command_json = { "name": "news", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "all", "value": "ALL"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
 	#Removes slash commands
 	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
-	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1089558674533523486", headers=headers) )
 except Exception as er:
 	print(f'SlashCommand Error - {er}')
-		
+
 def getTenorGIF( search ):
 	url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
 	r = requests.get(url=url)
@@ -90,12 +92,7 @@ dumps = [enc("stock dump crash"), enc("bear stock")]
 titties = [enc("boobs bounce breast"), enc("women motorboat boobs"), enc("asian tits")]
 asses = [enc("women ass twerk poggers"), enc("women sexy butt"), enc("latina big ass")]
 
-
-
-
 def isThirdFriday(d):    return d.weekday() == 4 and 15 <= d.day <= 21
-
-
 
 def get_expiry_date_for_month(curr_date):
     """
@@ -150,63 +147,7 @@ class NewsData():
 		for e in self.Events:
 			if len( e ) > 0 : text += '\n' + e
 		return text + '```'
-"""
-url = "https://finviz.com/quote.ashx?t=SPY&p=d"#  "https://www.financialjuice.com/home"
-data = requests.get(url=url).text#.split('<div class="div-table" id="my-cal-data">')[1].split('<script type="text/javascript">')[0]
-print( data )
-"""
 
-
-
-"""from requests_html import HTMLSession
-def pullFJNews():
-	session = HTMLSession()
-	header = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3",
-        }
-	url = 'https://www.financialjuice.com/home'
-	req = session.get(url, headers=header)
-	req.html.render()"""
-
-	
-"""
-session = HTMLSession()
-
-def fetch(url, params):
-    headers = params['headers']
-    return session.get(url, headers=headers)
-
-current_page = 1
-
-req = fetch(
-    f"https://5ka.ru/api/v2/special_offers/?records_per_page=15&page={current_page}&store=31Z6&ordering=&price_promo__gte=&price_promo__lte=&categories=&search=",
-    {
-        "headers": {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3",
-        },
-    })
-
-for pp in req.json()['results']:
-    print(f'\nname = {pp["name"]}')
-    print(f'price = {pp["current_prices"]["price_promo__min"]}')
-    print(f'url = {pp["img_link"]}')
-	
-	
-from requests_html import HTMLSession
-
-session = HTMLSession()
-
-r = session.get('http://www.yourjspage.com')
-
-r.html.render()  # this call executes the js in the page
-As a bonus this wraps BeautifulSoup, I think, so you can do things like
-
-r.html.find('#myElementID').text
-"""
 def fetchNews():
 	global lastNewsDay, todaysNews
 	today = datetime.date.today()
@@ -296,11 +237,11 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 
 	# Get the ID of the guild where the interaction occurred, if applicable.
 	guild_id = intr.guild_id
-	#1026265666552090676 1029425222404800613
-	if guild_id == 1026265666552090676:
-		if channel_id != 1029425222404800613 :
-			await intr.response.send_message("Hey, /gex only works in #commands")
-			return	
+	
+	#if guild_id == 1026265666552090676:
+	#	if channel_id != 1029425222404800613 :
+	#		await intr.response.send_message("Hey, /gex only works in #commands")
+	#		return	
 	minute = getStrTime()
 
 	if 615 < minute < 630 and BOT_USER_FOR_KILL != str(intr.user) :
@@ -443,6 +384,43 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		await bot.logout()
 	print("Finished SUDO")
 
+@bot.command(name="sudo")
+async def sudo(ctx, *args): 
+	global tickers, updateRunning, auto_updater, update_timer
+	user = str(ctx.author.name)
+	userID = ctx.author.id
+	print( user, userID )
+	if 758033219177283696 != userID:
+		await legacySend( ctx=ctx, text=user + " you can't kill meme!")
+		return
+	if len(args) != 1 : 
+		await legacySend( ctx=ctx, text="No command")
+		return
+
+	if args[0] == "KILL" :
+		await legacySend( ctx=ctx, text=user + " triggered shutdown")
+		await bot.close()
+		await bot.logout()
+		exit(0)
+	elif args[0] == "UPDATE" :
+		await legacySend( ctx=ctx, text=user + " requested code update")
+		print("getting update")
+		files = ['discordbot.py', 'datapuller.py', 'drawchart.py', 'signals.py']
+		for fileName in files:
+			print(f'Fetching {fileName}')
+			r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
+			
+			with open(f'./{fileName}', "wb") as outfile:
+				outfile.write(r.content)
+				print(f'{fileName} Downloaded at {os.path.realpath(outfile.name)} - {outfile.name}' )
+		print('All files updated.  Restarting service')
+		exit(9)
+		await bot.close()
+		await bot.logout()
+	print("Finished SUDO")	
+	
+	await legacySend( ctx=ctx, text="Command Complete")
+
 dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#utc time is + 7hrs
 @tasks.loop(time=dailyTaskTime)
 async def dailyTask():
@@ -547,6 +525,18 @@ async def listg(ctx, *args):  #Needs customized so the arguements remove you fro
 				await guild.leave() # Guild found
 		txt += guild.name + '\r'
 	await legacySend( ctx=ctx, text=f"{txt}")
+
+"""
+@commands.listener()
+async def on_guild_join(guild):
+	#cli = self.client
+	ctx = bot.get_context
+	await ctx.create_text_channel("📯announcements-and-suggestions")
+	await ctx.create_text_channel("💼log")               
+	general = find(lambda x: x.name == '📯announcements-and-suggestions',  guild.text_channels)
+	if general and general.permissions_for(guild.me).send_messages:
+		await ctx.send(f"Hello {guild.name}! I am {self.client.user.display_name}. Thank you for inviting me.\n\nTo see what commands I have available type `r?help`.\nIf you want to see my available AutoResponse Triggers type `gethelp`.")
+"""
 	
 @bot.command(name="news")
 async def news(ctx):
@@ -566,17 +556,9 @@ async def test(ctx):
 	permissions = channel.permissions_for(ctx.guild.me)
 	textable = permissions.send_messages == True
 	imageable = permissions.attach_files == True
-	
+	await legacySend( ctx, channel=channel, fileName=f'stock-chart.png')
 	await legacySend( ctx, channel=channel, text=f'Text {textable} and Images {imageable}')
 
-# bot
-#['_BotBase__cogs', '_BotBase__extensions', '_BotBase__tree', '__aenter__', '__aexit__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_after_invoke', '_application', '_async_setup_hook', '_before_invoke', '_call_before_identify_hook', '_call_module_finalizers', '_check_once', '_checks', '_closed', '_connection', '_enable_debug_events', '_get_state', '_get_websocket', '_handle_ready', '_handlers', '_help_command', '_hooks', '_listeners', '_load_from_module_spec', '_ready', '_remove_module_references', '_resolve_name', '_run_event', '_schedule_event', 'activity', 'add_check', 'add_cog', 'add_command', 'add_listener', 'add_view', 'after_invoke', 'all_commands', 'allowed_mentions', 'application', 'application_flags', 'application_id', 'application_info', 'before_identify_hook', 'before_invoke', 'cached_messages', 'can_run', 'case_insensitive', 'change_presence', 'check', 'check_once', 'clear', 'close', 'cogs', 'command', 'command_prefix', 'commands', 'connect', 'create_dm', 'create_guild', 'delete_invite', 'description', 'dispatch', 'emojis', 'event', 'extensions', 'extra_events', 'fetch_channel', 'fetch_guild', 'fetch_guilds', 'fetch_invite', 'fetch_premium_sticker_packs', 'fetch_stage_instance', 'fetch_sticker', 'fetch_template', 'fetch_user', 'fetch_webhook', 'fetch_widget', 'get_all_channels', 'get_all_members', 'get_channel', 'get_cog', 'get_command', 'get_context', 'get_emoji', 'get_guild', 'get_partial_messageable', 'get_prefix', 'get_stage_instance', 'get_sticker', 'get_user', 'group', 'guilds', 'help_command', 'http', 'hybrid_command', 'hybrid_group', 'intents', 'invoke', 'is_closed', 'is_owner', 'is_ready', 'is_ws_ratelimited', 'latency', 'listen', 'load_extension', 'login', 'loop', 'on_command_error', 'on_error', 'on_message', 'on_ready', 'owner_id', 'owner_ids', 'persistent_views', 'private_channels', 'process_commands', 'recursively_remove_all_commands', 'reload_extension', 'remove_check', 'remove_cog', 'remove_command', 'remove_listener', 'run', 'setup_hook', 'shard_count', 'shard_id', 'start', 'status', 'stickers', 'strip_after_prefix', 'tree', 'unload_extension', 'user', 'users', 'voice_clients', 'wait_for', 'wait_until_ready', 'walk_commands', 'ws']
-
-#bot.user
-['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '__weakref__', '_accent_colour', '_avatar', '_banner', '_copy', '_flags', '_public_flags', '_state', '_to_minimal_user_json', '_update', 'accent_color', 'accent_colour', 'avatar', 'banner', 'bot', 'color', 'colour', 'created_at', 'default_avatar', 'discriminator', 'display_avatar', 'display_name', 'edit', 'global_name', 'id', 'locale', 'mention', 'mentioned_in', 'mfa_enabled', 'mutual_guilds', 'name', 'public_flags', 'system', 'verified']
-
-#channel
-#['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_apply_implicit_permissions', '_clone_impl', '_edit', '_fill_overwrites', '_get_channel', '_move', '_overwrites', '_scheduled_event_entity_type', '_sorting_bucket', '_state', '_type', '_update', 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks']
 async def legacySend(ctx=None, channel=None, text=None, fileName=None):  #When not using /commands Check channel permissions before sending ALWAYS
 	if channel == None : channel = ctx.channel
 	permissions = channel.permissions_for(channel.guild.me) 
@@ -606,6 +588,21 @@ async def pc(ctx, *args):
 	except:
 		await legacySend( ctx=ctx, text="Error drawing price chart" )
 		#await ctx.send( "Error drawing price chart" )
+
+@bot.tree.command(name="pc")
+@commands.is_owner()
+async def slash_command_pc(intr: discord.Interaction, strike1: str = "all", strike2: str = "spx"):
+	await intr.response.defer(thinking=True)
+	#chnl = bot.get_channel(intr.channel.id)
+	try: 
+		#await intr.response.send_message( finalMessage )
+		ticker = 'SPX' #if args[0].upper() == 'SPX' else 'SPY'
+		fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
+		file = fileList[-1]
+		gexData = dp.pullLogFile(file, discordBot=True)
+		chart = dc.drawPriceChart( ticker, file, gexData, [strike1, strike2] )
+		await intr.followup.send(file=discord.File(open('./' + chart, 'rb'), chart))
+	except: await intr.followup.send("No image permissions")
 
 @bot.command(name="heatmap")
 async def heatmap(ctx, *args):
@@ -679,3 +676,13 @@ def grabFridayCombo(dte):
 	return fn
 	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
+
+
+# bot
+#['_BotBase__cogs', '_BotBase__extensions', '_BotBase__tree', '__aenter__', '__aexit__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_after_invoke', '_application', '_async_setup_hook', '_before_invoke', '_call_before_identify_hook', '_call_module_finalizers', '_check_once', '_checks', '_closed', '_connection', '_enable_debug_events', '_get_state', '_get_websocket', '_handle_ready', '_handlers', '_help_command', '_hooks', '_listeners', '_load_from_module_spec', '_ready', '_remove_module_references', '_resolve_name', '_run_event', '_schedule_event', 'activity', 'add_check', 'add_cog', 'add_command', 'add_listener', 'add_view', 'after_invoke', 'all_commands', 'allowed_mentions', 'application', 'application_flags', 'application_id', 'application_info', 'before_identify_hook', 'before_invoke', 'cached_messages', 'can_run', 'case_insensitive', 'change_presence', 'check', 'check_once', 'clear', 'close', 'cogs', 'command', 'command_prefix', 'commands', 'connect', 'create_dm', 'create_guild', 'delete_invite', 'description', 'dispatch', 'emojis', 'event', 'extensions', 'extra_events', 'fetch_channel', 'fetch_guild', 'fetch_guilds', 'fetch_invite', 'fetch_premium_sticker_packs', 'fetch_stage_instance', 'fetch_sticker', 'fetch_template', 'fetch_user', 'fetch_webhook', 'fetch_widget', 'get_all_channels', 'get_all_members', 'get_channel', 'get_cog', 'get_command', 'get_context', 'get_emoji', 'get_guild', 'get_partial_messageable', 'get_prefix', 'get_stage_instance', 'get_sticker', 'get_user', 'group', 'guilds', 'help_command', 'http', 'hybrid_command', 'hybrid_group', 'intents', 'invoke', 'is_closed', 'is_owner', 'is_ready', 'is_ws_ratelimited', 'latency', 'listen', 'load_extension', 'login', 'loop', 'on_command_error', 'on_error', 'on_message', 'on_ready', 'owner_id', 'owner_ids', 'persistent_views', 'private_channels', 'process_commands', 'recursively_remove_all_commands', 'reload_extension', 'remove_check', 'remove_cog', 'remove_command', 'remove_listener', 'run', 'setup_hook', 'shard_count', 'shard_id', 'start', 'status', 'stickers', 'strip_after_prefix', 'tree', 'unload_extension', 'user', 'users', 'voice_clients', 'wait_for', 'wait_until_ready', 'walk_commands', 'ws']
+
+#bot.user
+['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '__weakref__', '_accent_colour', '_avatar', '_banner', '_copy', '_flags', '_public_flags', '_state', '_to_minimal_user_json', '_update', 'accent_color', 'accent_colour', 'avatar', 'banner', 'bot', 'color', 'colour', 'created_at', 'default_avatar', 'discriminator', 'display_avatar', 'display_name', 'edit', 'global_name', 'id', 'locale', 'mention', 'mentioned_in', 'mfa_enabled', 'mutual_guilds', 'name', 'public_flags', 'system', 'verified']
+
+#channel
+#['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_apply_implicit_permissions', '_clone_impl', '_edit', '_fill_overwrites', '_get_channel', '_move', '_overwrites', '_scheduled_event_entity_type', '_sorting_bucket', '_state', '_type', '_update', 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks']

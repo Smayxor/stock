@@ -136,6 +136,9 @@ class DaysData():
 			self.grabData(minute, result)
 		except Exception as error:
 			print(f'Addtime error - {error}')
+			
+		if result : print( 'End in class instance', myTime, minute )	
+			
 		return not result
 
 def startDay():
@@ -172,7 +175,12 @@ def timerThread():
 	global blnRun, SPXData
 	if not blnRun : return
 	try:
-		blnRun = SPXData.addTime()
+		result = SPXData.addTime()
+		
+		if result == False :
+			print( getToday() )
+			blnRun = False
+		
 	except Exception as error:
 		print( f'TimerThread error - {error}' )
 	if blnRun == False : print('Finished saving options data')

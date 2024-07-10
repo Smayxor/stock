@@ -176,7 +176,9 @@ def timerThread():
 	try:
 		minute = getToday()[1]
 		blnRTH = (minute > 0) and (minute < 1300)	
-		if blnRTH == True and blnRun == False : startDay()		
+		if blnRTH == True and blnRun == False : 
+			print( 'Starting day ', minute )
+			startDay()		
 		if not blnRun : return
 		
 		result = SPXData.addTime()

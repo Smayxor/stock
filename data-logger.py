@@ -2,7 +2,7 @@ import datetime
 import ujson as json #usjon is json written in C
 import requests
 import time
-import schedule
+#import schedule
 import datapuller as dp
 import os
 
@@ -173,10 +173,13 @@ def getToday():
 
 def timerThread():
 	global blnRun, SPXData
-	if not blnRun : return
 	try:
-		result = SPXData.addTime()
+		minute = getToday()[1]
+		blnRTH = (minute > 0) and (minute < 1300)	
+		if blnRTH == True and blnRun == False : startDay()		
+		if not blnRun : return
 		
+		result = SPXData.addTime()
 		if result == False :
 			print( getToday() )
 			blnRun = False
@@ -186,18 +189,19 @@ def timerThread():
 	if blnRun == False : print('Finished saving options data')
 		
 print("Running Version 4.0 OOPS + Faster with Candles")
-schedule.every().day.at("00:00").do(startDay)  #Currently set to PST
+#schedule.every().day.at("00:00").do(startDay)  #Currently set to PST
 #schedule.every().day.at("13:00").do(endDay)   # Can be handled through the main Timer
 
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
-tmp = getToday()[1]
-if (tmp > 0) and (tmp < 1300): 
-	print('Late start to the day')
-	startDay()
+#tmp = getToday()[1]
+#if (tmp > 0) and (tmp < 1300): 
+#	print('Late start to the day')
+blnRun = False
+#startDay()
 
 # Loop so that the scheduling task keeps on running all time.
 while True: # Checks whether a scheduled task is pending to run or not
-	schedule.run_pending()
+	#schedule.run_pending()
 	time.sleep(1)
 print( 'Finished logging data' )

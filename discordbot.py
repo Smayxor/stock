@@ -39,11 +39,14 @@ CHART_SKEW = 10
 CHART_HEATMAP = 11
 
 try :
-	print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1079101515953868902", headers=headers) )
-
 	#Declarations for slash commands
 	url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
 	headers = { "Authorization": "Bot " + BOT_TOKEN}
+
+	#Removes slash commands
+	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
+	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1260647680405930064", headers=headers) )
+
 	slash_command_json = {
 		"name": "gex", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Draw a GEX/DEX chart", "options": [ 
 		{ "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, 
@@ -70,8 +73,6 @@ try :
 	slash_command_json = { "name": "news", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "all", "value": "ALL"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
-	#Removes slash commands
-	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
 except Exception as er:
 	print(f'SlashCommand Error - {er}')
 
@@ -351,7 +352,7 @@ async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
 		try: await legacySend( channel=chnl, text=nextMessage )	
 		except Exception as e: print("News 2 BOOM", e)
 
-@bot.tree.command(name="sudo")
+"""@bot.tree.command(name="sudo")
 @commands.is_owner()
 async def slash_command_sudo(intr: discord.Interaction, command: str):
 	global tickers, updateRunning, auto_updater, update_timer
@@ -382,7 +383,7 @@ async def slash_command_sudo(intr: discord.Interaction, command: str):
 		exit(9)
 		await bot.close()
 		await bot.logout()
-	print("Finished SUDO")
+	print("Finished SUDO")"""
 
 @bot.command(name="sudo")
 async def sudo(ctx, *args): 

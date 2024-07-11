@@ -572,8 +572,8 @@ async def pc(ctx, *args):
 @bot.tree.command(name="pc")
 @commands.is_owner()
 async def slash_command_pc(intr: discord.Interaction, strike1: str = "all", strike2: str = "spx"):
-	await checkInteractionPermissions( intr )
-	await intr.response.defer(thinking=True)
+	perms = await checkInteractionPermissions( intr )
+	await intr.response.defer(thinking=True, ephemeral=perms[2]==False)
 	#chnl = bot.get_channel(intr.channel.id)
 	try: 
 		#await intr.response.send_message( finalMessage )

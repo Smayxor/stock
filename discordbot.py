@@ -234,7 +234,7 @@ def getStrTime():
 @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)#(i.guild_id, i.user.id))
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
-	await checkInteractionPermissions( intr )
+	perms = await checkInteractionPermissions( intr )
 	
 	# Get the ID of the channel where the interaction occurred.
 	channel_id = intr.channel_id
@@ -253,9 +253,9 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 						"Bot is refreshing, go run one out, those are rookie numbers",
 						"Smaybot is updating, please boost server for more info",
 						"Go read Mark Douglas for a few"]
-		await intr.response.send_message(random.choice(randomMessage))
+		await intr.response.send_message(random.choice(randomMessage), ephemeral=True)
 		return
-	await intr.response.defer(thinking=True)
+	perms = await intr.response.defer(thinking=True, ephemeral=perms[2] == False)
 	ticker = ticker.upper()
 	chartType = getChartType( chart )
 	if chartType == CHART_HEATMAP:
@@ -297,8 +297,10 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 
 @slash_command_gex.error
 async def on_gex_error(intr: discord.Interaction, error: app_commands.AppCommandError):
-	await intr.response.send_message(f'Using /gex has a 1 minute cooldown - {int(error.retry_after)} seconds remaining', ephemeral=True)
-
+	try:
+		await intr.response.send_message(f'Using /gex has a 1 minute cooldown - {int(error.retry_after)} seconds remaining', ephemeral=True)
+	except: await intr.response.send_message(f'Using /gex has a 1 minute cooldown')
+	
 @bot.command(name="pump")
 async def command_pump(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
 @bot.command(name="dump")
@@ -654,16 +656,15 @@ def grabFridayCombo(dte):
 	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=f'{lastDate}-C', price=price)
 	return fn
 
+#@app_commands.checks.has_permissions(moderate_members=True)
 async def checkInteractionPermissions(intr: discord.Interaction):
 	channelID = intr.channel.id
-	#guildID = intr.guild.id  #Throws error??!?!
-	perms = intr.permissions
+	permissions = intr.permissions
 	userID = intr.user.id
-	#print( f'channel = {channelID}' )
-	#print( f'guild = {guildID}')
-	#print(f'perms = {perms}')
-	#print(f'user = {userID}')
-	
+	textable = permissions.send_messages == True
+	imageable = permissions.attach_files == True
+	return ( userID, textable, imageable )
+
 
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 

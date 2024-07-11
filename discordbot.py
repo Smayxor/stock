@@ -62,7 +62,7 @@ try :
 	] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
-	slash_command_json = { "name": "8ball", "type": 1, "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
+	slash_command_json = { "name": "8ball", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
 	print( requests.post(url, headers=headers, json=slash_command_json) )
 
 	slash_command_json = { "name": "pc", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Have Smayxor display price charts", "options":[
@@ -227,11 +227,14 @@ def getChartType( arg ):
 def getStrTime(): 
 	now = datetime.datetime.now()
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
-	
+
+
+#@commands.cooldown(rate=1, per=60, type=commands.BucketType.user)
 @bot.tree.command(name="gex", description="Draws a GEX chart")
+@app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)#(i.guild_id, i.user.id))
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
-	
+	await checkInteractionPermissions( intr )
 	
 	# Get the ID of the channel where the interaction occurred.
 	channel_id = intr.channel_id
@@ -292,6 +295,10 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 		try: await intr.followup.send(file=discord.File(open('./' + fn, 'rb'), fn))
 		except: await intr.followup.send("No image permissions")
 
+@slash_command_gex.error
+async def on_gex_error(intr: discord.Interaction, error: app_commands.AppCommandError):
+	await intr.response.send_message(f'Using /gex has a 1 minute cooldown - {int(error.retry_after)} seconds remaining', ephemeral=True)
+
 @bot.command(name="pump")
 async def command_pump(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( random.choice(pumps) + enc(" " + ' '.join(args) ) ) )
 @bot.command(name="dump")
@@ -305,6 +312,7 @@ async def command_gm(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( 
 	
 @bot.tree.command(name="8ball", description="Answers your question?")
 async def slash_command_8ball(intr: discord.Interaction, question: str):
+	await checkInteractionPermissions( intr )
 	future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good', 'You should ask Siri, that slut.', 'I rolled a dice to answer you, and it said the answer is C.', 'Follow your heart, I wouldn\'t trust your mind though.', 'I don\'t know and I don\'t care.', 'Did you ask ChatGPT?', 'Just google it.']
 	if "?" in question:
 		response = "Question: " + question + "\rAnswer: " + random.choice(future)
@@ -338,6 +346,7 @@ def buildNews(days):
 
 @bot.tree.command(name="news")
 async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
+	await checkInteractionPermissions( intr )
 	await intr.response.defer(thinking=True)
 
 	finalMessage, nextMessage = buildNews(days)
@@ -352,40 +361,8 @@ async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):
 		try: await legacySend( channel=chnl, text=nextMessage )	
 		except Exception as e: print("News 2 BOOM", e)
 
-"""@bot.tree.command(name="sudo")
-@commands.is_owner()
-async def slash_command_sudo(intr: discord.Interaction, command: str):
-	global tickers, updateRunning, auto_updater, update_timer
-	user = str(intr.user)
-	args = command.upper().split(' ')
-	print( args )
-	if BOT_USER_FOR_KILL != user:
-		await intr.response.send_message(user + " you can't kill meme!")
-		return
-	elif args[0] == "KILL" :
-		await intr.response.send_message(user + " triggered shutdown")
-		await bot.close()
-		await bot.logout()
-		exit(0)
-	elif args[0] == "UPDATE" :
-		await intr.response.send_message(user + " requested code update")
-		print("getting update")
-		#fileName = args[1].lower()
-		files = ['discordbot.py', 'datapuller.py', 'drawchart.py', 'signals.py']
-		for fileName in files:
-			print(f'Fetching {fileName}')
-			r = requests.get(url=f'https://raw.githubusercontent.com/Smayxor/stock/main/{fileName}')
-			
-			with open(f'./{fileName}', "wb") as outfile:
-				outfile.write(r.content)
-				print(f'{fileName} Downloaded at {os.path.realpath(outfile.name)} - {outfile.name}' )
-		print('All files updated.  Restarting service')
-		exit(9)
-		await bot.close()
-		await bot.logout()
-	print("Finished SUDO")"""
-
 @bot.command(name="sudo")
+@commands.is_owner()
 async def sudo(ctx, *args): 
 	global tickers, updateRunning, auto_updater, update_timer
 	user = str(ctx.author.name)
@@ -398,12 +375,12 @@ async def sudo(ctx, *args):
 		await legacySend( ctx=ctx, text="No command")
 		return
 
-	if args[0] == "KILL" :
+	if args[0] == "kill" :
 		await legacySend( ctx=ctx, text=user + " triggered shutdown")
 		await bot.close()
 		await bot.logout()
 		exit(0)
-	elif args[0] == "UPDATE" :
+	elif args[0] == "update" :
 		await legacySend( ctx=ctx, text=user + " requested code update")
 		print("getting update")
 		files = ['discordbot.py', 'datapuller.py', 'drawchart.py', 'signals.py']
@@ -593,6 +570,7 @@ async def pc(ctx, *args):
 @bot.tree.command(name="pc")
 @commands.is_owner()
 async def slash_command_pc(intr: discord.Interaction, strike1: str = "all", strike2: str = "spx"):
+	await checkInteractionPermissions( intr )
 	await intr.response.defer(thinking=True)
 	#chnl = bot.get_channel(intr.channel.id)
 	try: 
@@ -675,9 +653,27 @@ def grabFridayCombo(dte):
 	price = dp.getPrice("SPX", combinedData )
 	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=f'{lastDate}-C', price=price)
 	return fn
+
+async def checkInteractionPermissions(intr: discord.Interaction):
+	channelID = intr.channel.id
+	guildID = intr.guild.id
+	perms = intr.permissions
+	userID = intr.user.id
+	#print( f'channel = {channelID}' )
+	#print( f'guild = {guildID}')
+	#print(f'perms = {perms}')
+	#print(f'user = {userID}')
 	
+
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 
+#wsb - 725851172266573915
+#gex - 1055967445208281288
+
+#intr.guild = ['_PREMIUM_GUILD_LIMITS', '__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_add_channel', '_add_member', '_add_role', '_add_thread', '_afk_channel_id', '_banner', '_channels', '_clear_threads', '_create_channel', '_create_unavailable', '_discovery_splash', '_filter_threads', '_from_data', '_icon', '_incidents_data', '_large', '_member_count', '_members', '_public_updates_channel_id', '_remove_channel', '_remove_member', '_remove_role', '_remove_thread', '_remove_threads_by_channel', '_resolve_channel', '_roles', '_rules_channel_id', '_safety_alerts_channel_id', '_scheduled_events', '_splash', '_stage_instances', '_state', '_store_thread', '_system_channel_flags', '_system_channel_id', '_threads', '_update_voice_state', '_voice_state_for', '_voice_states', '_widget_channel_id', 'active_threads', 'afk_channel', 'afk_timeout', 'approximate_member_count', 'approximate_presence_count', 'audit_logs', 'ban', 'banner', 'bans', 'bitrate_limit', 'bulk_ban', 'by_category', 'categories', 'change_voice_state', 'channels', 'chunk', 'chunked', 'create_automod_rule', 'create_category', 'create_category_channel', 'create_custom_emoji', 'create_forum', 'create_integration', 'create_role', 'create_scheduled_event', 'create_stage_channel', 'create_sticker', 'create_template', 'create_text_channel', 'create_voice_channel', 'created_at', 'default_notifications', 'default_role', 'delete', 'delete_emoji', 'delete_sticker', 'description', 'discovery_splash', 'dms_paused', 'dms_paused_until', 'edit', 'edit_role_positions', 'edit_welcome_screen', 'edit_widget', 'emoji_limit', 'emojis', 'estimate_pruned_members', 'explicit_content_filter', 'features', 'fetch_automod_rule', 'fetch_automod_rules', 'fetch_ban', 'fetch_channel', 'fetch_channels', 'fetch_emoji', 'fetch_emojis', 'fetch_member', 'fetch_members', 'fetch_roles', 'fetch_scheduled_event', 'fetch_scheduled_events', 'fetch_sticker', 'fetch_stickers', 'filesize_limit', 'forums', 'get_channel', 'get_channel_or_thread', 'get_emoji', 'get_member', 'get_member_named', 'get_role', 'get_scheduled_event', 'get_stage_instance', 'get_thread', 'icon', 'id', 'integrations', 'invites', 'invites_paused', 'invites_paused_until', 'kick', 'large', 'leave', 'max_members', 'max_presences', 'max_stage_video_users', 'max_video_channel_users', 'me', 'member_count', 'members', 'mfa_level', 'name', 'nsfw_level', 'owner', 'owner_id', 'preferred_locale', 'premium_progress_bar_enabled', 'premium_subscriber_role', 'premium_subscribers', 'premium_subscription_count', 'premium_tier', 'prune_members', 'public_updates_channel', 'query_members', 'roles', 'rules_channel', 'safety_alerts_channel', 'scheduled_events', 'self_role', 'shard_id', 'splash', 'stage_channels', 'stage_instances', 'sticker_limit', 'stickers', 'system_channel', 'system_channel_flags', 'templates', 'text_channels', 'threads', 'unavailable', 'unban', 'vanity_invite', 'vanity_url', 'vanity_url_code', 'verification_level', 'voice_channels', 'voice_client', 'webhooks', 'welcome_screen', 'widget', 'widget_channel', 'widget_enabled']
+
+#discor.interaction intr
+#['__annotations__', '__class__', '__class_getitem__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_app_permissions', '_baton', '_client', '_cs_command', '_cs_followup', '_cs_namespace', '_cs_response', '_from_data', '_integration_owners', '_original_response', '_permissions', '_session', '_state', 'app_permissions', 'application_id', 'channel', 'channel_id', 'client', 'command', 'command_failed', 'context', 'created_at', 'data', 'delete_original_response', 'edit_original_response', 'entitlement_sku_ids', 'entitlements', 'expires_at', 'extras', 'followup', 'guild', 'guild_id', 'guild_locale', 'id', 'is_expired', 'is_guild_integration', 'is_user_integration', 'locale', 'message', 'namespace', 'original_response', 'permissions', 'response', 'token', 'translate', 'type', 'user', 'version']
 
 # bot
 #['_BotBase__cogs', '_BotBase__extensions', '_BotBase__tree', '__aenter__', '__aexit__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_after_invoke', '_application', '_async_setup_hook', '_before_invoke', '_call_before_identify_hook', '_call_module_finalizers', '_check_once', '_checks', '_closed', '_connection', '_enable_debug_events', '_get_state', '_get_websocket', '_handle_ready', '_handlers', '_help_command', '_hooks', '_listeners', '_load_from_module_spec', '_ready', '_remove_module_references', '_resolve_name', '_run_event', '_schedule_event', 'activity', 'add_check', 'add_cog', 'add_command', 'add_listener', 'add_view', 'after_invoke', 'all_commands', 'allowed_mentions', 'application', 'application_flags', 'application_id', 'application_info', 'before_identify_hook', 'before_invoke', 'cached_messages', 'can_run', 'case_insensitive', 'change_presence', 'check', 'check_once', 'clear', 'close', 'cogs', 'command', 'command_prefix', 'commands', 'connect', 'create_dm', 'create_guild', 'delete_invite', 'description', 'dispatch', 'emojis', 'event', 'extensions', 'extra_events', 'fetch_channel', 'fetch_guild', 'fetch_guilds', 'fetch_invite', 'fetch_premium_sticker_packs', 'fetch_stage_instance', 'fetch_sticker', 'fetch_template', 'fetch_user', 'fetch_webhook', 'fetch_widget', 'get_all_channels', 'get_all_members', 'get_channel', 'get_cog', 'get_command', 'get_context', 'get_emoji', 'get_guild', 'get_partial_messageable', 'get_prefix', 'get_stage_instance', 'get_sticker', 'get_user', 'group', 'guilds', 'help_command', 'http', 'hybrid_command', 'hybrid_group', 'intents', 'invoke', 'is_closed', 'is_owner', 'is_ready', 'is_ws_ratelimited', 'latency', 'listen', 'load_extension', 'login', 'loop', 'on_command_error', 'on_error', 'on_message', 'on_ready', 'owner_id', 'owner_ids', 'persistent_views', 'private_channels', 'process_commands', 'recursively_remove_all_commands', 'reload_extension', 'remove_check', 'remove_cog', 'remove_command', 'remove_listener', 'run', 'setup_hook', 'shard_count', 'shard_id', 'start', 'status', 'stickers', 'strip_after_prefix', 'tree', 'unload_extension', 'user', 'users', 'voice_clients', 'wait_for', 'wait_until_ready', 'walk_commands', 'ws']

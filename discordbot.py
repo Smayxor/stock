@@ -656,7 +656,7 @@ def grabFridayCombo(dte):
 
 async def checkInteractionPermissions(intr: discord.Interaction):
 	channelID = intr.channel.id
-	guildID = intr.guild.id
+	#guildID = intr.guild.id  #Throws error??!?!
 	perms = intr.permissions
 	userID = intr.user.id
 	#print( f'channel = {channelID}' )

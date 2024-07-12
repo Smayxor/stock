@@ -658,9 +658,10 @@ def grabFridayCombo(dte):
 
 #@app_commands.checks.has_permissions(moderate_members=True)
 async def checkInteractionPermissions(intr: discord.Interaction):
-	channelID = intr.channel.id
-	permissions = intr.permissions
 	userID = intr.user.id
+	#channelID = intr.channel_id  #Bad inside a DM
+	if intr.guild_id is None : return (userID, True, True)
+	permissions = intr.permissions
 	textable = permissions.send_messages == True
 	imageable = permissions.attach_files == True
 	return ( userID, textable, imageable )

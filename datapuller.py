@@ -7,7 +7,8 @@ import heapq
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
-SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')
+SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')  #need to switch all init[] commands to use .get()  so default values can be assigned
+FRED_KEY = init.get('FRED', None)
 IS_SERVER = SERVER_IP == 'http://127.0.0.1:8080'
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
@@ -150,10 +151,24 @@ def getExpirations(ticker):
 	param = {'symbol': f'{ticker}', 'includeAllRoots': 'true', 'strikes': 'false'}   #'strikes': 'true'}
 	return requests.get('https://api.tradier.com/v1/markets/options/expirations', params=param, headers=TRADIER_HEADER).json()['expirations']['date']
 
+
+resetDTEDate = datetime.date.today()  #To reduce requests per minute from broker, we store a list of all tickers every day, and their ExpirationDates
+tickerDTEList = {}
 def getExpirationDate(ticker, dte):
+	global resetDTEDate, tickerDTEList
 	today = datetime.date.today()
-	dates = getExpirations( ticker )
-	while True:
+
+	if resetDTEDate != today :
+		resetDTEDate = today
+		tickerDTEList = {}
+	dates = None
+	if ticker in tickerDTEList : 
+		dates = tickerDTEList[ticker]
+	else: 
+		dates = getExpirations( ticker )
+		tickerDTEList[ticker] = dates
+
+	while True:  #We want to find something.  hopefully the correct DTE
 		result = str(today + datetime.timedelta(days=int(dte))).split(":")[0]
 		if result in dates: break
 		dte += 1
@@ -205,6 +220,7 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 			gamma = option['greeks']['gamma']
 			iv = option['greeks']['mid_iv']
 			delta = option['greeks']['delta']
+			#thetaXrho = f'{round(option['greeks']['theta'], 2)}x{round(option['greeks']['rho'], 2)}'
 		volume = option['volume']
 		oi = option['open_interest'] 
 
@@ -221,7 +237,7 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 		symbol = option['symbol']
 		#if strike == 4350 : print( option )
 		if (len(strikes) == 0) or (strikes[index][0] != strike): #fast, assumes strikes are in order
-			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None", 0, 0, 0] ) 
+			strikes.append( [strike, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "None", "None", 0, 0, 0])#, 0, 0] ) 
 			index = findIndex(strike) # always make sure we're on the right strike index
 		#GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA
 		tmp = strikes[index]
@@ -230,11 +246,13 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 			tmp[GEX_CALL_GEX] += gex  #We can have multiple root symbols SPX and SPXW
 			tmp[GEX_CALL_OI]+= oi
 			tmp[GEX_CALL_SYMBOL] = symbol
+			#tmp[GEX_CALL_THETA] = thetaXrho
 		else: 
 			tmp[GEX_STRIKE], tmp[GEX_PUT_IV], tmp[GEX_PUT_BID], tmp[GEX_PUT_ASK], tmp[GEX_PUT_VOLUME], tmp[GEX_PUT_BID_SIZE], tmp[GEX_PUT_ASK_SIZE], tmp[GEX_PUT_DELTA] = strike, iv, bid, ask, volume, bidSize, askSize, delta
 			tmp[GEX_PUT_GEX] += gex
 			tmp[GEX_PUT_OI]+= oi
 			tmp[GEX_PUT_SYMBOL] = symbol
+			#tmp[GEX_PUT_THETA] = thetaXrho
 
 	for index in range( len(strikes) ):
 		strikes[index][GEX_TOTAL_GEX] = strikes[index][GEX_CALL_GEX] + strikes[index][GEX_PUT_GEX]
@@ -308,38 +326,49 @@ def getQuote(ticker):
 lastPrice = 0
 def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 	global lastPrice
-	if ticker in INDICES and strikes != None:
+	
+	if 1==1: #ticker in INDICES and strikes != None:
 		#*************************************************************************************************************
 		# Needs to correctly factor in value from DTE
 		#**************************************************************************************************************
-		"""if 'now' in dte: dte = str(datetime.datetime.now()).split(' ')[0]
-		end_date = datetime.datetime.strptime(dte, '%Y-%m-%d')
-		num_days = (end_date - datetime.datetime.now()).days + 1
-		num_weekends = num_days // 7
-		dte = num_days - (num_weekends * 2)
-		"""
+		#if 'now' in dte: dte = str(datetime.datetime.now()).split(' ')[0]
+		#end_date = datetime.datetime.strptime(dte, '%Y-%m-%d')
+		#num_days = (end_date - datetime.datetime.now()).days + 1
+		#num_weekends = num_days // 7
+		#dte = num_days - (num_weekends * 2)
+		
 		firstStrike = strikes[0]
 		lastStrike = strikes[-1]
-		price = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
-		#if test : print( 'cbid ' , firstStrike[GEX_CALL_BID] , ' cask ', firstStrike[GEX_CALL_ASK] )
-		if firstStrike[GEX_CALL_BID] == 0 : 
-			price = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
-			#if test : print( 'pbid ' , lastStrike[GEX_PUT_BID] , ' pask ', lastStrike[GEX_PUT_ASK] )
-			#price = lastPrice
-		lastPrice = price
-#			if lastStrike[GEX_PUT_BID] == 0: raise Exception("No PRICE!!!")
-#			price = ((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2) - lastStrike[GEX_STRIKE]
-			
-		"""
-		1dte = 1.40 over
-		23dte = 0.15 under
-		77dtee = 19.80 under
-		"""
-		#print( price, dte )
 		
-	else: price = getQuote(ticker)
-	return price
+		if dte != 'now' :
+			#end_date = datetime.datetime.strptime(dte, '%Y-%m-%d')
+			#num_days = (end_date - datetime.datetime.now()).days + 1
+			#num_weekends = num_days // 7
+			#trading_days = num_days - (num_weekends * 2)
+			#print( end_date, num_days, num_weekends, trading_days )
 
+			#callPrice = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
+			#putPrice = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
+
+			blnCalls = firstStrike[GEX_CALL_DELTA] < (lastStrike[GEX_PUT_DELTA] * -1)
+
+	cp = firstStrike[GEX_STRIKE] + firstStrike[GEX_CALL_BID]
+	pp = lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID]
+
+	price = cp if cp<pp and firstStrike[GEX_CALL_BID] != 0 else pp
+	
+	return price
+		
+	#else: price = getQuote(ticker)  #Trying to not use the extra API Request if not needed
+	#return price
+"""
+S = underlying price ($$$ per share)
+K = strike price ($$$ per share)
+σ = volatility (% p.a.)
+r = continuously compounded risk-free interest rate (% p.a.)
+q = continuously compounded dividend yield (% p.a.)
+t = time to expiration (% of year)
+"""
 def getATR(ticker_name):  #SPX needs to grab SPY and convert
 	today = str(datetime.date.today()).split(":")[0]
 	#today = str(datetime.date.today() - datetime.timedelta(days=1)).split(":")[0]
@@ -567,3 +596,20 @@ def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity
 #   https://fred.stlouisfed.org/    use symbol DGS3MO    DGS6MO    DGS1    DGS2   DGS3   DGS5    DGS7    DGS10
 # import  pandas_datareader.data  as web         __get_rate__
 
+"""
+if not FRED_KEY is None :
+	print('We got FRED')
+	fredURL = f'https://api.stlouisfed.org/fred/releases?api_key={FRED_KEY}&file_type=json&realtime_start=2023-01-01&realtime_end=9999-12-31'
+	fredURL = f'https://api.stlouisfed.org/fred/category/series?category_id=9&api_key={FRED_KEY}&file_type=json&realtime_start=2023-01-01&realtime_end=9999-12-31'
+	#fredURL = f'https://fred.stlouisfed.org/releases/calendar?rid=10&y=2021'
+	response = requests.get(fredURL)
+	
+	print( response.content)
+	if response.status_code == 200 :
+		response = response.json()
+		for release in response["seriess"] :
+			print( release )
+			#print( release["id"], release["realtime_start"], release["name"], release["press_release"] )
+"""	
+
+#{'id': 'COREFLEXCPIM157SFRBATL', 'realtime_start': '2023-01-01', 'realtime_end': '9999-12-31', 'title': 'Flexible Price Consumer Price Index less Food and Energy', 'observation_start': '1967-01-01', 'observation_end': '2024-06-01', 'frequency': 'Monthly', 'frequency_short': 'M', 'units': 'Percent Change', 'units_short': '% Chg.', 'seasonal_adjustment': 'Seasonally Adjusted', 'seasonal_adjustment_short': 'SA', 'last_updated': '2024-07-11 12:01:12-05', 'popularity': 4, 'group_popularity': 35, 'notes': 'The Flexible Price Consumer Price Index (CPI) is calculated from a subset of goods and services included in the CPI that change price relatively frequently. Because flexible prices are quick to change, it assumes that when these prices are set, they incorporate less of an expectation about future inflation. Evidence suggests that this flexible price measure is more responsive to changes in the current economic environment or the level of economic slack.\n\nTo obtain more information about this release see: Michael F. Bryan, and Brent H. Meyer. “Are Some Prices in the CPI More Forward Looking Than Others? We Think So.” Economic Commentary (Federal Reserve Bank of Cleveland) (May 19, 2010): 1–6. https://doi.org/10.26509/frbc-ec-201002 (https://doi.org/10.26509/frbc-ec-201002).'}

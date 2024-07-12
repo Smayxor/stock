@@ -660,7 +660,7 @@ def grabFridayCombo(dte):
 async def checkInteractionPermissions(intr: discord.Interaction):
 	userID = intr.user.id
 	#channelID = intr.channel_id  #Bad inside a DM
-	if intr.guild_id is None : return (userID, True, True)
+	if intr.guild_id is None : return (userID, True, True)  #We are in a DM and can do anything we want
 	permissions = intr.permissions
 	textable = permissions.send_messages == True
 	imageable = permissions.attach_files == True

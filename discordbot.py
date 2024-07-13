@@ -228,34 +228,25 @@ def getStrTime():
 	now = datetime.datetime.now()
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
-
-#@commands.cooldown(rate=1, per=60, type=commands.BucketType.user)
+#@app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)#(i.guild_id, i.user.id))
 @bot.tree.command(name="gex", description="Draws a GEX chart")
-@app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)#(i.guild_id, i.user.id))
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
 	perms = await checkInteractionPermissions( intr )
-	
-	# Get the ID of the channel where the interaction occurred.
-	channel_id = intr.channel_id
-
-	# Get the ID of the guild where the interaction occurred, if applicable.
-	guild_id = intr.guild_id
-	
-	#if guild_id == 1026265666552090676:
-	#	if channel_id != 1029425222404800613 :
-	#		await intr.response.send_message("Hey, /gex only works in #commands")
-	#		return	
+	print( perms[0], perms[1] )
+	if perms[1] > 0 :
+		await intr.response.send_message(f'Using /gex has a 20 second cooldown - {perms[1]} seconds remaining', ephemeral=True)
+		return
+	"""
 	minute = getStrTime()
-
 	if 615 < minute < 630 and BOT_USER_FOR_KILL != str(intr.user) :
 		randomMessage = ["Charting down for server maintenance during 15 minutes before Market Open.",
 						"Bot is refreshing, go run one out, those are rookie numbers",
 						"Smaybot is updating, please boost server for more info",
 						"Go read Mark Douglas for a few"]
 		await intr.response.send_message(random.choice(randomMessage), ephemeral=True)
-		return
-	perms = await intr.response.defer(thinking=True, ephemeral=perms[2] == False)
+		return"""
+	await intr.response.defer(thinking=True, ephemeral=perms[3] == False)
 	ticker = ticker.upper()
 	chartType = getChartType( chart )
 	if chartType == CHART_HEATMAP:
@@ -297,6 +288,7 @@ async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte:
 
 @slash_command_gex.error
 async def on_gex_error(intr: discord.Interaction, error: app_commands.AppCommandError):
+	print( error ) #This should no longer actually be fired,  left-overs from default discord User Cooldown code
 	try:
 		await intr.response.send_message(f'Using /gex has a 1 minute cooldown - {int(error.retry_after)} seconds remaining', ephemeral=True)
 	except: await intr.response.send_message(f'Using /gex has a 1 minute cooldown')
@@ -314,7 +306,7 @@ async def command_gm(ctx, *args): await legacySend( ctx=ctx, text= getTenorGIF( 
 	
 @bot.tree.command(name="8ball", description="Answers your question?")
 async def slash_command_8ball(intr: discord.Interaction, question: str):
-	await checkInteractionPermissions( intr )
+	perms = await checkInteractionPermissions( intr )
 	future = ['Try again later', 'No', 'Yes, absolutely', 'It is certain', 'Outlook not so good', 'You should ask Siri, that slut.', 'I rolled a dice to answer you, and it said the answer is C.', 'Follow your heart, I wouldn\'t trust your mind though.', 'I don\'t know and I don\'t care.', 'Did you ask ChatGPT?', 'Just google it.']
 	if "?" in question:
 		response = "Question: " + question + "\rAnswer: " + random.choice(future)
@@ -348,7 +340,7 @@ def buildNews(days):
 
 @bot.tree.command(name="news")
 async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
-	await checkInteractionPermissions( intr )
+	perms = await checkInteractionPermissions( intr )
 	await intr.response.defer(thinking=True)
 
 	finalMessage, nextMessage = buildNews(days)
@@ -573,7 +565,7 @@ async def pc(ctx, *args):
 @commands.is_owner()
 async def slash_command_pc(intr: discord.Interaction, strike1: str = "all", strike2: str = "spx"):
 	perms = await checkInteractionPermissions( intr )
-	await intr.response.defer(thinking=True, ephemeral=perms[2]==False)
+	await intr.response.defer(thinking=True, ephemeral=perms[3]==False)
 	#chnl = bot.get_channel(intr.channel.id)
 	try: 
 		#await intr.response.send_message( finalMessage )
@@ -656,17 +648,50 @@ def grabFridayCombo(dte):
 	fn = dc.drawGEXChart("SPX", 40, 0, 5, combinedData, expDate=f'{lastDate}-C', price=price)
 	return fn
 
+def getToday():
+	dateAndtime = str(datetime.datetime.now()).split(" ")
+	tmp = dateAndtime[1].split(".")[0].split(":")
+	minute = (float(tmp[0]) * 10000) + (float(tmp[1]) * 100) + float(tmp[2])
+	return (dateAndtime[0], minute)
+
+TodaysUsers = {}
+TodaysUsers['today'] = getToday()[0]
+def confirmUser(userID):
+	global TodaysUsers
+	tday = getToday()
+	if not tday[0] in TodaysUsers['today'] : #Start a new day.   Likely Not important to do this
+		#TodaysUsers = {}
+		TodaysUsers['today'] = tday[0]
+	if userID in TodaysUsers :
+		userCooldown = tday[1]-TodaysUsers[userID]
+		if userCooldown > 20 :
+			TodaysUsers[userID] = tday[1]
+			return 0
+		else :
+			return 20 - userCooldown
+	else :
+		TodaysUsers[userID] = tday[1]
+		return 0
+
 #@app_commands.checks.has_permissions(moderate_members=True)
 async def checkInteractionPermissions(intr: discord.Interaction):
 	userID = intr.user.id
+	coolDown = confirmUser(f'{intr.user.global_name}-{intr.user.display_name}#{userID}')
 	#channelID = intr.channel_id  #Bad inside a DM
 	if intr.guild_id is None : return (userID, True, True)  #We are in a DM and can do anything we want
 	permissions = intr.permissions
 	textable = permissions.send_messages == True
 	imageable = permissions.attach_files == True
-	return ( userID, textable, imageable )
+	return ( userID, coolDown, textable, imageable )
 
-
+@bot.command(name="listUsers")
+@commands.is_owner()
+async def heatmap(ctx, *args):
+	txt = ""
+	for name in TodaysUsers:
+		txt += name + "\r"
+	await legacySend( ctx=ctx, text=txt )
+	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 
 #wsb - 725851172266573915

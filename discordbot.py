@@ -233,7 +233,6 @@ def getStrTime():
 async def slash_command_gex(intr: discord.Interaction, ticker: str = "SPY", dte: int = 0, count: int = 40, chart: str = "R"):
 	global tickers, updateRunning, needsQueue
 	perms = await checkInteractionPermissions( intr )
-	print( perms[0], perms[1] )
 	if perms[1] > 0 :
 		await intr.response.send_message(f'Using /gex has a 20 second cooldown - {perms[1]} seconds remaining', ephemeral=True)
 		return
@@ -531,9 +530,16 @@ async def test(ctx):
 	await legacySend( ctx, channel=channel, fileName=f'stock-chart.png')
 	await legacySend( ctx, channel=channel, text=f'Text {textable} and Images {imageable}')
 
+#ctx = 'args', 'author', 'bot', 'bot_permissions', 'channel', 'clean_prefix', 'cog', 'command', 'command_failed', 'current_argument', 'current_parameter', 'defer', 'fetch_message', 'filesize_limit', 'from_interaction', 'guild', 'history', 'interaction', 'invoke', 'invoked_parents', 'invoked_subcommand', 'invoked_with', 'kwargs', 'me', 'message', 'permissions', 'pins', 'prefix', 'reinvoke', 'reply', 'send', 'send_help', 'subcommand_passed', 'typing', 'valid', 'view', 'voice_client'
 async def legacySend(ctx=None, channel=None, text=None, fileName=None):  #When not using /commands Check channel permissions before sending ALWAYS
 	if channel == None : channel = ctx.channel
-	permissions = channel.permissions_for(channel.guild.me) 
+	#channel in DM = 'id', 'jump_url', 'me', 'permissions_for', 'pins', 'recipient', 'recipients', 'send', 'type', 'typing'
+	#channel in Channel = 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks'
+
+	if "private" in channel.type :  #"text" in channel.type = in a Channel.     May also use if channel.guild is None
+		permissions = ctx.permissions
+	else :
+		permissions = channel.permissions_for(channel.guild.me) 
 	if text != None and permissions.send_messages == True : await channel.send( text )
 	if fileName != None and permissions.attach_files == True :
 		await channel.send(file=discord.File(open('./' + fileName, 'rb'), fileName))
@@ -677,16 +683,17 @@ def confirmUser(userID):
 async def checkInteractionPermissions(intr: discord.Interaction):
 	userID = intr.user.id
 	coolDown = confirmUser(f'{intr.user.global_name}-{intr.user.display_name}#{userID}')
-	#channelID = intr.channel_id  #Bad inside a DM
-	if intr.guild_id is None : return (userID, True, True)  #We are in a DM and can do anything we want
+	#intr in a Channel = 'app_permissions', 'application_id', 'channel', 'channel_id', 'client', 'command', 'command_failed', 'context', 'created_at', 'data', 'delete_original_response', 'edit_original_response', 'entitlement_sku_ids', 'entitlements', 'expires_at', 'extras', 'followup', 'guild', 'guild_id', 'guild_locale', 'id', 'is_expired', 'is_guild_integration', 'is_user_integration', 'locale', 'message', 'namespace', 'original_response', 'permissions', 'response', 'token', 'translate', 'type', 'user', 'version'
+	
+	if intr.guild_id is None : return (userID, coolDown, True, True)  #We are in a DM and can do anything we want
 	permissions = intr.permissions
 	textable = permissions.send_messages == True
 	imageable = permissions.attach_files == True
 	return ( userID, coolDown, textable, imageable )
 
-@bot.command(name="listUsers")
+@bot.command(name="listusers")
 @commands.is_owner()
-async def heatmap(ctx, *args):
+async def legacyListUsers(ctx, *args):
 	txt = ""
 	for name in TodaysUsers:
 		txt += name + "\r"

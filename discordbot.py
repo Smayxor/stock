@@ -707,7 +707,7 @@ async def legacyWipeCoolDowns(ctx, *args):
 	tday = getToday()
 	for name in TodaysUsers:
 		TodaysUsers[name] = tday[1] - 20
-	await legacySend( ctx=ctx, text=txt )
+	await legacyListUsers(ctx, args)
 	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 

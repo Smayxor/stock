@@ -13,6 +13,7 @@ TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 
 blnRun = False
+blnSkipPrint = False
 timer =  None
 CurrentCalendar = None
 SPXData = None
@@ -69,6 +70,8 @@ class DaysData():
 			saveDataFile( self.Data, gex, self.FileName )
 		except Exception as error:
 			print( f'AppendData Error - {error}' )
+			return "error"
+		return None
 			
 	def grabData(self, minute, EOD):
 		if 614 < minute < 630 : 
@@ -123,10 +126,11 @@ class DaysData():
 				self.FoldLastData.pop( minute+0.02, None ) # We dont want to commit this to the main file
 				self.FoldLastData.pop( minute+0.03, None )
 				self.Data.update( self.FoldLastData )
-				self.appendData( self.FoldLastData )
+				blnGood = self.appendData( self.FoldLastData )
+				if not blnGood is None : print(minute)
 
 		except Exception as error:
-			print( f'Grab Data - {error}' )
+			print( f'{minute} - Grab Data - {error}' )
 		
 	def addTime(self):
 		myTime = getToday()
@@ -135,14 +139,14 @@ class DaysData():
 		try:
 			self.grabData(minute, result)
 		except Exception as error:
-			print(f'Addtime error - {error}')
+			print(f'{minute} - Addtime error - {error}')
 			
 		if result : print( 'End in class instance', myTime, minute )	
 			
 		return not result
 
 def startDay():
-	global blnRun, CurrentCalendar, SPXData
+	global blnRun, blnSkipPrint, CurrentCalendar, SPXData
 	try :
 		today = getToday()[0]
 		if CurrentCalendar == None : CurrentCalendar = dp.getCalendar()
@@ -151,12 +155,14 @@ def startDay():
 		if month0dte != monthCurCal : CurrentCalendar = dp.getCalendar()
 		days = CurrentCalendar['days']['day']
 		if next((x for x in days if x['date'] == today), None)['status'] == 'closed' :	
-			print('Market is closed today')
+			if blnSkipPrint == False : print('Market is closed today')
+			blnSkipPrint = True
 			return
 	except Exception as error:
 		print( f'Calendar issue' )
 		return
-	
+
+	blnSkipPrint = False
 	blnRun = True
 	SPXData = DaysData( "SPX", 0, 50, 0,  630 )
 	print( f'{SPXData.RecordDate} - Day started' )
@@ -172,12 +178,12 @@ def getToday():
 	return (dateAndtime[0], minute)
 
 def timerThread():
-	global blnRun, SPXData
+	global blnRun, SPXData, blnSkipPrint
 	try:
 		minute = getToday()[1]
 		blnRTH = (minute > 0) and (minute < 1300)	
 		if blnRTH == True and blnRun == False : 
-			print( 'Starting day ', minute )
+			if blnSkipPrint == False : print( 'Starting day ', minute )
 			startDay()		
 		if not blnRun : return
 		

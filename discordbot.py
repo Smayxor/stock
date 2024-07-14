@@ -682,7 +682,7 @@ def confirmUser(userID):
 #@app_commands.checks.has_permissions(moderate_members=True)
 async def checkInteractionPermissions(intr: discord.Interaction):
 	userID = intr.user.id
-	coolDown = confirmUser(f'{intr.user.global_name}-{intr.user.display_name}#{userID}')
+	coolDown = confirmUser(f'{intr.user.global_name}#{userID}')
 	#intr in a Channel = 'app_permissions', 'application_id', 'channel', 'channel_id', 'client', 'command', 'command_failed', 'context', 'created_at', 'data', 'delete_original_response', 'edit_original_response', 'entitlement_sku_ids', 'entitlements', 'expires_at', 'extras', 'followup', 'guild', 'guild_id', 'guild_locale', 'id', 'is_expired', 'is_guild_integration', 'is_user_integration', 'locale', 'message', 'namespace', 'original_response', 'permissions', 'response', 'token', 'translate', 'type', 'user', 'version'
 	
 	if intr.guild_id is None : return (userID, coolDown, True, True)  #We are in a DM and can do anything we want

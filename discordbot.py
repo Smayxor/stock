@@ -694,9 +694,19 @@ async def checkInteractionPermissions(intr: discord.Interaction):
 @bot.command(name="listusers")
 @commands.is_owner()
 async def legacyListUsers(ctx, *args):
+	global TodaysUsers
 	txt = ""
 	for name in TodaysUsers:
 		txt += name + "\r"
+	await legacySend( ctx=ctx, text=txt )
+	
+@bot.command(name="wipecooldowns")
+@commands.is_owner()
+async def legacyWipeCoolDowns(ctx, *args):
+	global TodaysUsers
+	tday = getToday()
+	for name in TodaysUsers:
+		TodaysUsers[name] = tday[1] - 20
 	await legacySend( ctx=ctx, text=txt )
 	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed

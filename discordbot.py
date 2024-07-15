@@ -669,14 +669,14 @@ def confirmUser(userID):
 		#TodaysUsers = {}
 		TodaysUsers['today'] = tday[0]
 		for user in TodaysUsers :
-			TodaysUsers[user] = tday[1] - 20  #Reset cooldowns on new day or else!!!
+			TodaysUsers[user] = tday[1] - 10  #Reset cooldowns on new day or else!!!
 	if userID in TodaysUsers :
 		userCooldown = tday[1]-TodaysUsers[userID]
-		if userCooldown > 20 :
+		if userCooldown > 10 :
 			TodaysUsers[userID] = tday[1]
 			return 0
 		else :
-			return 20 - userCooldown
+			return 10 - userCooldown
 	else :
 		TodaysUsers[userID] = tday[1]
 		return 0

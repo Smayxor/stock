@@ -531,7 +531,7 @@ async def test(ctx):
 	await legacySend( ctx, channel=channel, text=f'Text {textable} and Images {imageable}')
 
 #ctx = 'args', 'author', 'bot', 'bot_permissions', 'channel', 'clean_prefix', 'cog', 'command', 'command_failed', 'current_argument', 'current_parameter', 'defer', 'fetch_message', 'filesize_limit', 'from_interaction', 'guild', 'history', 'interaction', 'invoke', 'invoked_parents', 'invoked_subcommand', 'invoked_with', 'kwargs', 'me', 'message', 'permissions', 'pins', 'prefix', 'reinvoke', 'reply', 'send', 'send_help', 'subcommand_passed', 'typing', 'valid', 'view', 'voice_client'
-async def legacySend(ctx=None, channel=None, text=None, fileName=None):  #When not using /commands Check channel permissions before sending ALWAYS
+async def legacySend(ctx=None, channel=None, text=None, fileName=None, ephemeral=False):  #When not using /commands Check channel permissions before sending ALWAYS
 	if channel == None : channel = ctx.channel
 	#channel in DM = 'id', 'jump_url', 'me', 'permissions_for', 'pins', 'recipient', 'recipients', 'send', 'type', 'typing'
 	#channel in Channel = 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks'
@@ -668,6 +668,8 @@ def confirmUser(userID):
 	if not tday[0] in TodaysUsers['today'] : #Start a new day.   Likely Not important to do this
 		#TodaysUsers = {}
 		TodaysUsers['today'] = tday[0]
+		for user in TodaysUsers :
+			TodaysUsers[user] = tday[1] - 20  #Reset cooldowns on new day or else!!!
 	if userID in TodaysUsers :
 		userCooldown = tday[1]-TodaysUsers[userID]
 		if userCooldown > 20 :
@@ -698,7 +700,7 @@ async def legacyListUsers(ctx, *args):
 	txt = ""
 	for name in TodaysUsers:
 		txt += name + "\r"
-	await legacySend( ctx=ctx, text=txt )
+	await legacySend( ctx=ctx, text=txt, ephemeral=True ) # ctx.send(txt, ephemeral=True) #
 	
 @bot.command(name="wipecooldowns")
 @commands.is_owner()

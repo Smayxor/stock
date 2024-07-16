@@ -665,10 +665,11 @@ TodaysUsers['today'] = getToday()[0]
 def confirmUser(userID):
 	global TodaysUsers
 	tday = getToday()
-	if not tday[0] in TodaysUsers['today'] : #Start a new day.   Likely Not important to do this
+	if not tday[0] in TodaysUsers['today'] : #The cooldown Time doesnt include date, so.......reset it on new day
 		#TodaysUsers = {}
 		TodaysUsers['today'] = tday[0]
 		for user in TodaysUsers :
+			if user == "today" : continue
 			TodaysUsers[user] = tday[1] - 10  #Reset cooldowns on new day or else!!!
 	if userID in TodaysUsers :
 		userCooldown = tday[1]-TodaysUsers[userID]

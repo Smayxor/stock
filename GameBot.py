@@ -9,7 +9,7 @@ import pyscreeze
 
 img = None
 blnTarget = False
-im = Image.open('ClickTarget.png')
+img = Image.open('ClickTarget.png')
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
@@ -23,10 +23,14 @@ class RepeatTimer(Timer):
 vally = 0
 def timerThread():
 	global img, blnTarget, vally
+	img = Image.open('ClickTarget.png')
 	if img == None : return
 	#button7location = pyautogui.locateOnScreen("ClickTarget.png", confidence=0.9)
 	#print( button7location )
 	screenshot = ImageGrab.grab()
+	width, height = img.size
+	xPlus = width / 2
+	yPlus = height / 2
 	try:
 		locations = pyscreeze.locateAll(img, screenshot)
 		xPrev, yPrev = pyautogui.position()
@@ -35,7 +39,7 @@ def timerThread():
 			if blnTarget : return
 			blnTarget = True
 			
-			pyautogui.click(x, y)
+			pyautogui.click(x + xPlus, y + yPlus)
 	
 		pyautogui.moveTo( xPrev, yPrev )
 	except Exception as error :
@@ -57,14 +61,14 @@ def clickButton():
 	screenshot = ImageGrab.grab()
 	x, y = pyautogui.position()
 	#print(x, y)
-	img = screenshot.crop((x-10, y-10, x+10, y+10))
-	#img = Image.new("RGB", (50, 50), "#000")
-	#draw = ImageDraw.Draw(img)
-	#img.paste(screenshot, (-x, -y))
+	img = screenshot.crop((x-10, y-40, x+10, y-30))
+	img = Image.new("RGB", (50, 50), "#000")
+	draw = ImageDraw.Draw(img)
+	img.paste(screenshot, (-x, -y))
 	
-	#tk_image = ImageTk.PhotoImage(img)
-	#canvas.configure(image=tk_image)
-	#canvas.image = tk_image	
+	tk_image = ImageTk.PhotoImage(img)
+	canvas.configure(image=tk_image)
+	canvas.image = tk_image	
 	img.save("ClickTarget.png")
 	
 

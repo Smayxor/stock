@@ -15,6 +15,7 @@ import datapuller as dp
 import drawchart as dc
 import requests
 import os
+from typing import Union
 
 init = json.load(open('apikey.json'))
 BOT_TOKEN = init['BOT_TOKEN']
@@ -37,44 +38,6 @@ CHART_LOG = 8
 CHART_CHANGE = 9
 CHART_SKEW = 10
 CHART_HEATMAP = 11
-
-try :
-	#Declarations for slash commands
-	url = "https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands"
-	headers = { "Authorization": "Bot " + BOT_TOKEN}
-
-	#Removes slash commands
-	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/COMMAND_ID", headers=headers) )
-	#print( requests.delete("https://discord.com/api/v10/applications/" + BOT_APP_ID + "/commands/1260647680405930064", headers=headers) )
-
-	slash_command_json = {
-		"name": "gex", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Draw a GEX/DEX chart", "options": [ 
-		{ "name": "ticker", "description": "Stock Ticker Symbol", "type": 3, "required": True }, 
-		{ "name": "dte", "description": "Days to expiration", "type": 4, "required": False }, 
-		{ "name": "count", "description": "Strike Count", "type": 4, "required": False }, 
-		{ "name": "chart", "description": "R for roated chart", "type": 3, "required": False, "choices": [
-			{ "name": "Normal", "value": "Normal"  }, 
-			{ "name": "EGEX", "value": "E" }, 
-			{ "name": "Volume", "value": "V" }, 
-			{ "name": "COMBO", "value": "COMBO"  }, 
-			{ "name": "HEATMAP", "value": "HEATMAP"  }
-		]}   
-	] }
-	print( requests.post(url, headers=headers, json=slash_command_json) )
-
-	slash_command_json = { "name": "8ball", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Answers your question", "options": [ { "name": "question", "description": "Question you need answered?", "type": 3, "required": True }] }
-	print( requests.post(url, headers=headers, json=slash_command_json) )
-
-	slash_command_json = { "name": "pc", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Have Smayxor display price charts", "options":[
-		{ "name": "strike1", "description": "5560c", "type": 3, "required": True }, 
-		{ "name": "strike2", "description": "5560p", "type": 3, "required": False }] }
-	print( requests.post(url, headers=headers, json=slash_command_json) )
-
-	slash_command_json = { "name": "news", "type": 1, "integration_types": [0, 1], "contexts": [0,1,2], "description": "Gets todays events", "options":[{ "name": "days", "description": "How many days", "type": 3, "required": False, "choices": [{"name": "today", "value": "TODAY"}, {"name": "week", "value": "WEEK"}, {"name": "all", "value": "ALL"}, {"name": "1", "value": "1"}, {"name": "2", "value": "2"}, {"name": "3", "value": "3"}, {"name": "4", "value": "4"}, {"name": "5", "value": "5"}] }] }
-	print( requests.post(url, headers=headers, json=slash_command_json) )
-
-except Exception as er:
-	print(f'SlashCommand Error - {er}')
 
 def getTenorGIF( search ):
 	url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
@@ -713,6 +676,20 @@ async def legacyWipeCoolDowns(ctx, *args):
 		TodaysUsers[name] = tday[1] - 20
 		#print( name, " - ", TodaysUsers[name] )
 	await legacyListUsers(ctx, args)
+	
+	
+@bot.tree.context_menu(name='Invite')
+async def context_menu_Invite(intr: discord.Interaction, user: Union[discord.Member, discord.User] ):
+	#user = await client.fetch_user(user_id)
+	#if user:
+	#await user.send("You have been invited to https://discord.gg/3YNKxx2ReP \n You can also use Smayxor anywhere with https://discord.com/oauth2/authorize?client_id=1046929513117925426")
+	await intr.response.send_message(f'{user.name} you can use Smayxor here https://discord.com/oauth2/authorize?client_id=1046929513117925426')
+
+@bot.tree.context_menu(name='FindTicker')
+async def context_menu_FindTicker(intr: discord.Interaction, msg: discord.Message):
+
+	await intr.response.send_message("Feature coming soon!", ephemeral=True)	
+	
 	
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 

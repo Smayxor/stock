@@ -5,6 +5,7 @@ import time
 #import schedule
 import datapuller as dp
 import os
+import tkinter as tk
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -145,6 +146,7 @@ class DaysData():
 			
 		return not result
 
+
 def startDay():
 	global blnRun, blnSkipPrint, CurrentCalendar, SPXData
 	try :
@@ -178,10 +180,15 @@ def getToday():
 	return (dateAndtime[0], minute)
 
 def timerThread():
-	global blnRun, SPXData, blnSkipPrint
+	global win, lblStatus, blnRun, SPXData, blnSkipPrint
 	try:
 		minute = getToday()[1]
-		blnRTH = (minute > 0) and (minute < 1300)	
+		blnRTH = (minute > 0) and (minute < 1300)
+		
+		win.title( f'RTH - {blnRTH} - Running - {blnRun}')
+		lblStatus.configure(text=f'{minute}')
+		
+		
 		if blnRTH == True and blnRun == False : 
 			if blnSkipPrint == False : print( 'Starting day ', minute )
 			startDay()		
@@ -196,20 +203,30 @@ def timerThread():
 		print( f'TimerThread error - {error}' )
 	if blnRun == False : print('Finished saving options data')
 		
-print("Running Version 4.0 OOPS + Faster with Candles")
-#schedule.every().day.at("00:00").do(startDay)  #Currently set to PST
-#schedule.every().day.at("13:00").do(endDay)   # Can be handled through the main Timer
+def on_closing():
+	global blnRun, timer
+	blnRun = False
+	timer.cancel()
+	win.destroy()
+	
+def clickStart():
+	pass
+	
+win = tk.Tk()
+width, height = 360, 100
+win.geometry(str(width) + "x" + str(height))
+win.protocol("WM_DELETE_WINDOW", on_closing)
+
+lblStatus = tk.Label(win, text="Running", width=20, anchor="w")
+lblStatus.place(x=0, y=0)
+
+tk.Button(win, text="Start", command=clickStart, width=10).place(x=0, y=30)
+
+print("Running Version 5.0 GUI Mode")
 
 timer = dp.RepeatTimer(5, timerThread, daemon=True)
 timer.start()
-#tmp = getToday()[1]
-#if (tmp > 0) and (tmp < 1300): 
-#	print('Late start to the day')
-blnRun = False
-#startDay()
 
-# Loop so that the scheduling task keeps on running all time.
-while True: # Checks whether a scheduled task is pending to run or not
-	#schedule.run_pending()
-	time.sleep(1)
-print( 'Finished logging data' )
+blnRun = False
+
+tk.mainloop()

@@ -141,16 +141,18 @@ def findPeaksAndValleys( prices ):
 		else:
 			pass
 	return (lows, highs)
-	
 
 def getMarketHoursToday():
 	#{'clock': {'date': '2023-11-12', 'description': 'Market is closed', 'state': 'closed', 'timestamp': 1699778863, 'next_change': '07:00', 'next_state': 'premarket'}}
-	return requests.get('https://api.tradier.com/v1/markets/clock', params={'delayed': 'false'}, headers=TRADIER_HEADER).json()['clock']
+	response = requests.get('https://api.tradier.com/v1/markets/clock', params={'delayed': 'false'}, headers=TRADIER_HEADER)
+	if response.status_code != 200 : print( 'getMarketHoursToday ', response.status_code, response.content )
+	return response.json()['clock']
 
 def getExpirations(ticker):
 	param = {'symbol': f'{ticker}', 'includeAllRoots': 'true', 'strikes': 'false'}   #'strikes': 'true'}
-	return requests.get('https://api.tradier.com/v1/markets/options/expirations', params=param, headers=TRADIER_HEADER).json()['expirations']['date']
-
+	response = requests.get('https://api.tradier.com/v1/markets/options/expirations', params=param, headers=TRADIER_HEADER)
+	if response.status_code != 200 : print( 'getExpirations ', response.status_code, response.content )
+	return response.json()['expirations']['date']
 
 resetDTEDate = datetime.date.today()  #To reduce requests per minute from broker, we store a list of all tickers every day, and their ExpirationDates
 tickerDTEList = {}
@@ -174,6 +176,7 @@ def getExpirationDate(ticker, dte):
 		dte += 1
 	return result
 
+#{'options': {'option': [{'symbol': 'SPXW240712C01400000', 'description': 'SPXW Jul 12 2024 $1400.00 Call', 'exch': 'C', 'type': 'option', 'last': 4236.0, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 4225.5, 'ask': 4226.1, 'underlying': 'SPX', 'strike': 1400.0, 'greeks': {'delta': 0.9999999999999896, 'gamma': -8.847589567800577e-15, 'theta': -2.598552207134388e-10, 'vega': 2.0000090759636756e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 0.272, 'updated_at': '2024-07-12 15:58:45'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 1, 'trade_date': 1720706278649, 'prevclose': 4236.0, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 1, 'bidexch': 'C', 'bid_date': 1720801245000, 'asksize': 1, 'askexch': 'C', 'ask_date': 1720801242000, 'open_interest': 8, 'contract_size': 100, 'expiration_date': '2024-07-12', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPXW'},
 def getOptionsChain(ticker, dte, date=None):
 	#print( f'Fetching {dte} on {ticker}')
 	if date == None :
@@ -181,7 +184,8 @@ def getOptionsChain(ticker, dte, date=None):
 	else : expDate = date
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
 	response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
-	#print( response.status_code )
+#	response = requests.get('https://api.tradier.co', params=param, headers=TRADIER_HEADER )
+	if response.status_code != 200 : print( 'getOptionsChain ', response.status_code, response.content )
 	options = response.json()['options']['option']
 	#print( options )
 	return (expDate, options, response.headers)
@@ -193,7 +197,9 @@ def getMultipleDTEOptionChain(ticker, days):
 	days = []
 	for exp in exps:
 		param = {'symbol': f'{ticker}', 'expiration': f'{exp}', 'greeks': 'true'}
-		options = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER ).json()['options']['option']
+		response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
+		if response.status_code != 200 : print( 'getMultipleDTEOptionChain ', response.status_code, response.content )
+		options = response.json()['options']['option']
 		gex = getGEX( options )
 		days.append( (exp, gex) )
 	return days
@@ -352,6 +358,8 @@ def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 
 			blnCalls = firstStrike[GEX_CALL_DELTA] < (lastStrike[GEX_PUT_DELTA] * -1)
 
+	#print( firstStrike[GEX_CALL_DELTA], firstStrike[GEX_PUT_DELTA], firstStrike[GEX_CALL_DELTA], firstStrike[GEX_CALL_DELTA] )
+
 	cp = firstStrike[GEX_STRIKE] + firstStrike[GEX_CALL_BID]
 	pp = lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID]
 
@@ -498,7 +506,10 @@ lastFileKeyList = []
 blnWasFinal = False
 
 #SERVER_IP = None
-
+def grabLastData():
+	urlLast = f'{SERVER_IP}/last-datalog.json'
+	tmp = requests.get(urlLast).json()
+	
 def pullLogFile(fileName, cachedData=False, discordBot=False) :
 	global lastFileName, lastFileContents, lastFileKeyList, blnWasFinal
 	url = f'{SERVER_IP}/{fileName}'

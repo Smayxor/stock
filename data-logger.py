@@ -167,7 +167,7 @@ def timerTask():
 	
 	if minute > 1500 :   #Lets just start reccording before the day even starts.  MUCH MORE OVN Data
 		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
-		print( minute, minute -2400 )
+		#print( minute, minute -2400 )
 		minute = minute-2400
 	
 	if minute > 1300 : 
@@ -197,7 +197,10 @@ def timerTask():
 		print( f'{SPXData.RecordDate} - Day started' )
 	win.title( f'{day} - Running - {minute}')
 	lblStatus.configure(text=f'{minute}')
-	result = SPXData.addTime(minute)
+	try:
+		result = SPXData.addTime(minute)
+	except Exception as error:
+		print( f'{minute} Timerthread - {error}' )
 	
 
 def on_closing():
@@ -207,8 +210,23 @@ def on_closing():
 	win.destroy()
 	
 def clickStart():
-	global blnRun
+	global blnRun, timer
 	blnRun = True
+	timer.start()
+	
+def clickStatus():
+	global blnRun, timer
+	blnRun = True
+	print( timer )
+	print( timer.is_alive() )
+	#<RepeatTimer(Thread-1, started daemon 17216)>
+	#'args', 'cancel', 'daemon', 'finished', 'function', 'getName', 'ident', 'interval', 'isDaemon', 'is_alive', 'join', 'kwargs', 'name', 'native_id', 'run', 'setDaemon', 'setName', 'start']
+	
+def secondTimerThread():
+	global timer
+	if not timer.is_alive() :
+		timer = dp.RepeatTimer(5, timerTask, daemon=True)
+		timer.start()
 	
 win = tk.Tk()
 width, height = 360, 100
@@ -219,12 +237,16 @@ lblStatus = tk.Label(win, text="Running", width=20, anchor="w")
 lblStatus.place(x=0, y=0)
 
 tk.Button(win, text="Start", command=clickStart, width=10).place(x=0, y=30)
+tk.Button(win, text="Status", command=clickStatus, width=10).place(x=0, y=60)
 
 print("Running Version 6.0 GUI Mode + MAX OVN Data")
 
 state = 0
 timer = dp.RepeatTimer(5, timerTask, daemon=True)
 timer.start()
+
+timer2 = dp.RepeatTimer(300, secondTimerThread, daemon=True)
+timer2.start()
 
 blnRun = False
 

@@ -156,7 +156,7 @@ def getToday():
 	return (dateAndtime[0], minute)
 
 
-
+"""
 
 def startDay():
 	global blnRun, blnSkipPrint, CurrentCalendar, SPXData
@@ -202,7 +202,7 @@ def timerThread():
 	except Exception as error:
 		print( f'TimerThread error - {error}' )
 	if blnRun == False : print('Finished saving options data')
-
+"""
 
 
 intState = 0

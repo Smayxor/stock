@@ -133,18 +133,29 @@ class DaysData():
 		except Exception as error:
 			print( f'{minute} - Grab Data - {error}' )
 		
-	def addTime(self):
-		myTime = getToday()
-		minute = myTime[1]
+	def addTime(self, minute):
+		#myTime = getToday()
+		#minute = myTime[1]
 		result = minute > 1300
 		try:
 			self.grabData(minute, result)
 		except Exception as error:
 			print(f'{minute} - Addtime error - {error}')
 			
-		if result : print( 'End in class instance', myTime, minute )	
-			
+		#if result : print( 'End in class instance', minute )
 		return not result
+
+def getStrTime(): 
+	now = datetime.datetime.now()
+	return (now.hour * 100) + now.minute + (now.second * 0.01)
+
+def getToday():
+	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
+	tmp = dateAndtime[1].split(".")[0].split(":")
+	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
+	return (dateAndtime[0], minute)
+
+
 
 
 def startDay():
@@ -169,16 +180,6 @@ def startDay():
 	SPXData = DaysData( "SPX", 0, 50, 0,  630 )
 	print( f'{SPXData.RecordDate} - Day started' )
 
-def getStrTime(): 
-	now = datetime.datetime.now()
-	return (now.hour * 100) + now.minute + (now.second * 0.01)
-
-def getToday():
-	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
-	tmp = dateAndtime[1].split(".")[0].split(":")
-	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
-	return (dateAndtime[0], minute)
-
 def timerThread():
 	global win, lblStatus, blnRun, SPXData, blnSkipPrint
 	try:
@@ -187,7 +188,6 @@ def timerThread():
 		
 		win.title( f'RTH - {blnRTH} - Running - {blnRun}')
 		lblStatus.configure(text=f'{minute}')
-		
 		
 		if blnRTH == True and blnRun == False : 
 			if blnSkipPrint == False : print( 'Starting day ', minute )
@@ -202,7 +202,46 @@ def timerThread():
 	except Exception as error:
 		print( f'TimerThread error - {error}' )
 	if blnRun == False : print('Finished saving options data')
-		
+
+
+
+intState = 0
+lastDay = -1
+def timerTask():
+	global win, lblStatus, intState, SPXData, CurrentCalendar, lastDay
+	tday = getToday()
+	day = tday[0]
+	minute = tday[1]
+	if minute > 1300 : 
+		intState = 0
+		win.title( f'{day} - EOD - {minute}')
+		lblStatus.configure(text=f'{minute} EOD')
+		return
+	if lastDay != day :
+		print(f'New day began {day}')
+		try :
+			print(f'Fetching new month data')
+			if CurrentCalendar == None : CurrentCalendar = dp.getCalendar()
+		except Exception as error :
+			print(f'Fatal Calender API Failure')
+			return
+		print(f'Checking {day} if market is open')
+		lastDay = day
+		month0dte = int(day.split('-')[1])
+		monthCurCal = CurrentCalendar['month']
+		days = CurrentCalendar['days']['day']
+		if next((x for x in days if x['date'] == day), None)['status'] == 'closed' :	
+			print('Market is closed today')#if intState == 0 : 
+			intState = -1
+			return
+		intState = 1
+		SPXData = DaysData( "SPX", 0, 50, 0,  630 )
+		print( f'{SPXData.RecordDate} - Day started' )
+	win.title( f'{day} - Running - {minute}')
+	lblStatus.configure(text=f'{minute}')
+	result = SPXData.addTime(minute)
+	
+
 def on_closing():
 	global blnRun, timer
 	blnRun = False
@@ -210,7 +249,8 @@ def on_closing():
 	win.destroy()
 	
 def clickStart():
-	pass
+	global blnRun
+	blnRun = True
 	
 win = tk.Tk()
 width, height = 360, 100
@@ -224,7 +264,8 @@ tk.Button(win, text="Start", command=clickStart, width=10).place(x=0, y=30)
 
 print("Running Version 5.0 GUI Mode")
 
-timer = dp.RepeatTimer(5, timerThread, daemon=True)
+state = 0
+timer = dp.RepeatTimer(5, timerTask, daemon=True)
 timer.start()
 
 blnRun = False

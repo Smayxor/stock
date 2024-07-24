@@ -21,11 +21,13 @@ SPXData = None
 
 class DaysData():
 	def __init__(self, ticker, dte, count, startTime, foldTime):
-		myTime = getToday()
-		minute = myTime[1]
+		#myTime = getToday()
+		#minute = myTime[1]
 		self.Ticker = ticker
-		self.RecordDate = dp.getExpirationDate(self.Ticker, dte)
-		print( 'Dates pulled ', myTime[0], self.RecordDate )
+		#self.RecordDate = dte
+		print( dte, '-' in dte )
+		self.RecordDate = dte if '-' in dte else dp.getExpirationDate(self.Ticker, dte)
+		#print( 'Dates pulled ', myTime[0], self.RecordDate )
 		self.OpenPrice = None
 		self.StrikeCount = count
 		self.FileName = f'./logs/{self.RecordDate}-0dte-datalog.json'
@@ -49,7 +51,7 @@ class DaysData():
 		except Exception as error:
 			pass #print( f'init error - {error}' )
 		
-		self.grabData(minute, False)
+		#self.grabData(minute, False)
 
 	def appendData(self, gex):
 		try:
@@ -155,56 +157,6 @@ def getToday():
 	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
 	return (dateAndtime[0], minute)
 
-
-"""
-
-def startDay():
-	global blnRun, blnSkipPrint, CurrentCalendar, SPXData
-	try :
-		today = getToday()[0]
-		if CurrentCalendar == None : CurrentCalendar = dp.getCalendar()
-		month0dte = int(today.split('-')[1])
-		monthCurCal = CurrentCalendar['month']
-		if month0dte != monthCurCal : CurrentCalendar = dp.getCalendar()
-		days = CurrentCalendar['days']['day']
-		if next((x for x in days if x['date'] == today), None)['status'] == 'closed' :	
-			if blnSkipPrint == False : print('Market is closed today')
-			blnSkipPrint = True
-			return
-	except Exception as error:
-		print( f'Calendar issue' )
-		return
-
-	blnSkipPrint = False
-	blnRun = True
-	SPXData = DaysData( "SPX", 0, 50, 0,  630 )
-	print( f'{SPXData.RecordDate} - Day started' )
-
-def timerThread():
-	global win, lblStatus, blnRun, SPXData, blnSkipPrint
-	try:
-		minute = getToday()[1]
-		blnRTH = (minute > 0) and (minute < 1300)
-		
-		win.title( f'RTH - {blnRTH} - Running - {blnRun}')
-		lblStatus.configure(text=f'{minute}')
-		
-		if blnRTH == True and blnRun == False : 
-			if blnSkipPrint == False : print( 'Starting day ', minute )
-			startDay()		
-		if not blnRun : return
-		
-		result = SPXData.addTime()
-		if result == False :
-			print( getToday() )
-			blnRun = False
-		
-	except Exception as error:
-		print( f'TimerThread error - {error}' )
-	if blnRun == False : print('Finished saving options data')
-"""
-
-
 intState = 0
 lastDay = -1
 def timerTask():
@@ -212,6 +164,12 @@ def timerTask():
 	tday = getToday()
 	day = tday[0]
 	minute = tday[1]
+	
+	if minute > 1500 :   #Lets just start reccording before the day even starts.  MUCH MORE OVN Data
+		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
+		print( minute, minute -2400 )
+		minute = minute-2400
+	
 	if minute > 1300 : 
 		intState = 0
 		win.title( f'{day} - EOD - {minute}')
@@ -235,7 +193,7 @@ def timerTask():
 			intState = -1
 			return
 		intState = 1
-		SPXData = DaysData( "SPX", 0, 50, 0,  630 )
+		SPXData = DaysData( "SPX", day, 50, 0,  630 )
 		print( f'{SPXData.RecordDate} - Day started' )
 	win.title( f'{day} - Running - {minute}')
 	lblStatus.configure(text=f'{minute}')
@@ -262,7 +220,7 @@ lblStatus.place(x=0, y=0)
 
 tk.Button(win, text="Start", command=clickStart, width=10).place(x=0, y=30)
 
-print("Running Version 5.0 GUI Mode")
+print("Running Version 6.0 GUI Mode + MAX OVN Data")
 
 state = 0
 timer = dp.RepeatTimer(5, timerTask, daemon=True)

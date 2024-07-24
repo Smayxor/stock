@@ -102,7 +102,7 @@ class DaysData():
 				self.FoldLow = gex
 				#print(f'{minute} - assigned Low Price {price}')
 		
-			candleLength = 120 if minute < 630 else 6
+			candleLength = 240 if minute < 630 else 6
 			blnWrite = self.FoldCount >= candleLength
 		
 			self.FoldLastData = {}

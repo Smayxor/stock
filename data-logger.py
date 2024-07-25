@@ -20,14 +20,10 @@ CurrentCalendar = None
 SPXData = None
 
 class DaysData():
-	def __init__(self, ticker, dte, count, startTime, foldTime):
-		#myTime = getToday()
-		#minute = myTime[1]
+	def __init__(self, ticker, dte, count):
 		self.Ticker = ticker
-		#self.RecordDate = dte
-		print( dte, '-' in dte )
 		self.RecordDate = dte if '-' in dte else dp.getExpirationDate(self.Ticker, dte)
-		#print( 'Dates pulled ', myTime[0], self.RecordDate )
+		print( dte, ' to ', self.RecordDate )
 		self.OpenPrice = None
 		self.StrikeCount = count
 		self.FileName = f'./logs/{self.RecordDate}-0dte-datalog.json'
@@ -35,12 +31,11 @@ class DaysData():
 		self.Data = {}
 		self.LastData = {}
 		
-		self.FoldTime = foldTime
 		self.FoldLow = {}
 		self.FoldHigh = {}
 		self.FoldLowPrice = 9999999
 		self.FoldHighPrice = 0
-		self.FoldCount = 0 # if minute < foldTime else -1
+		self.FoldCount = 0
 		self.FoldLastData = {}
 		
 		try:  #Check for existing data
@@ -50,8 +45,6 @@ class DaysData():
 			self.Data.update( tmpData )
 		except Exception as error:
 			pass #print( f'init error - {error}' )
-		
-		#self.grabData(minute, False)
 
 	def appendData(self, gex):
 		try:
@@ -76,19 +69,22 @@ class DaysData():
 			return "error"
 		return None
 			
-	def grabData(self, minute, EOD):
+	def addTime(self, minute):
+		print(f'4 - {minute} addTime start')
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
 			self.FoldCount == 99999 # Make sure we separate OVN from RTH
-		if EOD : self.FoldCount == 99999
-		
+		#EOD = minute > 1300
+		#if EOD : self.FoldCount == 99999
+		print(f'5 - {minute} addTime try')
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
-			#print( f'Response headers - { options[2]}' )
+			
 			gex = dp.getGEX( options[1] )
-			if self.OpenPrice == None :
+			if self.OpenPrice is None :
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
 				print(f'OpenPrice assigned {self.OpenPrice}')
+				
 			gex = dp.shrinkToCount(gex, self.OpenPrice, self.StrikeCount)
 			price = dp.getPrice(self.Ticker, gex)
 			self.FoldCount += 1
@@ -96,32 +92,27 @@ class DaysData():
 			if price > self.FoldHighPrice :
 				self.FoldHighPrice = price
 				self.FoldHigh = gex
-				#print(f'{minute} - assigned High Price {price}')
 			if price < self.FoldLowPrice :
 				self.FoldLowPrice = price
 				self.FoldLow = gex
-				#print(f'{minute} - assigned Low Price {price}')
 		
-			candleLength = 240 if minute < 630 else 6
+			candleLength = 180 if minute < 630 else 6
 			blnWrite = self.FoldCount >= candleLength
+			print('6 - ', self.FoldCount , candleLength, blnWrite)
 		
 			self.FoldLastData = {}
 			self.FoldLastData['final'] = blnWrite
 			self.FoldLastData[minute] = self.FoldLow
 			self.FoldLastData[minute+0.01] = self.FoldHigh
-			if EOD == False : # Record the Close Price
-				self.FoldLastData[minute+0.02] = gex # The CurrentClose data
-				self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
+			#if EOD == False : # Record the Close Price
+			#	self.FoldLastData[minute+0.02] = gex # The CurrentClose data
+			#	self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
 				
-				#print(  [ dp.getPrice("SPX", v) for k, v in self.FoldLastData.items() if k != 'final' ]  )
-				
-				#print('Appending Current Price {dp.getPrice("SPX", gex)}')
-
-			#print( EOD, [k for k, v in self.FoldLastData.items()] )
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
 
 			if blnWrite :
+				print(f'7 - Writing {minute}')
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
@@ -134,27 +125,18 @@ class DaysData():
 
 		except Exception as error:
 			print( f'{minute} - Grab Data - {error}' )
-		
-	def addTime(self, minute):
-		#myTime = getToday()
-		#minute = myTime[1]
-		result = minute > 1300
-		try:
-			self.grabData(minute, result)
-		except Exception as error:
-			print(f'{minute} - Addtime error - {error}')
-			
-		#if result : print( 'End in class instance', minute )
-		return not result
 
 def getStrTime(): 
 	now = datetime.datetime.now()
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
 def getToday():
+	global testTime
 	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
 	tmp = dateAndtime[1].split(".")[0].split(":")
 	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
+	#testTime += 10
+	#if testTime > 2400 : testTime = 0
 	return (dateAndtime[0], minute)
 
 intState = 0
@@ -164,18 +146,20 @@ def timerTask():
 	tday = getToday()
 	day = tday[0]
 	minute = tday[1]
-	
 	if minute > 1500 :   #Lets just start reccording before the day even starts.  MUCH MORE OVN Data
 		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
-		#print( minute, minute -2400 )
 		minute = minute-2400
-	
-	if minute > 1300 : 
+	#day = "2024-07-25"
+	print(f'1 - {day} TimerTask {minute}')
+	if minute > 1300 :
+		print(f'{minute} if EOD')
 		intState = 0
 		win.title( f'{day} - EOD - {minute}')
 		lblStatus.configure(text=f'{minute} EOD')
 		return
+	print('2 - Minute adjustment')
 	if lastDay != day :
+		print(f'*{lastDay}* not *{day}*')
 		print(f'New day began {day}')
 		try :
 			print(f'Fetching new month data')
@@ -193,15 +177,16 @@ def timerTask():
 			intState = -1
 			return
 		intState = 1
-		SPXData = DaysData( "SPX", day, 50, 0,  630 )
+		SPXData = DaysData( "SPX", day, 50 )
 		print( f'{SPXData.RecordDate} - Day started' )
-	win.title( f'{day} - Running - {minute}')
-	lblStatus.configure(text=f'{minute}')
 	try:
-		result = SPXData.addTime(minute)
+		print('3 - Adding time to Object')
+		SPXData.addTime(minute)
+		lblStatus.configure(text=f'{minute}')
+		win.title( f'{day} - Running - {minute}')
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
-	
+	print(f'8 - {minute} TimerTask completed')
 
 def on_closing():
 	global blnRun, timer
@@ -212,19 +197,19 @@ def on_closing():
 def clickStart():
 	global blnRun, timer
 	blnRun = True
-	timer.start()
+	print( timer )
+	print( f'Timer active = {timer.is_alive()}' )
+	if timer.is_alive() == False :
+		timer = dp.RepeatTimer(5, timerTask, daemon=True)
+		timer.start()
 	
 def clickStatus():
-	global blnRun, timer
-	blnRun = True
-	print( timer )
-	print( timer.is_alive() )
-	#<RepeatTimer(Thread-1, started daemon 17216)>
-	#'args', 'cancel', 'daemon', 'finished', 'function', 'getName', 'ident', 'interval', 'isDaemon', 'is_alive', 'join', 'kwargs', 'name', 'native_id', 'run', 'setDaemon', 'setName', 'start']
+	pass
 	
 def secondTimerThread():
 	global timer
 	if not timer.is_alive() :
+		print(f'Timer has stopped unexpectedly.  Restarting Timer')
 		timer = dp.RepeatTimer(5, timerTask, daemon=True)
 		timer.start()
 	
@@ -245,8 +230,13 @@ state = 0
 timer = dp.RepeatTimer(5, timerTask, daemon=True)
 timer.start()
 
-timer2 = dp.RepeatTimer(300, secondTimerThread, daemon=True)
-timer2.start()
+#timer2 = dp.RepeatTimer(300, secondTimerThread, daemon=True)
+#timer2.start()
+
+#testTime = 2201
+#while testTime < 1300 or testTime > 1400 :
+#	timerTask()
+#	time.sleep(1)
 
 blnRun = False
 

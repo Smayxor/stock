@@ -47,7 +47,28 @@ with open("./logs/test.json", 'rb+') as f:
 	f.seek(-1,os.SEEK_END)	#f.truncate()
 	f.write( json.dumps(appendData).replace('{', ',').encode() )
 """
-
+def addDebugLog(self, data):
+	try:
+		def saveDataFile(bigData, appendData, myFile):
+			if not os.path.isfile(myFile):
+				with open(myFile,'w') as f: 
+					json.dump(bigData, f)
+			else:
+				if appendData == "" : 
+					print( 'Empty String')
+					return
+				if len( appendData ) == 0 :
+					print(f'No data on write')
+					return
+				with open(myFile, 'rb+') as f:
+					f.seek(-1,os.SEEK_END)
+					outData = json.dumps(appendData).replace('{', ',')
+					f.write( outData.encode() )		
+		saveDataFile( self.Data, gex, self.FileName )
+	except Exception as error:
+		print( f'DebugLog - {error}' )
+	return None
+		
 class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
@@ -184,11 +205,22 @@ def getOptionsChain(ticker, dte, date=None):
 	else : expDate = date
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
 	response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
-#	response = requests.get('https://api.tradier.co', params=param, headers=TRADIER_HEADER )
-	if response.status_code != 200 : print( 'getOptionsChain ', response.status_code, response.content )
-	options = response.json()['options']['option']
-	#print( options )
-	return (expDate, options, response.headers)
+	if response.status_code != 200 : 
+		print( 'getOptionsChain ', response.status_code, response.content )
+		return None
+	if not response.headers.get('Content-Type').startswith('application/json') : 
+		print( f'Not JSON - {response.headers} - {response.content}' )
+		return None
+	response = response.json()
+	#***************************************************** In the event we get an unexpected packet **********************************************
+	with open(f'./logs/crash.json', 'w') as f:
+		json.dump(response, f)
+	#*********************************************************************************************************************************************
+	options = response.get('options', dict({'a': 123})).get('option', None)
+	if options is None :
+		print(f'Unexpected response in getOptionsChain - {response}')
+		return None
+	return (expDate, options)
 
 def getMultipleDTEOptionChain(ticker, days):
 	exps = getExpirations(ticker)

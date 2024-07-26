@@ -70,25 +70,28 @@ class DaysData():
 		return None
 			
 	def addTime(self, minute):
-		print(f'4 - {minute} addTime start')
+		#print(f'4 - {minute} addTime start')
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
 			self.FoldCount == 99999 # Make sure we separate OVN from RTH
 		#EOD = minute > 1300
 		#if EOD : self.FoldCount == 99999
-		print(f'5 - {minute} addTime try')
+		#print(f'5 - {minute} addTime try')
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
-			
+			if options is None : 
+				print(f'{minute} - No options data')
+				return
+			#print(f'6 - Converting to my format')
 			gex = dp.getGEX( options[1] )
 			if self.OpenPrice is None :
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
 				print(f'OpenPrice assigned {self.OpenPrice}')
-				
+			#print(f'7 - Shrink to count')
 			gex = dp.shrinkToCount(gex, self.OpenPrice, self.StrikeCount)
 			price = dp.getPrice(self.Ticker, gex)
 			self.FoldCount += 1
-
+			#print(f'8 - Checking High Low')
 			if price > self.FoldHighPrice :
 				self.FoldHighPrice = price
 				self.FoldHigh = gex
@@ -98,7 +101,7 @@ class DaysData():
 		
 			candleLength = 180 if minute < 630 else 6
 			blnWrite = self.FoldCount >= candleLength
-			print('6 - ', self.FoldCount , candleLength, blnWrite)
+			#print('6 - ', self.FoldCount , candleLength, blnWrite)
 		
 			self.FoldLastData = {}
 			self.FoldLastData['final'] = blnWrite
@@ -112,7 +115,7 @@ class DaysData():
 				json.dump(self.FoldLastData, f)
 
 			if blnWrite :
-				print(f'7 - Writing {minute}')
+				#print(f'7 - Writing {minute}')
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
@@ -121,7 +124,7 @@ class DaysData():
 				self.FoldLastData.pop( minute+0.03, None )
 				self.Data.update( self.FoldLastData )
 				blnGood = self.appendData( self.FoldLastData )
-				if not blnGood is None : print(minute)
+				if not blnGood is None : print(f'Error writing data - {minute}')
 
 		except Exception as error:
 			print( f'{minute} - Grab Data - {error}' )
@@ -150,16 +153,16 @@ def timerTask():
 		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
 		minute = minute-2400
 	#day = "2024-07-25"
-	print(f'1 - {day} TimerTask {minute}')
+	#print(f'1 - {day} TimerTask {minute}')
 	if minute > 1300 :
-		print(f'{minute} if EOD')
+		#print(f'{minute} if EOD')
 		intState = 0
 		win.title( f'{day} - EOD - {minute}')
 		lblStatus.configure(text=f'{minute} EOD')
 		return
-	print('2 - Minute adjustment')
+	#print('2 - Minute adjustment')
 	if lastDay != day :
-		print(f'*{lastDay}* not *{day}*')
+		#print(f'*{lastDay}* not *{day}*')
 		print(f'New day began {day}')
 		try :
 			print(f'Fetching new month data')
@@ -173,20 +176,20 @@ def timerTask():
 		monthCurCal = CurrentCalendar['month']
 		days = CurrentCalendar['days']['day']
 		if next((x for x in days if x['date'] == day), None)['status'] == 'closed' :	
-			print('Market is closed today')#if intState == 0 : 
+			print('Market is closed today')
 			intState = -1
 			return
 		intState = 1
 		SPXData = DaysData( "SPX", day, 50 )
 		print( f'{SPXData.RecordDate} - Day started' )
 	try:
-		print('3 - Adding time to Object')
+		#print('3 - Adding time to Object')
 		SPXData.addTime(minute)
 		lblStatus.configure(text=f'{minute}')
 		win.title( f'{day} - Running - {minute}')
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
-	print(f'8 - {minute} TimerTask completed')
+	#print(f'8 - {minute} TimerTask completed')
 
 def on_closing():
 	global blnRun, timer
@@ -206,13 +209,6 @@ def clickStart():
 def clickStatus():
 	pass
 	
-def secondTimerThread():
-	global timer
-	if not timer.is_alive() :
-		print(f'Timer has stopped unexpectedly.  Restarting Timer')
-		timer = dp.RepeatTimer(5, timerTask, daemon=True)
-		timer.start()
-	
 win = tk.Tk()
 width, height = 360, 100
 win.geometry(str(width) + "x" + str(height))
@@ -226,17 +222,8 @@ tk.Button(win, text="Status", command=clickStatus, width=10).place(x=0, y=60)
 
 print("Running Version 6.0 GUI Mode + MAX OVN Data")
 
-state = 0
 timer = dp.RepeatTimer(5, timerTask, daemon=True)
 timer.start()
-
-#timer2 = dp.RepeatTimer(300, secondTimerThread, daemon=True)
-#timer2.start()
-
-#testTime = 2201
-#while testTime < 1300 or testTime > 1400 :
-#	timerTask()
-#	time.sleep(1)
 
 blnRun = False
 

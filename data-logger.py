@@ -74,7 +74,7 @@ class DaysData():
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
 			self.FoldCount == 99999 # Make sure we separate OVN from RTH
-		#EOD = minute > 1300
+		#EOD = minute >= 1300
 		#if EOD : self.FoldCount == 99999
 		#print(f'5 - {minute} addTime try')
 		try:
@@ -108,8 +108,8 @@ class DaysData():
 			self.FoldLastData[minute] = self.FoldLow
 			self.FoldLastData[minute+0.01] = self.FoldHigh
 			#if EOD == False : # Record the Close Price
-			#	self.FoldLastData[minute+0.02] = gex # The CurrentClose data
-			#	self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
+			self.FoldLastData[minute+0.02] = gex # The CurrentClose data
+			self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
 				
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
@@ -152,11 +152,11 @@ def timerTask():
 	if minute > 1500 :   #Lets just start reccording before the day even starts.  MUCH MORE OVN Data
 		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
 		minute = minute-2400
+
 	#day = "2024-07-25"
 	#print(f'1 - {day} TimerTask {minute}')
 	if minute > 1300 :
-		#print(f'{minute} if EOD')
-		intState = 0
+		SPXData = None #Make extra certain we dont use old days
 		win.title( f'{day} - EOD - {minute}')
 		lblStatus.configure(text=f'{minute} EOD')
 		return
@@ -172,25 +172,27 @@ def timerTask():
 			return
 		print(f'Checking {day} if market is open')
 		lastDay = day
-		month0dte = int(day.split('-')[1])
-		monthCurCal = CurrentCalendar['month']
+		#month0dte = int(day.split('-')[1])
+		#monthCurCal = CurrentCalendar['month']
 		days = CurrentCalendar['days']['day']
 		if next((x for x in days if x['date'] == day), None)['status'] == 'closed' :	
 			print('Market is closed today')
 			intState = -1
+			SPXData = None #Make extra certain we dont use old days
 			return
+			
 		intState = 1
 		SPXData = DaysData( "SPX", day, 50 )
 		print( f'{SPXData.RecordDate} - Day started' )
+	
+	win.title( f'{day} - Running - {minute}')
+	if SPXData is None : return
+	lblStatus.configure(text=f'{minute}')
 	try:
-		#print('3 - Adding time to Object')
 		SPXData.addTime(minute)
-		lblStatus.configure(text=f'{minute}')
-		win.title( f'{day} - Running - {minute}')
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
-	#print(f'8 - {minute} TimerTask completed')
-
+	
 def on_closing():
 	global blnRun, timer
 	blnRun = False

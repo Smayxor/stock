@@ -138,8 +138,6 @@ def getToday():
 	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
 	tmp = dateAndtime[1].split(".")[0].split(":")
 	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
-	#testTime += 10
-	#if testTime > 2400 : testTime = 0
 	return (dateAndtime[0], minute)
 
 intState = 0
@@ -164,18 +162,23 @@ def timerTask():
 	if lastDay != day :
 		#print(f'*{lastDay}* not *{day}*')
 		print(f'New day began {day}')
+		lastDay = day
+		
 		try :
 			print(f'Fetching new month data')
-			if CurrentCalendar == None : CurrentCalendar = dp.getCalendar()
+			#if CurrentCalendar == None : 
+			CurrentCalendar = dp.getCalendar()
 		except Exception as error :
 			print(f'Fatal Calender API Failure')
 			return
 		print(f'Checking {day} if market is open')
-		lastDay = day
-		#month0dte = int(day.split('-')[1])
-		#monthCurCal = CurrentCalendar['month']
 		days = CurrentCalendar['days']['day']
-		if next((x for x in days if x['date'] == day), None)['status'] == 'closed' :	
+		
+		testDay = next((x for x in days if x['date'] == day), None)
+		if testDay is None :
+			print( f'{day} Month not stored in {CurrentCalendar}' )  #Should crash after this
+		
+		if testDay['status'] == 'closed' :	
 			print('Market is closed today')
 			intState = -1
 			SPXData = None #Make extra certain we dont use old days

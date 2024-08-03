@@ -4,8 +4,6 @@ from threading import Timer
 import requests
 import os
 import heapq
-import asyncio
-from aio_timers import Timer
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
@@ -72,7 +70,7 @@ def addDebugLog(self, data):
 		print( f'DebugLog - {error}' )
 	return None
 		
-class RepeatTimer(Timer):
+class RepeatTimer(Timer): #Deprecated - Using built in TKinter function now
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
 		self.daemon = daemon  #Solves runtime error using tkinter from another thread

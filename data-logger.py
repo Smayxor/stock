@@ -67,39 +67,42 @@ class DaysData():
 		return None
 			
 	def addTime(self, minute):
-		#print(f'4 - {minute} addTime start')
+		verbosePrint(1)
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
 			self.FoldCount == 99999 # Make sure we separate OVN from RTH
 		#EOD = minute >= 1300
 		#if EOD : self.FoldCount == 99999
-		#print(f'5 - {minute} addTime try')
+		verbosePrint(2)
 		try:
 			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
+			verbosePrint(3)
 			if options is None : 
 				print(f'{minute} - No options data')
 				return
-			#print(f'6 - Converting to my format')
+			verbosePrint(4)
 			gex = dp.getGEX( options[1] )
+			verbosePrint(5)
 			if self.OpenPrice is None :
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
 				print(f'OpenPrice assigned {self.OpenPrice}')
-			#print(f'7 - Shrink to count')
+			verbosePrint(6)
 			gex = dp.shrinkToCount(gex, self.OpenPrice, self.StrikeCount)
+			verbosePrint(7)
 			price = dp.getPrice(self.Ticker, gex)
+			verbosePrint(8)
 			self.FoldCount += 1
-			#print(f'8 - Checking High Low')
+			verbosePrint(9)
 			if price > self.FoldHighPrice :
 				self.FoldHighPrice = price
 				self.FoldHigh = gex
 			if price < self.FoldLowPrice :
 				self.FoldLowPrice = price
 				self.FoldLow = gex
-		
+			verbosePrint(10)
 			candleLength = 180 if minute < 630 else 6
 			blnWrite = self.FoldCount >= candleLength
-			#print('6 - ', self.FoldCount , candleLength, blnWrite)
-		
+			verbosePrint(11)
 			self.FoldLastData = {}
 			self.FoldLastData['final'] = blnWrite
 			self.FoldLastData[minute] = self.FoldLow
@@ -107,24 +110,29 @@ class DaysData():
 			#if EOD == False : # Record the Close Price
 			self.FoldLastData[minute+0.02] = gex # The CurrentClose data
 			self.FoldLastData[minute+0.03] = gex # Repeat data so it compatible with candles on client
-				
+			verbosePrint(12)
 			with open(self.LastDataFileName,'w') as f:  # Needs to write last price in its own file for Client
 				json.dump(self.FoldLastData, f)
-
+			verbosePrint(13)
 			if blnWrite :
-				#print(f'7 - Writing {minute}')
+				verbosePrint(14)
 				self.FoldCount = 0
 				self.FoldHighPrice = 0
 				self.FoldLowPrice = 9999999
+				verbosePrint(15)
 				self.FoldLastData.pop( 'final', None ) # Signals Client that the Candle has ended
 				self.FoldLastData.pop( minute+0.02, None ) # We dont want to commit this to the main file
 				self.FoldLastData.pop( minute+0.03, None )
+				verbosePrint(16)
 				self.Data.update( self.FoldLastData )
+				verbosePrint(17)
 				blnGood = self.appendData( self.FoldLastData )
+				verbosePrint(18)
 				if not blnGood is None : print(f'Error writing data - {minute}')
-
+				verbosePrint(19)
 		except Exception as error:
 			print( f'{minute} - Grab Data - {error}' )
+		verbosePrint(20)
 
 def getStrTime(): 
 	now = datetime.datetime.now()
@@ -195,10 +203,19 @@ def on_closing():
 	win.destroy()
 	
 def clickStart():
-	pass
+	global blnVerbose, intVerbose
+	blnVerbose = not blnVerbose
+	print( blnVerbose, intVerbose )
 	
 def clickStatus():
 	pass
+	
+blnVerbose = False
+intVerbose = -1
+def verbosePrint( val ):
+	global blnVerbose, intVerbose
+	intVerbose = val
+	if blnVerbose : print( intVerbose )
 	
 win = tk.Tk()
 width, height = 360, 100

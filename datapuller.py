@@ -4,6 +4,9 @@ from threading import Timer
 import requests
 import os
 import heapq
+import asyncio
+from aio_timers import Timer
+
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
@@ -73,6 +76,10 @@ class RepeatTimer(Timer):
 	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
 		Timer.__init__(self, interval, callback, args, kwds)
 		self.daemon = daemon  #Solves runtime error using tkinter from another thread
+		self.stopped = self.stoppedEvent
+		
+	def stoppedEvent(self):
+		print(f'Stop Event {datetime.datetime.today()}')
 		
 	def run(self):#, daemon=True):
 		#self.interval = 60
@@ -529,10 +536,24 @@ def pullLogFileListGME():
 	del response[0]
 	result = [f.split('</a>')[0] for f in response]
 	return result
+
+def getToday():
+	global testTime
+	dn = datetime.datetime.now()
+	dateAndtime = str(dn).split(" ")	#2024-04-05 21:57:32.688823
+	tmp = dateAndtime[1].split(".")[0].split(":")
+	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
+	if minute > 1500 :
+		dn = str(dn + datetime.timedelta(1)).split(" ")[0]
+	else:
+		dn = dateAndtime[0]
+	return (dn, minute)
 	
 lastFileName = ""
 lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
-dateAndTime = str(datetime.datetime.now()).split(" ")[0]
+
+dateAndTime = getToday()[0] # str(datetime.datetime.now()).split(" ")[0]
+print(f'Target Date - {dateAndTime}')
 cacheFiles = os.listdir('./logs')
 lastFileKeyList = []
 blnWasFinal = False
@@ -561,7 +582,12 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			blnSaveACopy = True
 	#If data is not stored locally, lets grab it
 	try:
-		if (lastFileName == fileName or fileName == "SPX") and not discordBot :
+		if discordBot :
+			lastFileName = ""
+			lastFileContents = {}
+		
+		
+		if (lastFileName == fileName or fileName == "SPX") :# and not discordBot
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = None
 			

@@ -13,9 +13,6 @@ init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 
-blnRun = False
-blnSkipPrint = False
-timer =  None
 CurrentCalendar = None
 SPXData = None
 
@@ -134,82 +131,71 @@ def getStrTime():
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
 def getToday():
-	global testTime
-	dateAndtime = str(datetime.datetime.now()).split(" ")	#2024-04-05 21:57:32.688823
-	tmp = dateAndtime[1].split(".")[0].split(":")
-	minute = (float(tmp[0]) * 100) + float(tmp[1]) + (float(tmp[2]) * 0.01)
-	return (dateAndtime[0], minute)
+	tempo = datetime.datetime.today()
+	minute = (tempo.hour * 100) + tempo.minute + (tempo.second * 0.01)
+	if minute > 1500 :
+		tempo = tempo + datetime.timedelta(1)
+		minute = minute - 2400
+	todaysDate = f'{tempo.year}-{tempo.month}-{tempo.day}'
+	return (todaysDate, minute, tempo.month)
 
-intState = 0
 lastDay = -1
+TIMER_INTERVAL = 1000 * 5
 def timerTask():
-	global win, lblStatus, intState, SPXData, CurrentCalendar, lastDay
+	global win, lblStatus, SPXData, CurrentCalendar, lastDay
+	win.after(TIMER_INTERVAL, timerTask)  #Called at start of timerTask() to prevent errors from stopping this thing
+	
 	tday = getToday()
 	day = tday[0]
 	minute = tday[1]
-	if minute > 1500 :   #Lets just start reccording before the day even starts.  MUCH MORE OVN Data
-		day = str(datetime.datetime.now() + datetime.timedelta(1)).split(" ")[0]
-		minute = minute-2400
-
-	#day = "2024-07-25"
-	#print(f'1 - {day} TimerTask {minute}')
+	
 	if minute > 1300 :
 		SPXData = None #Make extra certain we dont use old days
 		win.title( f'{day} - EOD - {minute}')
 		lblStatus.configure(text=f'{minute} EOD')
 		return
-	#print('2 - Minute adjustment')
+	else:
+		win.title( f'{day}  Running  {minute}')
+		lblStatus.configure(text=f'{minute} SPXData = {SPXData}')
+	
 	if lastDay != day :
-		#print(f'*{lastDay}* not *{day}*')
 		print(f'New day began {day}')
 		lastDay = day
-		
 		try :
 			print(f'Fetching new month data')
-			#if CurrentCalendar == None : 
 			CurrentCalendar = dp.getCalendar()
+			if tday[2] != int(CurrentCalendar.get('month', -1)) : print('New month, start timer at midnight?')
+			
 		except Exception as error :
 			print(f'Fatal Calender API Failure')
 			return
 		print(f'Checking {day} if market is open')
 		days = CurrentCalendar['days']['day']
 		
-		testDay = next((x for x in days if x['date'] == day), None)
-		if testDay is None :
-			print( f'{day} Month not stored in {CurrentCalendar}' )  #Should crash after this
+		dummy = {'status': 'closed'} #Should mean we have a new month!!!!
+		testDay = next((x for x in days if x['date'] == day), dummy)
 		
-		if testDay['status'] == 'closed' :	
+		status = testDay.get('status', 'closed')
+		if status == 'closed' :	
 			print('Market is closed today')
-			intState = -1
 			SPXData = None #Make extra certain we dont use old days
 			return
-			
-		intState = 1
+
 		SPXData = DaysData( "SPX", day, 50 )
 		print( f'{SPXData.RecordDate} - Day started' )
 	
-	win.title( f'{day} - Running - {minute}')
 	if SPXData is None : return
-	lblStatus.configure(text=f'{minute}')
+	
 	try:
 		SPXData.addTime(minute)
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
 	
 def on_closing():
-	global blnRun, timer
-	blnRun = False
-	timer.cancel()
 	win.destroy()
 	
 def clickStart():
-	global blnRun, timer
-	blnRun = True
-	print( timer )
-	print( f'Timer active = {timer.is_alive()}' )
-	if timer.is_alive() == False :
-		timer = dp.RepeatTimer(5, timerTask, daemon=True)
-		timer.start()
+	pass
 	
 def clickStatus():
 	pass
@@ -227,9 +213,8 @@ tk.Button(win, text="Status", command=clickStatus, width=10).place(x=0, y=60)
 
 print("Running Version 6.0 GUI Mode + MAX OVN Data")
 
-timer = dp.RepeatTimer(5, timerTask, daemon=True)
-timer.start()
-
-blnRun = False
+#timer = dp.RepeatTimer(5, timerTask, daemon=True)
+#timer.start()
+win.after(TIMER_INTERVAL, timerTask)
 
 tk.mainloop()

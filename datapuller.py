@@ -2,6 +2,7 @@ import datetime
 import ujson as json #usjon is json written in C
 from threading import Timer
 import requests
+#from requests import Request, Session
 import os
 import heapq
 import asyncio
@@ -273,19 +274,14 @@ def call_with_timeout(func, args, kwargs, timeout):
 call_with_timeout(requests.get, args=(url,), kwargs={'timeout': 10}, timeout=60)
 """
 
-from requests import Request, Session
-sess = None
-req = None
-prepped = None
 def sessionSetValues(ticker, expDate):
-	global sess, req, prepped
-	sess = Session()
+	sess = requests.Session()
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
-	req = Request('GET',  'https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER)
+	req = requests.Request('GET',  'https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER)
 	prepped = sess.prepare_request(req)
+	return (sess, req, prepped)
 	
-def sessionGetOptionsChain():
-	global sess, req, prepped
+def sessionGetOptionsChain(sess, req, prepped):
 	response = sess.send( prepped, timeout=5 )
 	if not response.status_code == requests.codes.ok :
 		print( 'getOptionsChain ', response.status_code, response.content )

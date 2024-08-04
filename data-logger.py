@@ -35,6 +35,8 @@ class DaysData():
 		self.FoldCount = 0
 		self.FoldLastData = {}
 		
+		self.Sess, self.Req, self.Prepped = dp.sessionSetValues(ticker, self.RecordDate)
+		
 		try:  #Check for existing data
 			tmpData = json.load(open(self.FileName))
 			firstStrike = tmpData[next(iter(tmpData))]
@@ -76,7 +78,7 @@ class DaysData():
 		verbosePrint(2)
 		try:
 			#options = dp.getOptionsChains(self.Ticker, 0, date=self.RecordDate)
-			options = dp.sessionGetOptionsChain()
+			options = dp.sessionGetOptionsChain(self.Sess, self.Req, self.Prepped)
 			
 			verbosePrint(3)
 			if options is None : 
@@ -141,7 +143,7 @@ def getStrTime():
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
 def getToday():
-	tempo = datetime.datetime.today()
+	tempo = datetime.datetime.today() + datetime.timedelta(1)
 	minute = (tempo.hour * 100) + tempo.minute + (tempo.second * 0.01)
 	if minute > 1500 :
 		tempo = tempo + datetime.timedelta(1)
@@ -192,7 +194,6 @@ def timerTask():
 			return
 
 		SPXData = DaysData( "SPX", day, 50 )
-		dp.sessionSetValues("SPX", day)
 		print( f'{SPXData.RecordDate} - Day started' )
 	verbosePrint( 'Checking SPXData' )
 	if SPXData is None : return

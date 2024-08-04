@@ -4,6 +4,7 @@ from threading import Timer
 import requests
 import os
 import heapq
+import asyncio
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
@@ -28,6 +29,47 @@ if not os.path.isdir('./logs'): os.mkdir('./logs')
 #just like the st louis FED get's the spotlight above the others
 
 """
+from requests import Request, Session
+
+s = Session()
+req = Request('GET',  url, data=data, headers=headers)
+
+prepped = s.prepare_request(req)
+
+# do something with prepped.body
+prepped.body = 'Seriously, send exactly these bytes.'
+
+# do something with prepped.headers
+prepped.headers['Keep-Dead'] = 'parrot'
+
+resp = s.send(prepped,
+    stream=stream,
+    verify=verify,
+    proxies=proxies,
+    cert=cert,
+    timeout=timeout
+)
+
+print(resp.status_code)
+
+
+# Merge environment settings into session
+settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+resp = s.send(prepped, **settings)
+
+print(resp.status_code)
+
+
+
+
+from requests.auth import HTTPBasicAuth
+auth = HTTPBasicAuth('fake@example.com', 'not_a_real_password')
+
+r = requests.post(url=url, data=body, auth=auth)
+r.status_code
+
+
+
 firstData = {}
 firstData[1] = "aaa"
 
@@ -202,15 +244,81 @@ def getExpirationDate(ticker, dte):
 		dte += 1
 	return result
 
-#{'options': {'option': [{'symbol': 'SPXW240712C01400000', 'description': 'SPXW Jul 12 2024 $1400.00 Call', 'exch': 'C', 'type': 'option', 'last': 4236.0, 'change': 0.0, 'volume': 0, 'open': None, 'high': None, 'low': None, 'close': None, 'bid': 4225.5, 'ask': 4226.1, 'underlying': 'SPX', 'strike': 1400.0, 'greeks': {'delta': 0.9999999999999896, 'gamma': -8.847589567800577e-15, 'theta': -2.598552207134388e-10, 'vega': 2.0000090759636756e-05, 'rho': 0.0, 'phi': 0.0, 'bid_iv': 0.0, 'mid_iv': 0.0, 'ask_iv': 0.0, 'smv_vol': 0.272, 'updated_at': '2024-07-12 15:58:45'}, 'change_percentage': 0.0, 'average_volume': 0, 'last_volume': 1, 'trade_date': 1720706278649, 'prevclose': 4236.0, 'week_52_high': 0.0, 'week_52_low': 0.0, 'bidsize': 1, 'bidexch': 'C', 'bid_date': 1720801245000, 'asksize': 1, 'askexch': 'C', 'ask_date': 1720801242000, 'open_interest': 8, 'contract_size': 100, 'expiration_date': '2024-07-12', 'expiration_type': 'weeklys', 'option_type': 'call', 'root_symbol': 'SPXW'},
+"""
+import multiprocessing
+import requests
+
+def call_with_timeout(func, args, kwargs, timeout):
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
+    # define a wrapper of `return_dict` to store the result.
+    def function(return_dict):
+        return_dict['value'] = func(*args, **kwargs)
+
+    p = multiprocessing.Process(target=function, args=(return_dict,))
+    p.start()
+
+    # Force a max. `timeout` or wait for the process to finish
+    p.join(timeout)
+
+    # If thread is still active, it didn't finish: raise TimeoutError
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        raise TimeoutError
+    else:
+        return return_dict['value']
+
+call_with_timeout(requests.get, args=(url,), kwargs={'timeout': 10}, timeout=60)
+"""
+
+from requests import Request, Session
+sess = None
+req = None
+prepped = None
+def sessionSetValues(ticker, expDate):
+	global sess, req, prepped
+	sess = Session()
+	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
+	req = Request('GET',  'https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER)
+	prepped = sess.prepare_request(req)
+	
+def sessionGetOptionsChain():
+	global sess, req, prepped
+	response = sess.send( prepped, timeout=5 )
+	if not response.status_code == requests.codes.ok :
+		print( 'getOptionsChain ', response.status_code, response.content )
+		return None
+	if not response.headers.get('Content-Type').startswith('application/json') : 
+		print( f'Not JSON - {response.headers} - {response.content}' )
+		return None
+	response = response.json()
+	#***************************************************** In the event we get an unexpected packet **********************************************
+	with open(f'./logs/crash.json', 'w') as f:
+		json.dump(response, f)
+	#*********************************************************************************************************************************************
+	options = response.get('options', dict({'a': 123})).get('option', None)
+	if options is None :
+		print(f'Unexpected response in getOptionsChain - {response}')
+		return None
+	return options
+	
 def getOptionsChain(ticker, dte, date=None):
 	#print( f'Fetching {dte} on {ticker}')
 	if date == None :
 		expDate = getExpirationDate(ticker, dte)
 	else : expDate = date
 	param = {'symbol': f'{ticker}', 'expiration': f'{expDate}', 'greeks': 'true'}
-	response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER )
-	if response.status_code != 200 : 
+	
+	response = None
+	try :
+		response = requests.get('https://api.tradier.com/v1/markets/options/chains', params=param, headers=TRADIER_HEADER, timeout=5 )
+	except Exception as error:
+		print(f'getOptionsChain {error}')
+		return None
+	
+	if not response.status_code == requests.codes.ok :
 		print( 'getOptionsChain ', response.status_code, response.content )
 		return None
 	if not response.headers.get('Content-Type').startswith('application/json') : 
@@ -226,6 +334,13 @@ def getOptionsChain(ticker, dte, date=None):
 		print(f'Unexpected response in getOptionsChain - {response}')
 		return None
 	return (expDate, options)
+
+
+
+
+
+async def asyncGetOptionsChains(ticker, dte, date=None):
+	return getOptionsChain(ticker, dte, date=None)
 
 def getMultipleDTEOptionChain(ticker, days):
 	exps = getExpirations(ticker)

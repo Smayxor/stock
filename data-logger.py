@@ -75,13 +75,15 @@ class DaysData():
 		#if EOD : self.FoldCount == 99999
 		verbosePrint(2)
 		try:
-			options = dp.getOptionsChain(self.Ticker, 0, date=self.RecordDate)
+			#options = dp.getOptionsChains(self.Ticker, 0, date=self.RecordDate)
+			options = dp.sessionGetOptionsChain()
+			
 			verbosePrint(3)
 			if options is None : 
 				print(f'{minute} - No options data')
 				return
 			verbosePrint(4)
-			gex = dp.getGEX( options[1] )
+			gex = dp.getGEX( options )
 			verbosePrint(5)
 			if self.OpenPrice is None :
 				self.OpenPrice = dp.getPrice(self.Ticker, gex)
@@ -144,7 +146,7 @@ def getToday():
 	if minute > 1500 :
 		tempo = tempo + datetime.timedelta(1)
 		minute = minute - 2400
-	todaysDate = f'{tempo.year}-{tempo.month}-{tempo.day}'
+	todaysDate = f'{tempo.year}-{tempo.month:02d}-{tempo.day:02d}'
 	return (todaysDate, minute, tempo.month)
 
 lastDay = -1
@@ -152,11 +154,11 @@ TIMER_INTERVAL = 1000 * 5
 def timerTask():
 	global win, lblStatus, SPXData, CurrentCalendar, lastDay
 	win.after(TIMER_INTERVAL, timerTask)  #Called at start of timerTask() to prevent errors from stopping this thing
-	
+	verbosePrint( 'Timer Start' )
 	tday = getToday()
 	day = tday[0]
 	minute = tday[1]
-	
+	verbosePrint( tday )
 	if minute > 1300 :
 		SPXData = None #Make extra certain we dont use old days
 		win.title( f'{day} - EOD - {minute}')
@@ -165,7 +167,7 @@ def timerTask():
 	else:
 		win.title( f'{day}  Running  {minute}')
 		lblStatus.configure(text=f'{minute} SPXData = {SPXData}')
-	
+	verbosePrint( 'Compare days' )
 	if lastDay != day :
 		print(f'New day began {day}')
 		lastDay = day
@@ -190,14 +192,16 @@ def timerTask():
 			return
 
 		SPXData = DaysData( "SPX", day, 50 )
+		dp.sessionSetValues("SPX", day)
 		print( f'{SPXData.RecordDate} - Day started' )
-	
+	verbosePrint( 'Checking SPXData' )
 	if SPXData is None : return
-	
+	verbosePrint( 'Adding time' )
 	try:
 		SPXData.addTime(minute)
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
+	verbosePrint( 'Completed timer task' )
 	
 def on_closing():
 	win.destroy()
@@ -235,3 +239,5 @@ print("Running Version 6.0 GUI Mode + MAX OVN Data")
 win.after(TIMER_INTERVAL, timerTask)
 
 tk.mainloop()
+
+#python -m trace --trace YOURSCRIPT.py

@@ -281,7 +281,7 @@ def sessionSetValues(ticker, expDate):
 	prepped = sess.prepare_request(req)
 	return (sess, req, prepped)
 	
-def sessionGetOptionsChain(sess, req, prepped):
+async def sessionGetOptionsChain(sess, req, prepped):
 	response = sess.send( prepped, timeout=5 )
 	if not response.status_code == requests.codes.ok :
 		print( 'getOptionsChain ', response.status_code, response.content )

@@ -6,6 +6,7 @@ import time
 import datapuller as dp
 import os
 import tkinter as tk
+import asyncio
 
 #DataLogger, schedules a timer to begin recording data when market opens 6:30 am PST,  using Tradier API
 
@@ -68,7 +69,7 @@ class DaysData():
 			return "error"
 		return None
 			
-	def addTime(self, minute):
+	async def addTime(self, minute):
 		verbosePrint(1)
 		if 614 < minute < 630 : 
 			if self.FoldCount == 0 : return True
@@ -78,7 +79,7 @@ class DaysData():
 		verbosePrint(2)
 		try:
 			#options = dp.getOptionsChains(self.Ticker, 0, date=self.RecordDate)
-			options = dp.sessionGetOptionsChain(self.Sess, self.Req, self.Prepped)
+			options = await dp.sessionGetOptionsChain(self.Sess, self.Req, self.Prepped)
 			
 			verbosePrint(3)
 			if options is None : 
@@ -143,7 +144,7 @@ def getStrTime():
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
 def getToday():
-	tempo = datetime.datetime.today() + datetime.timedelta(1)
+	#tempo = datetime.datetime.today() + datetime.timedelta(1) #For testing purposes
 	minute = (tempo.hour * 100) + tempo.minute + (tempo.second * 0.01)
 	if minute > 1500 :
 		tempo = tempo + datetime.timedelta(1)
@@ -199,7 +200,7 @@ def timerTask():
 	if SPXData is None : return
 	verbosePrint( 'Adding time' )
 	try:
-		SPXData.addTime(minute)
+		asyncio.run( SPXData.addTime(minute) )
 	except Exception as error:
 		print( f'{minute} Timerthread - {error}' )
 	verbosePrint( 'Completed timer task' )

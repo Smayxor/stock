@@ -6,12 +6,15 @@ import requests
 import os
 import heapq
 import asyncio
+#pip install ics
+#from ics import Calendar, Event
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
 SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')  #need to switch all init[] commands to use .get()  so default values can be assigned
 FRED_KEY = init.get('FRED', None)
+BLS_KEY = init.get('BLS', None)
 IS_SERVER = SERVER_IP == 'http://127.0.0.1:8080'
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
@@ -29,68 +32,6 @@ if not os.path.isdir('./logs'): os.mkdir('./logs')
 #idk why michigan gets such a focus of attention, they survey / cold-call 'random' people and that's where they get their sentiment polls from
 #just like the st louis FED get's the spotlight above the others
 
-"""
-from requests import Request, Session
-
-s = Session()
-req = Request('GET',  url, data=data, headers=headers)
-
-prepped = s.prepare_request(req)
-
-# do something with prepped.body
-prepped.body = 'Seriously, send exactly these bytes.'
-
-# do something with prepped.headers
-prepped.headers['Keep-Dead'] = 'parrot'
-
-resp = s.send(prepped,
-    stream=stream,
-    verify=verify,
-    proxies=proxies,
-    cert=cert,
-    timeout=timeout
-)
-
-print(resp.status_code)
-
-
-# Merge environment settings into session
-settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
-resp = s.send(prepped, **settings)
-
-print(resp.status_code)
-
-
-
-
-from requests.auth import HTTPBasicAuth
-auth = HTTPBasicAuth('fake@example.com', 'not_a_real_password')
-
-r = requests.post(url=url, data=body, auth=auth)
-r.status_code
-
-
-
-firstData = {}
-firstData[1] = "aaa"
-
-appendData = {}
-appendData[123] = "abc"
-
-with open("./logs/test.json", 'a+') as f:
-	f.seek(0,2)
-	f.write( json.dumps(firstData) )
-	
-with open("./logs/test.json", 'rb+') as f:
-	f.seek(-1,os.SEEK_END)	#f.truncate()
-	f.write( json.dumps(appendData).replace('{', ',').encode() )
-
-appendData[123] = "ddd"
-appendData[456] = "eee"
-with open("./logs/test.json", 'rb+') as f:
-	f.seek(-1,os.SEEK_END)	#f.truncate()
-	f.write( json.dumps(appendData).replace('{', ',').encode() )
-"""
 def addDebugLog(self, data):
 	try:
 		def saveDataFile(bigData, appendData, myFile):
@@ -768,26 +709,60 @@ def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity
 	print(response.status_code)
 	return response.json()
 
-#def closeOptionOrder(symbol, price, ticker, side="sell_to_close"
+class NewsData():
+	def __init__(self, day, time, desc):
+		self.Day = day
+		self.Time = time
+		self.Desc = desc
 
-
-#   https://fred.stlouisfed.org/    use symbol DGS3MO    DGS6MO    DGS1    DGS2   DGS3   DGS5    DGS7    DGS10
-# import  pandas_datareader.data  as web         __get_rate__
-
-"""
-if not FRED_KEY is None :
-	print('We got FRED')
-	fredURL = f'https://api.stlouisfed.org/fred/releases?api_key={FRED_KEY}&file_type=json&realtime_start=2023-01-01&realtime_end=9999-12-31'
-	fredURL = f'https://api.stlouisfed.org/fred/category/series?category_id=9&api_key={FRED_KEY}&file_type=json&realtime_start=2023-01-01&realtime_end=9999-12-31'
-	#fredURL = f'https://fred.stlouisfed.org/releases/calendar?rid=10&y=2021'
-	response = requests.get(fredURL)
+def fetchNews():
+	AllNews = []
+	gCalenderURL = "https://calendar.google.com/calendar/ical/fim7c9qc56q875in52o5ha04sg1re175%40import.calendar.google.com/public/basic.ics"
+	lines = requests.get(gCalenderURL).text.split('\r')
 	
-	print( response.content)
-	if response.status_code == 200 :
-		response = response.json()
-		for release in response["seriess"] :
-			print( release )
-			#print( release["id"], release["realtime_start"], release["name"], release["press_release"] )
-"""	
+	def convertTimeStamp(stamp): return datetime.datetime.strptime(stamp, "%Y%m%dT%H%M%SZ")
+	
+	dtStamp = ""
+	dtStartDate = ""
+	dtStartTime = ""
+	summmary = ""
+	for line in lines:
+		if "BEGIN:VEVENT" in line :
+			dtStamp = ""
+			dtStart = ""
+			summmary = ""
+		if "DTSTAMP:" in line :
+			dtStamp = line.split(":")[1]
+		if "DTSTART:" in line :
+			dtStart = convertTimeStamp(line.split(":")[1])
+			dtStartDate = f'{dtStart.strftime("%Y-%m-%d")}'
+			dtStartTime = f'{dtStart.strftime("%H:%S")}'
+		if "SUMMARY:" in line :
+			summary = line.split(":")[1]
+		if "END:VEVENT" in line :
+			AllNews.append( NewsData(dtStartDate, dtStartTime, summary) )
+			
+	fedURL = "https://www.federalreserve.gov/json/calendar.json"
+	fedjson = requests.get(fedURL).json()
+	
+	for e in fedjson['events']:
+		#{'title': 'Beige Book', 'time': '2:00 p.m.', 'month': '2017-11', 'days': '29', 'type': 'Beige'}
+		title = e.get('title', None)
+		time = e.get('time', None)
+		month = e.get('month', None)
+		days = e.get('days', None)
+		if title is None or time is None or month is None or days is None : continue
+		#month = month.replace('-', '')
+		time = time.split(' ')[0]
+		days = [int(x) for x in days.split(', ')]
+		for d in days :
+			if d<10 : d = f'0{d}'
+			dt = f'{month}-{d}'
+			AllNews.append( NewsData(dt, time, title) )
+	
+	AllNews = sorted(AllNews, key=lambda x: x.Day)
+	
+	#for events in AllNews :
+	#	print( f'{events.Day} - {events.Time} - {events.Desc}')
+	return AllNews
 
-#{'id': 'COREFLEXCPIM157SFRBATL', 'realtime_start': '2023-01-01', 'realtime_end': '9999-12-31', 'title': 'Flexible Price Consumer Price Index less Food and Energy', 'observation_start': '1967-01-01', 'observation_end': '2024-06-01', 'frequency': 'Monthly', 'frequency_short': 'M', 'units': 'Percent Change', 'units_short': '% Chg.', 'seasonal_adjustment': 'Seasonally Adjusted', 'seasonal_adjustment_short': 'SA', 'last_updated': '2024-07-11 12:01:12-05', 'popularity': 4, 'group_popularity': 35, 'notes': 'The Flexible Price Consumer Price Index (CPI) is calculated from a subset of goods and services included in the CPI that change price relatively frequently. Because flexible prices are quick to change, it assumes that when these prices are set, they incorporate less of an expectation about future inflation. Evidence suggests that this flexible price measure is more responsive to changes in the current economic environment or the level of economic slack.\n\nTo obtain more information about this release see: Michael F. Bryan, and Brent H. Meyer. “Are Some Prices in the CPI More Forward Looking Than Others? We Think So.” Economic Commentary (Federal Reserve Bank of Cleveland) (May 19, 2010): 1–6. https://doi.org/10.26509/frbc-ec-201002 (https://doi.org/10.26509/frbc-ec-201002).'}

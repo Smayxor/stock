@@ -39,6 +39,8 @@ CHART_CHANGE = 9
 CHART_SKEW = 10
 CHART_HEATMAP = 11
 
+dp.fetchNews() #Builds the AllNews list
+
 def getTenorGIF( search ):
 	url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
 	r = requests.get(url=url)
@@ -92,70 +94,6 @@ def get_expiry_date_for_month(curr_date):
     # TODO: Incorporate check that it's a trading day, if so move the 3rd
     # Friday back by one day before subtracting
     return third_friday_next_month - thirty_days
-	
-	
-	
-lastNewsDay = -1
-todaysNews = None
-class NewsData():
-	def __init__(self, day):
-		self.Day = day
-		self.Events = []
-	def addEvent(self, txt):
-		if '<a href=' in txt:
-			txt = txt.replace('</a>', '')
-			txt = txt.split('<a href=')[0] + txt.split('">')[1]
-		self.Events.append( txt )
-	def toString(self):
-		text = '**' + self.Day + '**```fix'
-		for e in self.Events:
-			if len( e ) > 0 : text += '\n' + e
-		return text + '```'
-
-def fetchNews():
-	global lastNewsDay, todaysNews
-	today = datetime.date.today()
-	if lastNewsDay == today : return todaysNews
-	lastNewsDay = today
-	
-	COLUMN = ['', ' ', '\t ', ' Actual: ', ' Forecast: ', ' Prev: ', '', '', '', '', '', '']
-	url = "https://www.marketwatch.com/economy-politics/calendar"
-	news = []
-	try :
-		header = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/111.0",
-            "Accept": "application/json, text/plain, */*", "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3" }
-		data = requests.get(url=url, headers=header)
-		
-		text = ""
-		tables = data.text.split( "<tbody>" )
-		#print( tables )
-		txt = tables[1].split("</tbody>")[0] + tables[2].split("</tbody>")[0]
-		txt = txt.replace('<b>', '', 1).replace('<tr>','').replace('S&amp;P', '').replace('<td style="text-align: left;">', '').replace('\r', '').replace('\n', '').split('<b>')
-		for t in txt:
-			#print(t)
-			t = t.replace('<td>', '').split('</tr>', 1)
-			day = t[0].replace('</td>', '').replace('</b>', '').replace('. ', '.').replace('.', ' ')
-			if ('FRIDAY' in day) and (15 <= int(day.split(' ')[2]) <= 21) : day = day.replace('FRIDAY', 'MOPEX - FRIDAY')
-			newsD = NewsData( day )
-			for r in t[1].split('</tr>'):
-				event = ""
-				counter = 0
-				for td in r.split('</td>'):
-					if counter == 0:
-						if len(td) == 7 : td = td.replace(' ', '  ')
-						event = td
-					else:
-						while (counter == 1) and (len(td) < 40): td = td + ' '	
-						if len(td) > 0: event += COLUMN[counter] + td
-					counter += 1
-				newsD.addEvent( event )
-			news.append( newsD )
-	except Exception as er:
-		print(f'BOOM {er}')
-		#for x in news: print( x.toString() )
-		#news.append( NewsData(today) )
-	todaysNews = news
-	return news
 
 class MyNewHelp(commands.MinimalHelpCommand):
 	async def send_pages(self):
@@ -276,36 +214,60 @@ async def slash_command_8ball(intr: discord.Interaction, question: str):
 		response = "Please phrase that as a question"
 	await intr.response.send_message(response)
 
+allNews = None
 def buildNews(days):
-	today = datetime.datetime.now().weekday()
-	if today > 4 : today = 0
-	day = 0
-	if days.isnumeric() : day = today + int(days) - 1
-	elif days == "TODAY" : day = today
-	elif days == "WEEK" : day = -1
-	elif days == "ALL" : day = -2
+	global allNews
+	if allNews is None :
+		allNews = dp.fetchNews()
+	tdy = datetime.datetime.now()
+	isoday = tdy.weekday()
+	rangeDays = 0
+	if days.isnumeric() : rangeDays = int(days)
+	elif days == "TODAY" : rangeDays = 0
+	elif days == "WEEK" : rangeDays = max(5 - isoday, 0)
+	elif days == "ALL" : rangeDays = max(5 - isoday, 0)
 		
-	events = fetchNews()
-	txt1 = ''
-	txt2 = ''
-	blnFirst = True
-	for j in range(len(events) - 0):
-		if day != -2:
-			if day == -1:
-				if j > 4: continue
-			elif j < today or (j > day): continue
-		tmp = events[j].toString()
-		if (blnFirst == True) and (len(tmp) + len(txt1) > 1999) : blnFirst = False
-		if blnFirst : txt1 += tmp
-		else: txt2 += tmp
-	return (txt1, txt2)
+	rangeDays += 1
+	dayList = [tdy + datetime.timedelta(x) for x in range(rangeDays) if (x+isoday) % 7 < 5 ]
 
+	txt = ''
+	txt2 = ''
+
+	for d in dayList:
+		#2024-08-16 06:58:09.295036
+		day = str(d).split(' ')[0]
+		txt += f'**{day}**\r```fix\r'
+		for t in [f'{x.Time} {x.Desc}\r' for x in allNews if day in x.Day]:
+			txt += t
+		txt += '```'
+
+	return (txt, txt2)
+
+class OldNewsData():
+	def __init__(self, day):
+		self.Day = day
+		self.Events = []
+	def addEvent(self, txt):
+		if '<a href=' in txt:
+			txt = txt.replace('</a>', '')
+			txt = txt.split('<a href=')[0] + txt.split('">')[1]
+		self.Events.append( txt )
+	def toString(self):
+		text = '**' + self.Day + '**```fix'
+		for e in self.Events:
+			if len( e ) > 0 : text += '\n' + e
+		return text + '```'
+		
 @bot.tree.command(name="news")
 async def slash_command_news(intr: discord.Interaction, days: str = "TODAY"):	
 	perms = await checkInteractionPermissions( intr )
 	await intr.response.defer(thinking=True)
 
 	finalMessage, nextMessage = buildNews(days)
+	
+	#print( finalMessage )
+	#print( nextMessage )
+	
 	chnl = bot.get_channel(intr.channel.id)
 	try: 
 		#await intr.response.send_message( finalMessage )
@@ -360,11 +322,11 @@ dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#u
 async def dailyTask():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	if datetime.datetime.now().weekday() > 4 : 
-		await legacySend( channel=chnl, text= buildNews("WEEK")[0] )
+		#await legacySend( channel=chnl, text= buildNews("WEEK")[0] )
 		return
 	#print("Daily Task Execution")
 	await legacySend( channel=chnl, text="Fetching Morning Charts")
-	await legacySend( channel=chnl, text= buildNews("TODAY")[0] )
+	#await legacySend( channel=chnl, text= buildNews("TODAY")[0] )
 	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
@@ -493,11 +455,8 @@ async def test(ctx):
 	await legacySend( ctx, channel=channel, fileName=f'stock-chart.png')
 	await legacySend( ctx, channel=channel, text=f'Text {textable} and Images {imageable}')
 
-#ctx = 'args', 'author', 'bot', 'bot_permissions', 'channel', 'clean_prefix', 'cog', 'command', 'command_failed', 'current_argument', 'current_parameter', 'defer', 'fetch_message', 'filesize_limit', 'from_interaction', 'guild', 'history', 'interaction', 'invoke', 'invoked_parents', 'invoked_subcommand', 'invoked_with', 'kwargs', 'me', 'message', 'permissions', 'pins', 'prefix', 'reinvoke', 'reply', 'send', 'send_help', 'subcommand_passed', 'typing', 'valid', 'view', 'voice_client'
 async def legacySend(ctx=None, channel=None, text=None, fileName=None, ephemeral=False):  #When not using /commands Check channel permissions before sending ALWAYS
 	if channel == None : channel = ctx.channel
-	#channel in DM = 'id', 'jump_url', 'me', 'permissions_for', 'pins', 'recipient', 'recipients', 'send', 'type', 'typing'
-	#channel in Channel = 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks'
 
 	if "private" in channel.type :  #"text" in channel.type = in a Channel.     May also use if channel.guild is None
 		permissions = ctx.permissions
@@ -691,21 +650,19 @@ async def context_menu_FindTicker(intr: discord.Interaction, msg: discord.Messag
 	await intr.response.send_message("Feature coming soon!", ephemeral=True)	
 	
 	
+#@bot.event
+#async def on_message(message):  #Triggered during interactions
+#	await bot.process_commands(message)  #Forward message to allow Command Processing!!!!	
+
 bot.run(BOT_TOKEN) #Last line of code, until bot is closed
 
-#wsb - 725851172266573915
-#gex - 1055967445208281288
 
-#intr.guild = ['_PREMIUM_GUILD_LIMITS', '__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_add_channel', '_add_member', '_add_role', '_add_thread', '_afk_channel_id', '_banner', '_channels', '_clear_threads', '_create_channel', '_create_unavailable', '_discovery_splash', '_filter_threads', '_from_data', '_icon', '_incidents_data', '_large', '_member_count', '_members', '_public_updates_channel_id', '_remove_channel', '_remove_member', '_remove_role', '_remove_thread', '_remove_threads_by_channel', '_resolve_channel', '_roles', '_rules_channel_id', '_safety_alerts_channel_id', '_scheduled_events', '_splash', '_stage_instances', '_state', '_store_thread', '_system_channel_flags', '_system_channel_id', '_threads', '_update_voice_state', '_voice_state_for', '_voice_states', '_widget_channel_id', 'active_threads', 'afk_channel', 'afk_timeout', 'approximate_member_count', 'approximate_presence_count', 'audit_logs', 'ban', 'banner', 'bans', 'bitrate_limit', 'bulk_ban', 'by_category', 'categories', 'change_voice_state', 'channels', 'chunk', 'chunked', 'create_automod_rule', 'create_category', 'create_category_channel', 'create_custom_emoji', 'create_forum', 'create_integration', 'create_role', 'create_scheduled_event', 'create_stage_channel', 'create_sticker', 'create_template', 'create_text_channel', 'create_voice_channel', 'created_at', 'default_notifications', 'default_role', 'delete', 'delete_emoji', 'delete_sticker', 'description', 'discovery_splash', 'dms_paused', 'dms_paused_until', 'edit', 'edit_role_positions', 'edit_welcome_screen', 'edit_widget', 'emoji_limit', 'emojis', 'estimate_pruned_members', 'explicit_content_filter', 'features', 'fetch_automod_rule', 'fetch_automod_rules', 'fetch_ban', 'fetch_channel', 'fetch_channels', 'fetch_emoji', 'fetch_emojis', 'fetch_member', 'fetch_members', 'fetch_roles', 'fetch_scheduled_event', 'fetch_scheduled_events', 'fetch_sticker', 'fetch_stickers', 'filesize_limit', 'forums', 'get_channel', 'get_channel_or_thread', 'get_emoji', 'get_member', 'get_member_named', 'get_role', 'get_scheduled_event', 'get_stage_instance', 'get_thread', 'icon', 'id', 'integrations', 'invites', 'invites_paused', 'invites_paused_until', 'kick', 'large', 'leave', 'max_members', 'max_presences', 'max_stage_video_users', 'max_video_channel_users', 'me', 'member_count', 'members', 'mfa_level', 'name', 'nsfw_level', 'owner', 'owner_id', 'preferred_locale', 'premium_progress_bar_enabled', 'premium_subscriber_role', 'premium_subscribers', 'premium_subscription_count', 'premium_tier', 'prune_members', 'public_updates_channel', 'query_members', 'roles', 'rules_channel', 'safety_alerts_channel', 'scheduled_events', 'self_role', 'shard_id', 'splash', 'stage_channels', 'stage_instances', 'sticker_limit', 'stickers', 'system_channel', 'system_channel_flags', 'templates', 'text_channels', 'threads', 'unavailable', 'unban', 'vanity_invite', 'vanity_url', 'vanity_url_code', 'verification_level', 'voice_channels', 'voice_client', 'webhooks', 'welcome_screen', 'widget', 'widget_channel', 'widget_enabled']
-
-#discor.interaction intr
-#['__annotations__', '__class__', '__class_getitem__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_app_permissions', '_baton', '_client', '_cs_command', '_cs_followup', '_cs_namespace', '_cs_response', '_from_data', '_integration_owners', '_original_response', '_permissions', '_session', '_state', 'app_permissions', 'application_id', 'channel', 'channel_id', 'client', 'command', 'command_failed', 'context', 'created_at', 'data', 'delete_original_response', 'edit_original_response', 'entitlement_sku_ids', 'entitlements', 'expires_at', 'extras', 'followup', 'guild', 'guild_id', 'guild_locale', 'id', 'is_expired', 'is_guild_integration', 'is_user_integration', 'locale', 'message', 'namespace', 'original_response', 'permissions', 'response', 'token', 'translate', 'type', 'user', 'version']
-
-# bot
-#['_BotBase__cogs', '_BotBase__extensions', '_BotBase__tree', '__aenter__', '__aexit__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_after_invoke', '_application', '_async_setup_hook', '_before_invoke', '_call_before_identify_hook', '_call_module_finalizers', '_check_once', '_checks', '_closed', '_connection', '_enable_debug_events', '_get_state', '_get_websocket', '_handle_ready', '_handlers', '_help_command', '_hooks', '_listeners', '_load_from_module_spec', '_ready', '_remove_module_references', '_resolve_name', '_run_event', '_schedule_event', 'activity', 'add_check', 'add_cog', 'add_command', 'add_listener', 'add_view', 'after_invoke', 'all_commands', 'allowed_mentions', 'application', 'application_flags', 'application_id', 'application_info', 'before_identify_hook', 'before_invoke', 'cached_messages', 'can_run', 'case_insensitive', 'change_presence', 'check', 'check_once', 'clear', 'close', 'cogs', 'command', 'command_prefix', 'commands', 'connect', 'create_dm', 'create_guild', 'delete_invite', 'description', 'dispatch', 'emojis', 'event', 'extensions', 'extra_events', 'fetch_channel', 'fetch_guild', 'fetch_guilds', 'fetch_invite', 'fetch_premium_sticker_packs', 'fetch_stage_instance', 'fetch_sticker', 'fetch_template', 'fetch_user', 'fetch_webhook', 'fetch_widget', 'get_all_channels', 'get_all_members', 'get_channel', 'get_cog', 'get_command', 'get_context', 'get_emoji', 'get_guild', 'get_partial_messageable', 'get_prefix', 'get_stage_instance', 'get_sticker', 'get_user', 'group', 'guilds', 'help_command', 'http', 'hybrid_command', 'hybrid_group', 'intents', 'invoke', 'is_closed', 'is_owner', 'is_ready', 'is_ws_ratelimited', 'latency', 'listen', 'load_extension', 'login', 'loop', 'on_command_error', 'on_error', 'on_message', 'on_ready', 'owner_id', 'owner_ids', 'persistent_views', 'private_channels', 'process_commands', 'recursively_remove_all_commands', 'reload_extension', 'remove_check', 'remove_cog', 'remove_command', 'remove_listener', 'run', 'setup_hook', 'shard_count', 'shard_id', 'start', 'status', 'stickers', 'strip_after_prefix', 'tree', 'unload_extension', 'user', 'users', 'voice_clients', 'wait_for', 'wait_until_ready', 'walk_commands', 'ws']
-
-#bot.user
-['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '__weakref__', '_accent_colour', '_avatar', '_banner', '_copy', '_flags', '_public_flags', '_state', '_to_minimal_user_json', '_update', 'accent_color', 'accent_colour', 'avatar', 'banner', 'bot', 'color', 'colour', 'created_at', 'default_avatar', 'discriminator', 'display_avatar', 'display_name', 'edit', 'global_name', 'id', 'locale', 'mention', 'mentioned_in', 'mfa_enabled', 'mutual_guilds', 'name', 'public_flags', 'system', 'verified']
-
-#channel
-#['__annotations__', '__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '_apply_implicit_permissions', '_clone_impl', '_edit', '_fill_overwrites', '_get_channel', '_move', '_overwrites', '_scheduled_event_entity_type', '_sorting_bucket', '_state', '_type', '_update', 'archived_threads', 'category', 'category_id', 'changed_roles', 'clone', 'create_invite', 'create_thread', 'create_webhook', 'created_at', 'default_auto_archive_duration', 'default_thread_slowmode_delay', 'delete', 'delete_messages', 'edit', 'fetch_message', 'follow', 'get_partial_message', 'get_thread', 'guild', 'history', 'id', 'invites', 'is_news', 'is_nsfw', 'jump_url', 'last_message', 'last_message_id', 'members', 'mention', 'move', 'name', 'nsfw', 'overwrites', 'overwrites_for', 'permissions_for', 'permissions_synced', 'pins', 'position', 'purge', 'send', 'set_permissions', 'slowmode_delay', 'threads', 'topic', 'type', 'typing', 'webhooks']
+"""
+Polygon — Provides stock tickers, price quotes, trades, and aggregates. Covers equities, forex, cryptocurrencies, and other assets.
+IEX Cloud offers real-time and historical stock prices, fundamentals, earnings, dividends, and advanced stats.
+Intrinio — Features international stock data plus fundamentals, insider trading, SEC filings, earnings, and more.
+Alpha Vantage — Provides free and paid stock APIs with real-time data, fundamentals, and technical indicators.
+Tiingo — Supplies historical data, end-of-day prices, fundamentals, news sentiment, and analyst estimates.
+Finnhub — Offers real-time and historical stock data globally along with fundamentals, earnings, and economic data.
+Tradier — Provides market data APIs plus brokerage APIs for trading. Covers stocks, options, futures, and cryptocurrencies.
+Quandl — Large database of financial, alternative, and other time-series data including equities."""

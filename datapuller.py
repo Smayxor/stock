@@ -13,8 +13,8 @@ init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_ACCOUNT_ID = init['TRADIER_ACCOUNT_ID']
 SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')  #need to switch all init[] commands to use .get()  so default values can be assigned
-FRED_KEY = init.get('FRED', None)
-BLS_KEY = init.get('BLS', None)
+#FRED_KEY = init.get('FRED', None)
+#BLS_KEY = init.get('BLS', None)
 IS_SERVER = SERVER_IP == 'http://127.0.0.1:8080'
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
@@ -742,8 +742,12 @@ def fetchNews():
 		if "END:VEVENT" in line :
 			AllNews.append( NewsData(dtStartDate, dtStartTime, summary) )
 			
-	fedURL = "https://www.federalreserve.gov/json/calendar.json"
+	#fedURL = "https://www.federalreserve.gov/json/calendar.json"
+	fedURL = "https://raw.githubusercontent.com/Smayxor/stock/main/fedcalendar.json"
 	fedjson = requests.get(fedURL).json()
+	#tmp = json.loads(tmp)
+	#with open(f'./logs/fedcalendar.json', 'w') as f:
+	#	json.dump(fedjson, f)
 	
 	for e in fedjson['events']:
 		#{'title': 'Beige Book', 'time': '2:00 p.m.', 'month': '2017-11', 'days': '29', 'type': 'Beige'}

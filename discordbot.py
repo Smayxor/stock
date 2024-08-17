@@ -39,8 +39,6 @@ CHART_CHANGE = 9
 CHART_SKEW = 10
 CHART_HEATMAP = 11
 
-dp.fetchNews() #Builds the AllNews list
-
 def getTenorGIF( search ):
 	url ="https://g.tenor.com/v2/search?q=%s&key=%s&limit=%s" % (search, TENOR_API_KEY, "8")
 	r = requests.get(url=url)
@@ -221,6 +219,12 @@ def buildNews(days):
 		allNews = dp.fetchNews()
 	tdy = datetime.datetime.now()
 	isoday = tdy.weekday()
+	
+	if isoday > 4:
+		isodelta = 7 - isoday
+		isoday = 0
+		tdy = tdy + datetime.timedelta(days=isodelta)
+	
 	rangeDays = 0
 	if days.isnumeric() : rangeDays = int(days)
 	elif days == "TODAY" : rangeDays = 0
@@ -240,6 +244,8 @@ def buildNews(days):
 		for t in [f'{x.Time} {x.Desc}\r' for x in allNews if day in x.Day]:
 			txt += t
 		txt += '```'
+
+	if len(txt) == 0 : txt = 'No news'
 
 	return (txt, txt2)
 

@@ -720,7 +720,15 @@ def fetchNews():
 	gCalenderURL = "https://calendar.google.com/calendar/ical/fim7c9qc56q875in52o5ha04sg1re175%40import.calendar.google.com/public/basic.ics"
 	lines = requests.get(gCalenderURL).text.split('\r')
 	
-	def convertTimeStamp(stamp): return datetime.datetime.strptime(stamp, "%Y%m%dT%H%M%SZ")
+	tempo = datetime.datetime.today()
+	DST = 309 > ((tempo.month * 100) + tempo.day) > 1103
+	def convertTimeStamp(stamp): 
+		#print(time.daylight) #Returns 1 if dst is defined?
+		asDate = datetime.datetime.strptime(stamp, "%Y%m%dT%H%M%SZ") - datetime.timedelta(hours=4 + DST)
+		return asDate
+	#US	America/Fort_Wayne		Link	−05:00	−04:00	EST	EDT	backward	Link to America/Indiana/Indianapolis
+	#Daylight Saving Time begins in the United States on the second Sunday in March and ends on the first Sunday in November
+	#so 14:00 must be 10:00am EST
 	
 	dtStamp = ""
 	dtStartDate = ""
@@ -757,7 +765,13 @@ def fetchNews():
 		days = e.get('days', None)
 		if title is None or time is None or month is None or days is None : continue
 		#month = month.replace('-', '')
-		time = time.split(' ')[0]
+		add12 = 'p.m.' in time
+		time = time.split(' ')[0] #"time":"1:00 p.m."
+		if add12 :
+			splt = time.split(":")
+			hr = str((int(splt[0]) + 12))
+			mn = splt[1]
+			time = f'{hr}:{mn}'
 		days = [int(x) for x in days.split(', ')]
 		for d in days :
 			if d<10 : d = f'0{d}'

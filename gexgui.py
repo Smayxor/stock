@@ -82,20 +82,33 @@ def getAccountData(newCon = ""):
 	
 	openOrders = dp.getOrders()
 	myPositions = dp.getPositions()
-	#print( openOrders )
-	#print( myPositions )
 	
 	#{'order': [
 	#{'id': 60524187, 'type': 'limit', 'symbol': 'XSP', 'side': 'buy_to_open', 'quantity': 1.0, 'status': 'canceled', 'duration': 'day', 'price': 0.37, 'avg_fill_price': 0.0, 'exec_quantity': 0.0, 'last_fill_price': 0.0, 'last_fill_quantity': 0.0, 'remaining_quantity': 0.0, 'create_date': '2024-06-27T14:50:12.624Z', 'transaction_date': '2024-06-27T14:51:43.701Z', 'class': 'option', 'option_symbol': 'XSP240627P00547000', 'tag': 'test'}, 
 	#{'position': [{'cost_basis': 39.0, 'date_acquired': '2024-06-27T15:03:14.311Z', 'id': 7572248, 'quantity': 1.0, 'symbol': 'XSP240627C00549000'}, {'cost_basis': 5.0, 'date_acquired': '2024-06-27T15:10:15.888Z', 'id': 7572487, 'quantity': 1.0, 'symbol': 'XSP240627C00551000'}]}
+	
 	orders = []
 	orderTxt = None
 	if openOrders != 'null' :
+		#{'order': {'id': 62661984, 'type': 'limit', 'symbol': 'XSP', 'side': 'buy_to_open', 'quantity': 1.0, 'status': 'filled', 'duration': 'day', 'price': 1.06, 'avg_fill_price': 1.06, 'exec_quantity': 1.0, 'last_fill_price': 1.06, 'last_fill_quantity': 1.0, 'remaining_quantity': 0.0, 'create_date': '2024-07-22T13:59:10.253Z', 'transaction_date': '2024-07-22T13:59:13.094Z', 'class': 'option', 'option_symbol': 'XSP240722C00555000', 'tag': 'test'}}
+		
+		#[{'id': 62661984, 'type': 'limit', 'symbol': 'XSP', 'side': 'buy_to_open', 'quantity': 1.0, 'status': 'filled', 'duration': 'day', 'price': 1.06, 'avg_fill_price': 1.06, 'exec_quantity': 1.0, 'last_fill_price': 1.06, 'last_fill_quantity': 1.0, 'remaining_quantity': 0.0, 'create_date': '2024-07-22T13:59:10.253Z', 'transaction_date': '2024-07-22T13:59:13.094Z', 'class': 'option', 'option_symbol': 'XSP240722C00555000', 'tag': 'test'}, {'id': 62669560, 'type': 'limit', 'symbol': 'XSP', 'side': 'buy_to_open', 'quantity': 2.0, 'status': 'canceled', 'duration': 'day', 'price': 0.46, 'avg_fill_price': 0.0, 'exec_quantity': 0.0, 'last_fill_price': 0.0, 'last_fill_quantity': 0.0, 'remaining_quantity': 0.0, 'create_date': '2024-07-22T14:12:31.874Z', 'transaction_date': '2024-07-22T14:15:25.549Z', 'class': 'option', 'option_symbol': 'XSP240722C00555000'}, {'id': 62670860, 'type': 'limit', 'symbol': 'XSP', 'side': 'sell_to_close', 'quantity': 1.0, 'status': 'open', 'duration': 'day', 'price': 1.5, 'avg_fill_price': 0.0, 'exec_quantity': 0.0, 'last_fill_price': 0.0, 'last_fill_quantity': 0.0, 'remaining_quantity': 1.0, 'create_date': '2024-07-22T14:14:16.294Z', 'transaction_date': '2024-07-22T14:14:16.365Z', 'class': 'option', 'option_symbol': 'XSP240722C00555000'}]
+		
+
+		if not isinstance(openOrders['order'], list):
+			openOrders['order'] = [openOrders['order']]
+			
 		for ord in openOrders['order'] :
-			if ord['status'] == 'open' :
+			#x = getattr(ord, 'status', 'no')
+			# hasattr()
+			status = ord.get('status', 'no')
+			print(f'Status = {status}' )
+			if 'open' in status :
 				cp = 'c' if 'C' in ord['option_symbol'] else 'p'
 				orderTxt = ord['symbol'] + ' - ' + ord['option_symbol'][-6:-3] + cp
 				orders.append( orderTxt )
+			elif 'no' in status :
+				print(f'Problem Detected - {ord}')
 	positions = []
 	positionTxt = None
 	if myPositions != 'null' :
@@ -108,7 +121,9 @@ def getAccountData(newCon = ""):
 	
 	txt = ""
 	if positionTxt == None and orderTxt == None : txt = "No Orders"
-	else : txt = positionTxt + ' - ' + orderTxt
+	else : 
+		if not positionTxt is None : txt = positionTxt 
+		if not orderTxt is None : txt += ' - ' + orderTxt
 	lblOpenOrders.configure(text=txt)
 
 '''
@@ -134,13 +149,15 @@ def clickButton():
 	strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - strike))
 	#strike = min(strikes, key=lambda i: abs(i[element] - 2))
 	
+	"""
 	payload = { 'sessionid': json_response['stream']['sessionid'], 'symbols': f'{strike[symbol]}', 'linebreak': True }
 	r = requests.get('https://stream.tradier.com/v1/markets/events', stream=True, params=payload, headers={ 'Accept': 'application/json'})
+	
 	for line in r.iter_lines():
 		if line:
 			print(json.loads(line))
 	return#{'type': 'quote', 'symbol': 'SPXW240426P05055000', 'bid': 0.35, 'bidsz': 829, 'bidexch': 'C', 'biddate': '1714155461000', 'ask': 0.4, 'asksz': 299, 'askexch': 'C', 'askdate': '1714155463000'}
-
+	"""
 	global accountBalance, unsettledFunds, openOrders, myPositions
 	cp = checkCall.get()
 	strike = e3Text.get()[:4] if cp == 1 else e4Text.get()[:4]
@@ -155,7 +172,7 @@ def clickButton():
 		symbol = dp.GEX_CALL_SYMBOL if cp == 1 else dp.GEX_PUT_SYMBOL
 		strike = min(strikes, key=lambda i: abs(i[dp.GEX_STRIKE] - strike))
 		if tradePrice == 0 : tradePrice = strike[element]
-		myCon = dp.placeOptionOrder(strike[symbol], tradePrice, ticker = 'SPX', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui')#, preview="true"
+		myCon = dp.placeOptionOrder(strike[symbol], tradePrice, ticker = 'SPX', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui', preview="true")#
 		print( myCon )
 		getAccountData(myCon)
 	else :
@@ -168,7 +185,7 @@ def clickButton():
 		myCon = [x for x in strikes if x[symbol] == myPositions['position']['symbol']][0]
 		if tradePrice == 0 : tradePrice = myCon[element]
 		#myCon = dp.placeOptionOrder(myPositions['symbol'], myCon[element], ticker="XSP", side="sell_to_close", quantity='1')
-		myCon = dp.placeOptionOrder(myPositions['position']['symbol'], tradePrice, ticker="SPX", side="sell_to_close", quantity='1', type='limit')#, preview="true"
+		myCon = dp.placeOptionOrder(myPositions['position']['symbol'], tradePrice, ticker="SPX", side="sell_to_close", quantity='1', type='limit', preview="true")#
 		print( myCon )	
 		getAccountData(myCon)
 	
@@ -183,18 +200,21 @@ def clickButton():
 #options = dp.getOptionsChain('XSP', 0)
 #gexList = dp.getGEX(options[1])
 #putStrike = min(gexList, key=lambda i: abs(i[dp.GEX_PUT_ASK] - 0.04))
-#print( putStrike )
+
 #myCon = dp.placeOptionOrder(putStrike[dp.GEX_PUT_SYMBOL], 0.04, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')
 #{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
-#print(  myCon )
+
 #Open positions {'position': {'cost_basis': 4.0, 'date_acquired': '2024-01-25T15:52:41.633Z', 'id': xxxx, 'quantity': 1.0, 'symbol': 'XSP240125P00484000'}}
 
 #***************** Close an order
 #myPut = [x for x in gexList if x[dp.GEX_PUT_SYMBOL] == myPosition['symbol']][0]
-#print(f'Close order {myPut}')
+
 #myCon = dp.placeOptionOrder(myPosition['symbol'], myPut[dp.GEX_PUT_BID], ticker="XSP", side="sell_to_close", quantity='1')
-#print( myCon )
+
 #{'order': {'id': xxx, 'status': 'ok', 'partner_id': 'xxxxxx'}}
+def round_price(price, min_incr): 
+	return '{:20,.2f}'.format( price - (price % min_incr) + min_incr ).lstrip()
+
 CALLORPUTA = [dp.GEX_CALL_ASK, dp.GEX_PUT_ASK]
 CALLORPUTB = [dp.GEX_CALL_BID, dp.GEX_PUT_BID]
 CALLORPUTS = [dp.GEX_CALL_SYMBOL, dp.GEX_PUT_SYMBOL]
@@ -210,7 +230,9 @@ def placeOrder(callput):
 	bid = strike[CALLORPUTB[callput]]
 	ask = strike[CALLORPUTA[callput]]
 	symbol = strike[CALLORPUTS[callput]]
-	midPrice = (bid + ask) / 2
+	midPrice = round_price((bid + ask) / 2, 0.01)
+	
+	#midPrice = (midPrice * 10) 
 	
 	if 'XSP' in openOrders : print('Yes')
 	if testPosition == 1 : return
@@ -218,16 +240,19 @@ def placeOrder(callput):
 	print( "Call" if callput==0 else "Put", strike[dp.GEX_STRIKE], " $", midPrice, symbol )
 
 	try :
+		
 		myCon = dp.placeOptionOrder(symbol, midPrice, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test')  #This prints Response Status code
 
 		#{'order': {'id': 60524187, 'status': 'ok', 'partner_id': '30ea5c89-e029-4da3-a179-5867a8006e07'}}
 		print(f'New Order Placed - {myCon}')
 		#New Order Placed - {'order': {'id': 60530076, 'status': 'ok', 'partner_id': '30ea5c89-e029-4da3-a179-5867a8006e07'}}
 		if myCon['order']['status'] == 'ok' : print('Order placed')
-		getAccountData(myCon)
+		getAccountData()#myCon)
 		#myCon2 = dp.placeOptionOrder(symbol, midPrice * 2, ticker="XSP", side="sell_to_close", quantity='1')  # Can not place a close order until filled without OTOCO
 	except Exception as error:
 		print(f'Trade failure - {error}')
+		
+	#New Order Placed - {'order': {'status': 'ok', 'commission': 0.39, 'cost': 8.39, 'fees': 0, 'symbol': 'XSP', 'quantity': 1, 'side': 'buy_to_open', 'type': 'limit', 'duration': 'day', 'result': True, 'price': 0.08, 'order_cost': 8.0, 'margin_change': 0.0, 'option_requirement': 0.0, 'request_date': '2024-08-07T16:59:22.727', 'extended_hours': False, 'option_symbol': 'XSP240807C00533000', 'class': 'option', 'strategy': 'option', 'day_trades': 1}}
 
 #import signals as sig
 def triggerReset():
@@ -237,16 +262,12 @@ def triggerReset():
 	ticker = editTicker.get().upper()
 	
 	try:
-		#if ticker == "GME" :
-		#	print( fileToday )
-		#	gexData = dp.pullLogFileGME(fileToday, cachedData=False)
-		#else :
 		gexData = dp.pullLogFile(fileToday, cachedData=False)
 		firstTime = min( gexData.keys(), key=lambda i: abs(631 - float(i)))
 		gexList = gexData[firstTime]
 		exp = fileToday.replace("-0dte-datalog.json", "")
 		price = dp.getPrice(ticker, gexList)   #Mega important!!!   If Price returns 0, dp.getPrice would  use a LastPrice for faulty return
-		if price == 0 : print( firstTime , ' - ', gexList[0])
+		#if price == 0 : print( firstTime , ' - ', gexList[0])
 		image = dc.drawGEXChart(ticker, 40, dte=0, strikes=gexList, price=price, expDate=exp + ' ' + firstTime, RAM=True) #function needs optional parameter to pass gexdata in
 		resize_image = image.resize((340,605))
 		tk_image = ImageTk.PhotoImage(resize_image)
@@ -282,20 +303,32 @@ def triggerReset():
 	except Exception as error:
 		print("An exception occurred:", error)
 
+"""response = json.load(open('crash.json'))
+options = response.get('options', dict({'a': 123})).get('option', None)
+gex = dp.getGEX(options)
+tmpPrice = dp.getPrice("SPX", gex)
+crashGEX = dp.shrinkToCount(gex, tmpPrice, 50)"""
+
 def timerThread():
 	global pcData, pcY, pcFloatingX, pcFloatingY, pcFloatingText, pcFloatingText2, pcFloatingDot, strikeCanvasImage, pc_tk_image, pc_image
 	global dataIndex, fileIndex, fileList, fileToday, ticker
+	errorLine = 0
 	if blnReset: triggerReset()
+	errorLine = 1
 	dte = dteText.get()
+	errorLine = 2
 	if not dte.isnumeric(): dte = 0
 	else : dte = int(dte)
+	errorLine = 3
 	if dte != fileIndex : 
 		fileIndex = dte
 		fileToday = fileList[fileIndex]
 		triggerReset()
 		return
+	errorLine = 4
 		
 	newTicker = editTicker.get()
+	errorLine = 5
 	if newTicker == "GME" and ticker == "SPX" :
 		ticker = newTicker
 		fileList = fileListGME
@@ -305,12 +338,18 @@ def timerThread():
 		triggerReset()
 		print(f'GME Switch ')
 		return
+	errorLine = 6
 	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
+		errorLine = 7
+		
+		#print(f'{fileToday} {fileIndex}={lastFileIndex} --> {len(gexData)}')
+		
 		minute = 0
 		times = list(gexData.keys())
 		lastTimes = len(times) - 1
+		errorLine = 8
 		if fileIndex==lastFileIndex :
 			minute = times[-1]
 			gexList = gexData[minute]
@@ -321,10 +360,14 @@ def timerThread():
 				placeOrder(0)
 			if price > pPrice :
 				placeOrder(1)
+		errorLine = 9
 		if dataIndex == -1 or dataIndex > lastTimes: dataIndex = lastTimes
+		errorLine = 10
 		minute = times[dataIndex]  #Sets the Minute to a time mouse is hovering
 		minute = str( minute )
+		errorLine = 11
 		gexList = gexData[minute]
+		errorLine = 12
 		
 		#**************************************************************************************************
 		newStrikes = None
@@ -350,11 +393,15 @@ def timerThread():
 				newStrikes.append( tmpStrike )
 		
 		#***************************************************************************************************
-	
+		errorLine = 13
+		
 		refreshVCanvas(strikes=gexList if newStrikes==None else newStrikes)
-		price = dp.getPrice(ticker, gexList, 0 )
+		errorLine = 131
+		price = dp.getPrice(ticker, gexList )
+		errorLine = 132
 		win.title( f'Price ${price}')
-
+		errorLine = 14
+		
 		minute = float(times[dataIndex])
 		firstTime = min( gexData.keys(), key=lambda i: abs(minute - float(i)))
 		gexList = gexData[firstTime]
@@ -365,8 +412,10 @@ def timerThread():
 		canvas.configure(image=tk_image)
 		canvas.image = tk_image
 		
-		#print( f'Input - {minute}' )
+		errorLine = 15
 		tmp = dc.drawPriceChart(ticker, fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
+		
+		errorLine = 16
 		pcData = tmp[1]
 		pcY = tmp[2]
 		filename = tmp[0]
@@ -375,7 +424,7 @@ def timerThread():
 		strikecanvas.itemconfig(strikeCanvasImage, image=pc_tk_image)
 
 	except Exception as error:
-		print( 'Timerthread Error ', error )
+		print( 'Timerthread Error ', error , errorLine)
 
 def strikecanvas_on_mouse_move(event):	setPCFloat(event.x, event.y)
 		
@@ -420,7 +469,7 @@ def setPCFloat(x, y):
 
 def on_strike_click(event):
 	global vcStrikes
-	if event.y < 73: #print( event.x )
+	if event.y < 73:
 		if event.x < 50 : e3Text.set('spx')
 		elif event.x > 115 : e4Text.set('spx')
 		else : e3Text.set('all')
@@ -505,8 +554,8 @@ def refreshVCanvas(strikes = None):  #VCanvas is  GEX Volume chart on right side
 		coiv = coi + cv
 		poiv = poi + pv
 		
-		coi *= cv #Exponential Volume reading for Gamma Skew
-		poi *= pv
+		#coi *= cv #Exponential Volume reading for Gamma Skew
+		#poi *= pv
 		
 		cb = strike[dp.GEX_CALL_BID]
 		pb = strike[dp.GEX_PUT_BID]
@@ -694,9 +743,9 @@ if BOT_TOKEN != None :
 	#import "C:\Users\hmset\Desktop\tradier\gobcog-master\adventure.py" as Adventure
 	#sys.path.insert(0, 'C:\Users\hmset\Desktop\tradier\gobcog-master\adventure.py')
 	
-	import sys
-	sys.path.insert(0, './gobcog-master/adventure')
-	import adventure
+	#import sys
+	#sys.path.insert(0, './gobcog-master/adventure')
+	#import adventure
 	
 	class MyBotHelp(commands.MinimalHelpCommand):
 		async def send_pages(self):
@@ -731,8 +780,22 @@ if BOT_TOKEN != None :
 		if isPut :
 			e4Text.set( str(strike) + 'p' )
 			checkCall.set(0)
-	
-		#await ctx.send( f'Sending Command {strike} + Call {isCall} - Put {isPut}' )
+			
+	@bot.command(name="clone")
+	async def command_clone(ctx, *args): 	
+		# ECONONMY = 804191163610824735
+		# Adeventure = 1064534371144572928
+		
+		guild = ctx.message.guild
+		#jsonChannel = { "name": "adventure", "id": "1064534371144572928"  }
+		#await guild.create_text_channel("adventure")
+		
+		
+		channels = await guild.fetch_channels()
+		category = discord.utils.get(channels, name='economy')
+		await category.create_text_channel('adventure')
+		
+		#await guild.create_text_channel('adventure', category=category)
 
 	@bot.command(name="stop")
 	async def command_stop(ctx, *args): 
@@ -744,5 +807,4 @@ if BOT_TOKEN != None :
 	thread = threading.Thread(target=run_bot)
 	thread.start()
 	
-
 tk.mainloop()

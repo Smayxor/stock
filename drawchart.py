@@ -192,21 +192,25 @@ def drawGEXChart(ticker, count, dte, chartType = 0, strikes = None, expDate = 0,
 	img.save("stock-chart.png")
 	return "stock-chart.png"
 
-def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, timeMinute=630, startTime=0, stopTime=1300):
+def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, RAM=False, deadprice=0.25, timeMinute=630, startTime=-900, stopTime=1300):
+	def verbosePrint( *vals ): #Allows me to keep print lines everywhere, without hunting them down later!
+		if True == False : print( vals )
 	IMG_W = 1500
 	IMG_H = 705# 500 + FONT_SIZE + 15 + 20
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	txt = fileName.replace('0dte-','').replace('-datalog.json','')
 	drawText(draw, x=0, y=0, txt=f'{ticker} {txt} for {", ".join(userArgs)}', color="#0ff")
+	verbosePrint('a')
 	drawText(draw, x=1400,y=2,txt=str(timeMinute), color="yellow", anchor="rt")
+	verbosePrint('b')
 	allPrices = []
 	displayStrikes = []
 	flags = []
 	#totalCallVolume = []
 	#totalPutVolume = []
 	openTimeIndex = 0
-
+	verbosePrint(1)
 	try :
 		startTime = int(startTime)
 		stopTime = int(stopTime)
@@ -216,18 +220,19 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	if startTime > 1200 : startTime = 1200
 	if stopTime < startTime : stopTime = startTime + 100
 	ft = 631 if startTime < 631 else startTime
-	
+	verbosePrint(startTime, stopTime)
 	firstTime = min( gexData.keys(), key=lambda i: abs(ft - float(i)))
-	#print(f'drawPriceChart {firstTime}')
+	verbosePrint(f'drawPriceChart {firstTime}')
 	firstStrikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels( firstStrikes )
-	#print( sigs )
+	verbosePrint( sigs )
 	EMA_PERIOD = int(deadprice * 100)
 	EMA_PERIOD2 = int((deadprice*10000)%100)
 	strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
 	dataIndex = 9999
 	#strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
 	
+	verbosePrint(3)
 	for arg in userArgs:
 		if arg == 'spx' :
 			displayStrikes.append( ('spx', 0) )
@@ -239,26 +244,38 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		strikeStrike = next((x for x in firstStrikes if x[dp.GEX_STRIKE] == strikeText), ['spx'])[dp.GEX_STRIKE]
 		displayStrikes.append( (strikeStrike, 'call' if arg[-1] == 'c' else 'put') )
 	
+	verbosePrint(4)
 	lenDisplays = len(displayStrikes)
 	if lenDisplays == 0: return 'error.png'
 	dStrike1 = displayStrikes[0]
 	dStrike2 = None if lenDisplays == 1 else displayStrikes[1]
-	#print( dStrike1, dStrike2 )
+	
+	verbosePrint( dStrike1, dStrike2 )
+	
 	prices1 = []
 	prices2 = []
-	
+	verbosePrint(f'Length GEXData - {len(gexData.items())}')
 	for t, strikes in gexData.items():
 		minute = float(t)
-		if not (startTime < minute < stopTime) : continue
-		callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID] #filtering out bad data
-		if callPutPrice == 0 : continue
+		#verbosePrint( minute )
+		#if not (startTime < minute < stopTime) : continue  #Glitchy when we add negative timestamps
 		
-		if minute < 631 : openTimeIndex = len(prices1)
-		if minute > 614 and minute < 631 : 
+		callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID] #filtering out bad data
+		if callPutPrice == 0 :#or gexData[t][0][dp.GEX_CALL_BID] < 100: 
+			#print( gexData[t][0] )
+			#[2200.0, 0.0, 7, 0.0, 0, 0.0, 7, 7.995547, 25.0, 6009.6, 0.0, 0.05, 3, 1, 1, 0, 0, 65, 'SPXW240808C02200000', 'SPXW240808P02200000', 0.0, 1.0, 0.0]
+			#verbosePrint( minute, callPutPrice )
 			continue
-			
+		
+		#verbosePrint( minute, 1 )
+		if minute < 631 : openTimeIndex = len(prices1)
+		if minute > 614 and minute < 631 : continue
+		#verbosePrint( minute, 2 )
 		spxPrice = dp.getPrice("SPX", strikes)
+		#verbosePrint(f'{minute} - {spxPrice}')
+		
 		flags.append( strat.addTime(minute, strikes) )
+		#verbosePrint( minute, 3 )
 		if timeMinute == minute : dataIndex = len(flags)
 		if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : 
 			prices1.append(spxPrice)
@@ -266,26 +283,36 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			element = dp.GEX_CALL_BID if dStrike1[1] == 'call' else dp.GEX_PUT_BID
 			bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike1[0]))[element]
 			prices1.append(bid)
+			
+		#verbosePrint( 'Prices1 len -', len(prices1) )
 		if dStrike2 != None : 
 			if dStrike2[0] == 'spx' : prices2.append(spxPrice)
 			else:
 				element = dp.GEX_CALL_BID if dStrike2[1] == 'call' else dp.GEX_PUT_BID
 				bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike2[0]))[element]
 				prices2.append(bid)
+	verbosePrint('Prices compiled - ', len(prices1) )
 	allPrices.append( prices1 )
-	if lenDisplays == 2 : allPrices.append( prices2 )
-	
+	if lenDisplays == 2 : 
+		allPrices.append( prices2 )
+		verbosePrint('Prices2 compiled - ', len(prices2) )
+	verbosePrint(6)
 	displaySize = 600
 	if lenDisplays == 2 : displaySize = 300
-	
+	verbosePrint( 'strikes - ', dStrike1, dStrike2 )
 	lows, highs, spxPrices = [], [], None
 	if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : spxPrices = prices1
+	verbosePrint(7)
 	if dStrike2 != None and (dStrike2[0] == 'all' or dStrike2[0] == 'spx') : spxPrices = prices2
-	if spxPrices != None :
+	verbosePrint(8)
+	if spxPrices != None and len( spxPrices ) > 30:
+		verbosePrint( f'lengthSPXPrices - {len( spxPrices )}' )
 		peaksValleys = sig.findPeaksAndValleys( spxPrices )
+		#print( 4)
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
-
+		#print(5)
+	verbosePrint(9)
 	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
 	for j in range(lenDisplays):
@@ -455,6 +482,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				colr = 'blue'
 				drawRect(draw, 1400 - mcp[1], y, 1400, y2, color="#00f", border='')
 			"""
+	#print(8)
 	h = 650
 	for x in range( 30, strat.getVolumeDeltaLen() ) :  # *****************Volume Chart under the SPX chart****************************
 		dif = strat.getVolumeDelta(x)
@@ -489,6 +517,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y = ((newList[i] / maxNL) * 100)
 			draw.line([x, 110, x, 110+y], fill='blue', width=10)
 	"""	
+	#print(9)
 	if len(strat.ExtraDisplayText) > 0 :
 		draw.multiline_text((1200,50), strat.ExtraDisplayText)	
 			

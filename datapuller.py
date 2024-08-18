@@ -431,10 +431,11 @@ def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 		#num_days = (end_date - datetime.datetime.now()).days + 1
 		#num_weekends = num_days // 7
 		#dte = num_days - (num_weekends * 2)
-		
+		#print('a')
 		firstStrike = strikes[0]
 		lastStrike = strikes[-1]
-		
+		#print('b')
+
 		if dte != 'now' :
 			#end_date = datetime.datetime.strptime(dte, '%Y-%m-%d')
 			#num_days = (end_date - datetime.datetime.now()).days + 1
@@ -444,16 +445,20 @@ def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 
 			#callPrice = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
 			#putPrice = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
+			#print('c')
 
 			blnCalls = firstStrike[GEX_CALL_DELTA] < (lastStrike[GEX_PUT_DELTA] * -1)
 
 	#print( firstStrike[GEX_CALL_DELTA], firstStrike[GEX_PUT_DELTA], firstStrike[GEX_CALL_DELTA], firstStrike[GEX_CALL_DELTA] )
+	#print('d')
 
 	cp = firstStrike[GEX_STRIKE] + firstStrike[GEX_CALL_BID]
 	pp = lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID]
+	#print('e')
 
 	price = cp if cp<pp and firstStrike[GEX_CALL_BID] != 0 else pp
-	
+	#print('f')
+
 	return price
 		
 	#else: price = getQuote(ticker)  #Trying to not use the extra API Request if not needed

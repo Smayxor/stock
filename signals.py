@@ -672,8 +672,6 @@ class SignalEMA:
 
 #points = [5292.667821026301,5292.591853566973,5292.494243827524,5292.336199495247,5292.1341632233825,5291.9079517282225,5291.6483241412725,5291.375901570132,5291.06482855738,5290.778496092401,5290.526951348327,5290.325687466813,5290.194653381937,5290.1501709488575,5290.159230776338,5290.212097907912,5290.3189891973825,5290.478263888767,5290.731306818082,5291.011069214795,5291.302692993922,5291.593112449572,5291.875273822377]
 
-
-
 def calcSMA(prices, period): 
 #	result = [(sum( prices[i-period:i] ) / period) for i in range( period, len(prices) +1 )]
 	summy = sum( prices ) / len( prices )
@@ -719,20 +717,32 @@ Schwab S&P 500 Index (SWPPX)	14.5%	0.02%	None
 Vanguard 500 Index Fund (VFIAX)	14.5%	0.04%	$3,000
 Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 """
-"""
-Day 84 - %25 + 34 - > %25 - 32 -> %25 -> %25 +50
-Day 83 - %25 -13 -> %25 + 10 -> %25 - 25
-Day 82 - %25 + 15 - > %25 -12 -> crabby
-Day 81 - %25 + 20 - > %25 -----> %25 - 21
-Day 80 - %25 -6 - > %25 + 15 -> %25 + 36 25% switched
-
-"""
 
 """
 =cbackpack sell --rarity normal rare epic legendary ascended --cha <30 --luck <30
 =atransfer player 1000 @KAMIL
 =bp eset SetName
 =loadout equip nameOfGears
+
+https://discord.com/oauth2/authorize?&client_id=1057095478120034385&scope=applications.commands+bot&permissions=1153382329347136
+#wsbx = 1057095478120034385
+#fuckboy = 804328230546309131
+&owner_id=758033219177283696
+
+or https://discord.com/oauth2/authorize?&client_id=235148962103951360&scope=applications.commands+bot&permissions=2088234230&response_type=code&redirect_uri=https://127.0.0.1"
+
+
+
+How to decide whether to talk or attack?
+Look at the trait/adjective right before the monster's name (Eg: "a delirious" Obsidian Drake) and not anything in the middle or the end. This will not be capitalized.
+Remember this trait then check the pinned messages and look for a list called [attack, talk hp multiplier].
+In this example, "delirious": [0.6 (att) , 0.8 (talk)], the monster's HP is lower while attacking (0.6) so we choose to attack rather than talk.
+What do you do if both HP multipliers are the same? Go with whatever the group is doing.
+Besides looking for the trait/adjective, you may also look for which stat is better in dealing the monsters. To look at the stats for resistance, use one of the two monster lists from the above message (depending on whether it is Ascended or not). Use Ctrl+F or any word finder to search for the monster's name.
+Once you have found the monster, this is how their stats are interpreted: "pdef" (for fight 🗡️) and "mdef" (spell ✨).
+If you saw attack or magic is impossible (high resistance), you should definitely goes for talking. A lot of group maxed out talk rather than attack/magic so it would probably save the day.
+
+
 
 Badass Bop Set - 2 Part Bonus - Stat Mulitplier: [-100%]  XP Multiplier: [-100%]  Currency Multiplier: [-100%]
 ===================================== ======== ===== ===== ===== ===== ===== ===== ============
@@ -823,4 +833,41 @@ The Paninator Set Pieces
  {Set:'Masterwork Ebony Wand'}        Left     22     0     0     12    -2    11    The Paninator 
  {Set:'Masterwork Ebony War Axe'}     Right    24     2     0     0     0     5     The Paninator 
 ==================================== ======== ====== ===== ===== ===== ===== ===== ===============
+
+
+
+
+ "Skrrtis": [  {"parts": 2, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 2, "statmult": 1.0, "xpmult": 1.4, "cpmult": 1.0}  ],  XP 40%
+ "Thunderfury": [ {"parts": 2, "att": -5, "cha": -5, "int": -5, "dex": -5, "luck": -5, "statmult": 0.7, "xpmult": 1.1, "cpmult": 0.5},
+                  {"parts": 3, "att": -5, "cha": -5, "int": -5, "dex": -5, "luck": -5, "statmult": 1.5, "xpmult": 1.9, "cpmult": 0.5}  ],  Stats 20%  XP 100%   Gold -100%
+ "Fangs of the Father": [  {"parts": 2, "att": 10, "cha": 300, "int": 5, "dex": 100, "luck": 50, "statmult": 1.0, "xpmult": 1.2, "cpmult": 1.4}  ],   cha 300,  xp 20%,  gold 40%
+
+
+ "The Groovinator": [  {"parts": 2, "att": 0, "cha": 30, "int": 0, "dex": 0, "luck": 0, "statmult": 1.1, "xpmult": 1.1, "cpmult": 1.1} ],   10, 10, 10
+
+ "Slobberknocker": [  {"parts": 3, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 1.1, "cpmult": 1.1},
+		        	  {"parts": 7, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.1, "xpmult": 1.4, "cpmult": 1.3}  ],  10%,  50%,   40%
+
+ "Heavenswheel": [
+        {"parts": 2, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 3, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.5},
+        {"parts": 5, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 20, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.5} ],    Gold 100%
+		
+ "World Breaker": [ 60% stats
+        {"parts": 4, "att": 3, "cha": 3, "int": 3, "dex": 3, "luck": -50, "statmult": 1.2, "xpmult": 0.5, "cpmult": 0.5},
+        {"parts": 8, "att": 3, "cha": 3, "int": 3, "dex": 3, "luck": 0, "statmult": 1.2, "xpmult": 1.0, "cpmult": 0.5},
+        {"parts": 11, "att": 30, "cha": 30, "int": 30, "dex": 30, "luck": -50, "statmult": 1.2, "xpmult": 1.6, "cpmult": 1.5}   ],   Stats 60%
+    "The Paninator": [
+        {"parts": 4, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.1},
+        {"parts": 8, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.2, "cpmult": 1.1},
+        {"parts": 11, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.3, "cpmult": 1.1} ],   xp 50%,  gold 30%
+    "Unholy Seasoning": [   {"parts": 2, "att": 75, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 0.7, "cpmult": 0.5},
+                            {"parts": 4, "att": 150, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 1.3, "cpmult": 1.5}  ],  0, 0, 0
+    "Mad Mook": [ {"parts": 4, "att": 12, "cha": 0, "int": 12, "dex": 0, "luck": 3, "statmult": 1.05, "xpmult": 1.2, "cpmult": 1.1},
+                  {"parts": 8, "att": 21, "cha": 0, "int": 21, "dex": 0, "luck": 6, "statmult": 1.05, "xpmult": 1.2, "cpmult": 1.1}   ],     xp 40%
+    "Badass Bop": [  {"parts": 2,"att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 0.0, "xpmult": 0.0, "cpmult": 0.0} ],
+    "Dreadnaughts Battlegear": [  {"parts": 4, "att": 100, "cha": 0, "int": 100, "dex": 0, "luck": 0, "statmult": 1.05, "xpmult": 1.15, "cpmult": 1.35},
+                                  {"parts": 9, "att": 125, "cha": 0, "int": 100, "dex": 0, "luck": 0, "statmult": 1.05, "xpmult": 1.15, "cpmult": 1.35} ],   attack 225, int 200, stats 10%, xp 30%, gold 70%
+    "Titanic Empowerment": [  {"parts": 2, "att": 160, "int": -40, "dex": 80, "cha": 300, "luck": 50, "statmult": 1.1, "xpmult": 1.2, "cpmult": 1.0} ],  10, 20
+    "Demonbane Armor": [ {"parts": 3, "att": -50, "cha": 50, "int": 25, "dex": 25, "luck": 25, "statmult": 1.05, "xpmult": 1.1, "cpmult": 1.3},
+                         {"parts": 6, "att": -50, "cha": 150, "int": 25, "dex": 25, "luck": 25, "statmult": 1.15, "xpmult": 1.1, "cpmult": 1.3}  ],   20, 20. gold 60%
 """

@@ -105,7 +105,7 @@ class DaysData():
 				self.FoldLowPrice = price
 				self.FoldLow = gex
 			verbosePrint(10)
-			candleLength = 180 if minute < 630 else 6
+			candleLength = 180 if minute < 615 else 6
 			blnWrite = self.FoldCount >= candleLength
 			verbosePrint(11)
 			self.FoldLastData = {}
@@ -144,9 +144,9 @@ def getStrTime():
 	return (now.hour * 100) + now.minute + (now.second * 0.01)
 
 def getToday():
-	#tempo = datetime.datetime.today() + datetime.timedelta(1) #For testing purposes
+	tempo = datetime.datetime.today()# + datetime.timedelta(1) #For testing purposes
 	minute = (tempo.hour * 100) + tempo.minute + (tempo.second * 0.01)
-	if minute > 1500 :
+	if minute > 1800 :
 		tempo = tempo + datetime.timedelta(1)
 		minute = minute - 2400
 	todaysDate = f'{tempo.year}-{tempo.month:02d}-{tempo.day:02d}'

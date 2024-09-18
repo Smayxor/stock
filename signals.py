@@ -3,6 +3,9 @@ import datapuller as dp
 import heapq
 
 DAY_RANGE, DAY_PUMP, DAY_DUMP, DAY_CRAZY, DAY_CONDOR, DAY_BREACH = 0, 1, 2, 3, 4, 5
+
+GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA = dp.GEX_STRIKE, dp.GEX_TOTAL_GEX, dp.GEX_TOTAL_OI, dp.GEX_CALL_GEX, dp.GEX_CALL_OI, dp.GEX_PUT_GEX, dp.GEX_PUT_OI, dp.GEX_CALL_IV, dp.GEX_CALL_BID, dp.GEX_CALL_ASK, dp.GEX_PUT_BID, dp.GEX_PUT_ASK, dp.GEX_CALL_VOLUME, dp.GEX_CALL_BID_SIZE, dp.GEX_CALL_ASK_SIZE, dp.GEX_PUT_VOLUME, dp.GEX_PUT_BID_SIZE, dp.GEX_PUT_ASK_SIZE, dp.GEX_CALL_SYMBOL, dp.GEX_PUT_SYMBOL, dp.GEX_PUT_IV, dp.GEX_CALL_DELTA, dp.GEX_PUT_DELTA
+
 #fitness(x) = 1 / (sum_of_all_positive_metrics_mentioned_above - sum_of_all_negative_metrics_mentioned_above)
 """time in trade
 percentage of port / percentage of budget
@@ -16,6 +19,7 @@ avg drawdown
 stdev of avg drawdown
 avg time in drawdown
 stdev of avg time in drawdown"""
+	
 
 def identifyKeyLevels(strikes):
 	lenStrikes = len(strikes)
@@ -285,7 +289,7 @@ class OptionPosition : #Class used for backtesting
 		return pnlChange
 
 class Signal:	
-	def __init__(self, firstTime, strikes, deadprice, ema1, ema2):
+	def __init__(self, day, firstTime, strikes, deadprice, ema1, ema2):
 		self.deadprice = deadprice
 		price = dp.getPrice("SPX", strikes)
 		self.OVNH = 0
@@ -308,8 +312,13 @@ class Signal:
 		self.totalCallVolume = []
 		self.totalPutVolume = []
 		self.VolumeDelta = []
+		self.CallSpread = []
+		self.PutSpread = []
+		
+		self.Yesterday = dp.fetchPreviousDaysLevels(day)
+		
 		#self.Signals = [SignalGEX(self, strikes, price), SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
-		self.Signals = [SignalDeadPrices(self, strikes, price) ]
+		self.Signals = [SignalVolatility(self, strikes, price), SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalEMA(self, strikes)]
 		#self.Signals = [SignalGEX(self, strikes, price)]
 		
@@ -317,11 +326,18 @@ class Signal:
 		self.CallPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_ASK]] for x in strikes if 0.3 < x[dp.GEX_CALL_BID] < 20]
 		self.PutPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_ASK]] for x in strikes if 0.3 < x[dp.GEX_PUT_BID] < 20]
 
-	def getVolumeDeltaLen(self): return len(self.VolumeDelta) #len(self.totalCallVolume)
+	def getVolumeDeltaLen(self): return len(self.VolumeDelta)
 	def getVolumeDelta(self, index):
-		#return (self.totalCallVolume[index] - self.totalCallVolume[index-30]) - (self.totalPutVolume[index] - self.totalPutVolume[index-30]) if index > 29 else 0
 		if index < 30 : return 0
 		return self.VolumeDelta[index] - self.VolumeDelta[index-30]
+		
+	def getCallSpreadDelta(self, index):
+		if index < 30 : return 0
+		return self.CallSpread[index]# - self.CallSpread[index-30]
+		
+	def getPutSpreadDelta(self, index):
+		if index < 30 : return 0
+		return self.PutSpread[index]# - self.PutSpread[index-30]
 		
 	def findLowPrice(self, cost, cp ):
 		# round(((n // 0.05) + 1) * 0.05, 2)
@@ -360,11 +376,19 @@ class Signal:
 		lastPriceIndex = len(self.Prices)-1
 		self.updateLowHighPrices(strikes)
 		
-		allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )
-		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )
-		#self.totalCallVolume.append( allCallVol )
-		#self.totalPutVolume.append( allPutVol )
+		#allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )		self.VolumeDelta.append( allCallVol - allPutVol )		allCallSpread = sum( [ (x[dp.GEX_CALL_ASK] - x[dp.GEX_CALL_BID] - 0.05) / 0.05 for x in strikes] ) / len(strikes)		allPutSpread = sum( [ (x[dp.GEX_PUT_ASK] - x[dp.GEX_PUT_BID] - 0.05) / 0.05 for x in strikes] ) / len(strikes)		self.CallSpread.append( allCallSpread )		self.PutSpread.append( allPutSpread )
+		allCallVol, allPutVol, allCallSpread, allPutSpread = 0, 0, 0, 0
+		for x in strikes:
+			allCallVol += x[dp.GEX_CALL_VOLUME]
+			allPutVol += x[dp.GEX_PUT_VOLUME]
+			
+			allCallSpread += (x[dp.GEX_CALL_ASK] - x[dp.GEX_CALL_BID] - 0.05) / 0.05
+			allPutSpread += (x[dp.GEX_PUT_ASK] - x[dp.GEX_PUT_BID] - 0.05) / 0.05
+			
 		self.VolumeDelta.append( allCallVol - allPutVol )
+		lenStrikes = len(strikes)
+		self.CallSpread.append( allCallSpread / lenStrikes )
+		self.PutSpread.append( allPutSpread / lenStrikes )
 
 		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price
@@ -405,6 +429,99 @@ class Signal:
 		for siggy in self.Signals :
 			result += siggy.addTime(minute, strikes, price)
 		
+		return result
+
+class SignalVolatility():
+	def __init__(self, owner, strikes, price):
+		self.Owner = owner
+		self.Stage = 0
+		self.OpenStrike = None
+		self.TargetCall = None
+		self.TargetPut = None
+		self.TargetCallHigh = 0
+		self.TargetCallLow = 9999999
+		self.TargetPutHigh = 0
+		self.TargetPutLow = 99999999
+		
+		self.HOD = 0
+		self.LOD = 99999999
+		
+		self.Zones = {}
+		self.PriceZones = []
+
+	def getHighLow(self, strike):
+		pass
+
+	def addTime(self, minute, strikes, price):
+		lastPriceIndex = len(self.Owner.Prices)-1
+		if minute < 631 : return 0
+		if self.Stage == -1 : return 0
+		result = 0
+
+		if price > self.HOD : self.HOD = price
+		if price < self.LOD : self.LOD = price
+
+		priceZone = price // 25
+		self.PriceZones.append( priceZone )
+		self.Zones[priceZone] = self.Zones.get(priceZone, 0) + 1
+
+		if self.Stage == 0 :
+			strikeATM = sorted( strikes, key=lambda strike: abs(strike[dp.GEX_STRIKE] - price) )[0]
+			isHighIV = (strikeATM[GEX_CALL_BID] + strikeATM[GEX_PUT_BID]) > 30
+			self.OpenStrike = strikeATM[GEX_STRIKE]
+			self.Stage = 1 if isHighIV else -1
+			result = self.Stage
+		elif self.Stage == 1 :
+			if minute > 650 : self.Stage = 2
+		elif self.Stage == 2 :
+			lastFew = self.Owner.Prices[-10:]
+			high = max( lastFew )
+			low = min( lastFew )
+			dif = high - low
+			if abs(dif) > 20:
+				#result = 1 if dif > 0 else -1
+				self.Stage = 3
+				
+				mostCallVolumeStrike = max( [ x for x in strikes ], key=lambda i: i[GEX_CALL_VOLUME] )
+				mostPutVolumeStrike = max( [ x for x in strikes ], key=lambda i: i[GEX_PUT_VOLUME] )
+				
+				self.TargetCall = mostCallVolumeStrike[GEX_STRIKE]
+				self.TargetPut = mostPutVolumeStrike[GEX_STRIKE]
+				
+				val = next(x for x in strikes if x[GEX_STRIKE] == self.TargetCall)[GEX_CALL_BID]
+				self.TargetCallHigh, self.TargetCallLow = val, val
+					
+				#print( self.TargetCall, self.TargetCallHigh, self.TargetCallLow )
+					
+				val = next(x for x in strikes if x[GEX_STRIKE] == self.TargetPut)[GEX_PUT_BID]
+				self.TargetPutHigh, self.TargetPutLow = val, val
+
+		elif self.Stage == 3:
+			callBid = next(x for x in strikes if x[GEX_STRIKE] == self.TargetCall)[GEX_CALL_BID]
+			if callBid > self.TargetCallHigh : self.TargetCallHigh = callBid
+			if callBid < self.TargetCallLow : self.TargetCallLow = callBid
+
+			putBid = next(x for x in strikes if x[GEX_STRIKE] == self.TargetPut)[GEX_PUT_BID]
+			if putBid > self.TargetPutHigh : self.TargetPutHigh = putBid
+			if putBid < self.TargetPutLow : self.TargetPutLow = putBid
+			
+			if callBid <= self.TargetCallHigh * 0.5 : 
+				result = 1
+				self.Stage = 4
+				
+		elif self.Stage == 4:
+			callBid = next(x for x in strikes if x[GEX_STRIKE] == self.TargetCall)[GEX_CALL_BID]
+			putBid = next(x for x in strikes if x[GEX_STRIKE] == self.TargetPut)[GEX_PUT_BID]
+			
+			if callBid > self.TargetCallHigh * 0.8 :
+				result = -1
+				self.Stage = 5
+
+		elif self.Stage == -1 : #First identify doouble taps off quarter strikes
+			self.Stage = -2
+		elif self.Stage == -2:
+			pass
+
 		return result
 
 class SignalEGEX():
@@ -719,155 +836,23 @@ Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 """
 
 """
-=cbackpack sell --rarity normal rare epic legendary ascended --cha <30 --luck <30
-=atransfer player 1000 @KAMIL
-=bp eset SetName
-=loadout equip nameOfGears
+=cbackpack sell --rarity normal rare epic legendary ascended
 
-https://discord.com/oauth2/authorize?&client_id=1057095478120034385&scope=applications.commands+bot&permissions=1153382329347136
-#wsbx = 1057095478120034385
-#fuckboy = 804328230546309131
-&owner_id=758033219177283696
+Expected Value = avg_gain^(% of winning trades * # of all trades) - avg_loss^(% of losing trades * # of all trades)
 
-or https://discord.com/oauth2/authorize?&client_id=235148962103951360&scope=applications.commands+bot&permissions=2088234230&response_type=code&redirect_uri=https://127.0.0.1"
+Positive Delta = Makes money from price going up
+Negative Delta = Makes money from price going down
 
+Buy Put = Negative Delta
+Short Put = Positive Delta  = Negative Gamma
+Short Call = Negative Delta = Negative Gamma
 
+Gamma is greatest ATM = Gamma Flip
 
-How to decide whether to talk or attack?
-Look at the trait/adjective right before the monster's name (Eg: "a delirious" Obsidian Drake) and not anything in the middle or the end. This will not be capitalized.
-Remember this trait then check the pinned messages and look for a list called [attack, talk hp multiplier].
-In this example, "delirious": [0.6 (att) , 0.8 (talk)], the monster's HP is lower while attacking (0.6) so we choose to attack rather than talk.
-What do you do if both HP multipliers are the same? Go with whatever the group is doing.
-Besides looking for the trait/adjective, you may also look for which stat is better in dealing the monsters. To look at the stats for resistance, use one of the two monster lists from the above message (depending on whether it is Ascended or not). Use Ctrl+F or any word finder to search for the monster's name.
-Once you have found the monster, this is how their stats are interpreted: "pdef" (for fight 🗡️) and "mdef" (spell ✨).
-If you saw attack or magic is impossible (high resistance), you should definitely goes for talking. A lot of group maxed out talk rather than attack/magic so it would probably save the day.
+When dealers are Short Gamma = Market Volatility = Dealer sells in to dips creating waterfalls in PA
+When dealers are Long Gamma = Market Volatility Compression = Dealer buys the dips, and sells the rips
 
+Traders are Long Puts and Short Calls
 
-
-Badass Bop Set - 2 Part Bonus - Stat Mulitplier: [-100%]  XP Multiplier: [-100%]  Currency Multiplier: [-100%]
-===================================== ======== ===== ===== ===== ===== ===== ===== ============
- Name                                  Slot     ATT   CHA   INT   DEX   LUC   LVL   SET        
-===================================== ======== ===== ===== ===== ===== ===== ===== ============
- {Set:'Shiny Dragonplate Gauntlets'}   Gloves   0     2     8     24    2     12    Badass Bop 
- {Set:'Shiny Dragonplate Sling'}       Left     40    0     0     16    -78   7     Badass Bop 
-===================================== ======== ===== ===== ===== ===== ===== ===== ============
-
-Skrrtis Set Pieces
-Luck:                  [+2] XP Multiplier:         [+40%]
-========================== ======= ===== ===== ===== ===== ===== ===== =========
- Name                       Slot    ATT   CHA   INT   DEX   LUC   LVL   SET     
-========================== ======= ===== ===== ===== ===== ===== ===== =========
- {Set:'Skrrtis Radiance'}   Head    -2    10    -4    -6    0     1     Skrrtis 
- {Set:'Skrrtis Sandals'}    Boots   -2    10    -4    -6    0     1     Skrrtis 
-========================== ======= ===== ===== ===== ===== ===== ===== =========
-
-The Groovinator Set Pieces
-Charisma: [+30]  Stat Mulitplier: [+10%] XP Multiplier: [+10%] Currency Multiplier: [+10%]
-================================= ======= ===== ===== ===== ===== ===== ===== =================
- Name                              Slot    ATT   CHA   INT   DEX   LUC   LVL   SET             
-================================= ======= ===== ===== ===== ===== ===== ===== =================
- {Set:'Polished Duranium Axe'}     Right   0     0     0     0     54    26    The Groovinator 
- {Set:'Polished Duranium Shard'}   Charm   8     0     0     12    28    22    The Groovinator 
-================================= ======= ===== ===== ===== ===== ===== ===== =================
-
-Thunderfury Set Pieces              Thunderfury - 3 Part Bonus
-Attack: Charisma: Intelligence: Dexterity: Luck: [-10] Stat Mulitplier: [+20%] XP Multiplier: [+100%] Currency Multiplier: [-100%]
-===================================== ====== ===== ===== ===== ===== ===== ===== =============
- Name                                  Slot   ATT   CHA   INT   DEX   LUC   LVL   SET         
-===================================== ====== ===== ===== ===== ===== ===== ===== =============
- {Set:'Heavenly Unobtanium Belt'}      Belt   -18   20    26    30    10    46    Thunderfury    *****Need
- {Set:'Heavenly Unobtanium Ringlet'}   Ring   0     0     38    -26   0     8     Thunderfury 
- {Set:'Heavenly Unobtanium Scarf'}     Neck   -10   0     30    0     0     6     Thunderfury 
-===================================== ====== ===== ===== ===== ===== ===== ===== =============
-
-Slobberknocker Set Pieces 3 Part Bonus    -    XP Multiplier: [+10%]   Currency Multiplier:   [+10%]
-====================================== ======= ===== ===== ===== ===== ===== ===== ================
- Name                                   Slot    ATT   CHA   INT   DEX   LUC   LVL   SET            
-====================================== ======= ===== ===== ===== ===== ===== ===== ================
- {Set:'Heavenly Dragonbone Cap'}        Head    8     18    0     0     6     10    Slobberknocker 
- {Set:'Heavenly Dragonbone Figurine'}   Charm   28    0     0     -4    0     6     Slobberknocker 
- {Set:'Heavenly Dragonbone Leggings'}   Legs    28    -10   0     6     0     9     Slobberknocker 
- {Set:'Heavenly Dragonbone Ringlet'}    Ring    0     30    6     0     0     13    Slobberknocker 
- {Set:'Heavenly Dragonbone Sandals'}    Boots   -52   60    0     0     0     18    Slobberknocker 
- {Set:'Heavenly Dragonbone Sword'}      Right   -10   60    -6    0     0     27    Slobberknocker 
- {Set:'Heavenly Dragonbone Wand'}       Left    0     0     60    0     0     31    Slobberknocker 
-====================================== ======= ===== ===== ===== ===== ===== ===== ================
-
-Demonbane Armor Set Pieces    3 Part Bonus
-Attack: [-50] Charisma: [+50] Intelligence: [+25] Dexterity: [+25] Luck: [+25] Stat Mulitplier: [+5%] XP Multiplier: [+10%] Currency Multiplier:   [+30%]
-============================ ============ ===== ===== ===== ===== ===== ===== =================
- Name                         Slot         ATT   CHA   INT   DEX   LUC   LVL   SET             
-============================ ============ ===== ===== ===== ===== ===== ===== =================
- {Set:'Demonbane Necklace'}   Neck         30    0     0     0     24    26    Demonbane Armor 
- {Set:'Demonbane Katana'}     Two Handed   40    0     0     0     24    67    Demonbane Armor 
- {Set:'Demonbane Sabatons'}   Boots        50    0     0     0     24    41    Demonbane Armor 
- {Set:'Demonbane Charm'}      Charm        60    0     0     0     24    49    Demonbane Armor 
- {Set:'Demonbane Leggings'}   Legs         70    0     0     0     24    56    Demonbane Armor 
- {Set:'Ring Of Demonbane'}    Ring         80    0     0     0     24    64    Demonbane Armor 
-============================ ============ ===== ===== ===== ===== ===== ===== =================
-
-Heavenswheel Set Pieces  -  2 Part Bonus    Currency Multiplier:   [+50%]     5 Part Luck: [+23] Currency Multiplier:   [+100%]    #Potentially bugged?
-=================================== ======= ===== ===== ===== ===== ===== ===== ==============
- Name                                Slot    ATT   CHA   INT   DEX   LUC   LVL   SET          
-=================================== ======= ===== ===== ===== ===== ===== ===== ==============
- {Set:'Golden Dragonplate Boots'}    Boots   4     -4    -4    30    20    24    Heavenswheel 
- {Set:'Golden Dragonplate Chain'}    Belt    -2    30    0     4     -8    9     Heavenswheel 
- {Set:'Golden Dragonplate Hat'}      Head    22    8     0     0     0     8     Heavenswheel 
- {Set:'Golden Dragonplate Pants'}    Legs    0     18    4     0     -8    1     Heavenswheel 
- {Set:'Golden Dragonplate Thread'}   Neck    0     58    0     0     0     29    Heavenswheel 
-=================================== ======= ===== ===== ===== ===== ===== ===== ==============
-
-The Paninator Set Pieces
-==================================== ======== ====== ===== ===== ===== ===== ===== ===============
- Name                                 Slot     ATT    CHA   INT   DEX   LUC   LVL   SET           
-==================================== ======== ====== ===== ===== ===== ===== ===== ===============
- {Set:'Masterwork Ebony Chain'}       Belt     -120   0     0     58    2     1     The Paninator 
- {Set:'Masterwork Ebony Cuirass'}     Chest    58     0     0     0     0     29    The Paninator 
- {Set:'Masterwork Ebony Gauntlets'}   Gloves   0      -36   0     -10   60    19    The Paninator 
- {Set:'Masterwork Ebony Hat'}         Head     40     6     -10   0     0     18    The Paninator 
- {Set:'Masterwork Ebony Necklace'}    Neck     0      -2    0     60    0     30    The Paninator 
- {Set:'Masterwork Ebony Ringlet'}     Ring     -2     10    0     12    0     2     The Paninator 
- {Set:'Masterwork Ebony Sandals'}     Boots    22     2     -48   18    4     8     The Paninator 
- {Set:'Masterwork Ebony Shard'}       Charm    0      4     10    0     44    29    The Paninator 
- {Set:'Masterwork Ebony Skins'}       Legs     14     0     2     0     36    25    The Paninator 
- {Set:'Masterwork Ebony Wand'}        Left     22     0     0     12    -2    11    The Paninator 
- {Set:'Masterwork Ebony War Axe'}     Right    24     2     0     0     0     5     The Paninator 
-==================================== ======== ====== ===== ===== ===== ===== ===== ===============
-
-
-
-
- "Skrrtis": [  {"parts": 2, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 2, "statmult": 1.0, "xpmult": 1.4, "cpmult": 1.0}  ],  XP 40%
- "Thunderfury": [ {"parts": 2, "att": -5, "cha": -5, "int": -5, "dex": -5, "luck": -5, "statmult": 0.7, "xpmult": 1.1, "cpmult": 0.5},
-                  {"parts": 3, "att": -5, "cha": -5, "int": -5, "dex": -5, "luck": -5, "statmult": 1.5, "xpmult": 1.9, "cpmult": 0.5}  ],  Stats 20%  XP 100%   Gold -100%
- "Fangs of the Father": [  {"parts": 2, "att": 10, "cha": 300, "int": 5, "dex": 100, "luck": 50, "statmult": 1.0, "xpmult": 1.2, "cpmult": 1.4}  ],   cha 300,  xp 20%,  gold 40%
-
-
- "The Groovinator": [  {"parts": 2, "att": 0, "cha": 30, "int": 0, "dex": 0, "luck": 0, "statmult": 1.1, "xpmult": 1.1, "cpmult": 1.1} ],   10, 10, 10
-
- "Slobberknocker": [  {"parts": 3, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 1.1, "cpmult": 1.1},
-		        	  {"parts": 7, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.1, "xpmult": 1.4, "cpmult": 1.3}  ],  10%,  50%,   40%
-
- "Heavenswheel": [
-        {"parts": 2, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 3, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.5},
-        {"parts": 5, "att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 20, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.5} ],    Gold 100%
-		
- "World Breaker": [ 60% stats
-        {"parts": 4, "att": 3, "cha": 3, "int": 3, "dex": 3, "luck": -50, "statmult": 1.2, "xpmult": 0.5, "cpmult": 0.5},
-        {"parts": 8, "att": 3, "cha": 3, "int": 3, "dex": 3, "luck": 0, "statmult": 1.2, "xpmult": 1.0, "cpmult": 0.5},
-        {"parts": 11, "att": 30, "cha": 30, "int": 30, "dex": 30, "luck": -50, "statmult": 1.2, "xpmult": 1.6, "cpmult": 1.5}   ],   Stats 60%
-    "The Paninator": [
-        {"parts": 4, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.0, "cpmult": 1.1},
-        {"parts": 8, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.2, "cpmult": 1.1},
-        {"parts": 11, "att": 1, "cha": 1, "int": 1, "dex": 1, "luck": 1, "statmult": 1.0, "xpmult": 1.3, "cpmult": 1.1} ],   xp 50%,  gold 30%
-    "Unholy Seasoning": [   {"parts": 2, "att": 75, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 0.7, "cpmult": 0.5},
-                            {"parts": 4, "att": 150, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 1.0, "xpmult": 1.3, "cpmult": 1.5}  ],  0, 0, 0
-    "Mad Mook": [ {"parts": 4, "att": 12, "cha": 0, "int": 12, "dex": 0, "luck": 3, "statmult": 1.05, "xpmult": 1.2, "cpmult": 1.1},
-                  {"parts": 8, "att": 21, "cha": 0, "int": 21, "dex": 0, "luck": 6, "statmult": 1.05, "xpmult": 1.2, "cpmult": 1.1}   ],     xp 40%
-    "Badass Bop": [  {"parts": 2,"att": 0, "cha": 0, "int": 0, "dex": 0, "luck": 0, "statmult": 0.0, "xpmult": 0.0, "cpmult": 0.0} ],
-    "Dreadnaughts Battlegear": [  {"parts": 4, "att": 100, "cha": 0, "int": 100, "dex": 0, "luck": 0, "statmult": 1.05, "xpmult": 1.15, "cpmult": 1.35},
-                                  {"parts": 9, "att": 125, "cha": 0, "int": 100, "dex": 0, "luck": 0, "statmult": 1.05, "xpmult": 1.15, "cpmult": 1.35} ],   attack 225, int 200, stats 10%, xp 30%, gold 70%
-    "Titanic Empowerment": [  {"parts": 2, "att": 160, "int": -40, "dex": 80, "cha": 300, "luck": 50, "statmult": 1.1, "xpmult": 1.2, "cpmult": 1.0} ],  10, 20
-    "Demonbane Armor": [ {"parts": 3, "att": -50, "cha": 50, "int": 25, "dex": 25, "luck": 25, "statmult": 1.05, "xpmult": 1.1, "cpmult": 1.3},
-                         {"parts": 6, "att": -50, "cha": 150, "int": 25, "dex": 25, "luck": 25, "statmult": 1.15, "xpmult": 1.1, "cpmult": 1.3}  ],   20, 20. gold 60%
 """
+

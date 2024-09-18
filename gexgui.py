@@ -35,8 +35,6 @@ pcData = []
 pcY = []
 dataIndex = -1
 
-fileListGME = [x for x in dp.pullLogFileListGME()]
-
 accountBalance = 0
 unsettledFunds = 0
 openOrders = 'null'
@@ -284,7 +282,7 @@ def triggerReset():
 	
 		price = dp.getPrice(ticker=ticker, strikes=gexList)
 
-		tmp = dc.drawPriceChart(ticker, fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute)
+		tmp = dc.drawPriceChart(ticker, fileToday, gexData, [e3.get(), e4.get()], includePrices = True, RAM=True, deadprice=float(deadPrice.get()), timeMinute=minute, startTime=startTime.get(), stopTime=stopTime.get())
 		pcData = tmp[1]
 		pcY = tmp[2]
 		filename = tmp[0]
@@ -347,7 +345,8 @@ def timerThread():
 		#print(f'{fileToday} {fileIndex}={lastFileIndex} --> {len(gexData)}')
 		
 		minute = 0
-		times = list(gexData.keys())
+		st = float(startTime.get())
+		times = [x for x in list(gexData.keys()) if float(x) > st]
 		lastTimes = len(times) - 1
 		errorLine = 8
 		if fileIndex==lastFileIndex :
@@ -665,7 +664,7 @@ s1 = tk.Scale( win, variable = sliderValue, from_ = 0, to = 100, orient = tk.HOR
 s1.place(x=650, y=0)
 
 startTime = tk.StringVar() 
-startTime.set("0") 
+startTime.set("-1000") 
 eStartTime = tk.Entry(win, width=8, textvariable=startTime)
 eStartTime.place(x=800, y=0)
 
@@ -806,5 +805,5 @@ if BOT_TOKEN != None :
 	def run_bot(): bot.run(BOT_TOKEN)
 	thread = threading.Thread(target=run_bot)
 	thread.start()
-	
+
 tk.mainloop()

@@ -608,7 +608,7 @@ lastFileName = ""
 lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we only have to pull the most recent dict entry on the timer
 
 dateAndTime = getToday()[0] # str(datetime.datetime.now()).split(" ")[0]
-print(f'Target Date - {dateAndTime}')
+#print(f'Target Date - {dateAndTime}')
 cacheFiles = os.listdir('./logs')
 lastFileKeyList = []
 blnWasFinal = False
@@ -789,3 +789,34 @@ def fetchNews():
 	#	print( f'{events.Day} - {events.Time} - {events.Desc}')
 	return AllNews
 
+allLogFiles = None
+PreviousHighLows = json.load(open('./logs/hl.json'))
+def fetchPreviousDaysLevels(targetDay):
+	global allLogFiles
+	if allLogFiles is None : allLogFiles = pullLogFileList()
+	
+	di = -1
+	for i in range(len(allLogFiles)):
+		if allLogFiles[i] == targetDay:
+			di = i - 1
+			break
+	trg = allLogFiles[di]
+	
+	levels = PreviousHighLows.get(trg, None)
+	
+	if levels is None :
+		trgData = pullLogFile( trg )
+		
+		high = 0
+		low = 9999999
+		for min, strikes in trgData.items():
+			price = getPrice("SPX", strikes)
+			if price < low : low = price
+			if price > high : high = price
+			
+		PreviousHighLows[trg] = (high, low)
+		levels = PreviousHighLows[trg]
+		with open(f'./logs/hl.json', 'w') as f:
+			json.dump(PreviousHighLows, f)
+			
+	return levels

@@ -215,23 +215,22 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		startTime = int(startTime)
 		stopTime = int(stopTime)
 	except :
-		startTime = 0
+		startTime = -900
 		stopTime = 1300
 	if startTime > 1200 : startTime = 1200
 	if stopTime < startTime : stopTime = startTime + 100
 	ft = 631 if startTime < 631 else startTime
 	verbosePrint(startTime, stopTime)
-	firstTime = min( gexData.keys(), key=lambda i: abs(ft - float(i)))
+	#firstTime = min( gexData.keys(), key=lambda i: abs(ft - float(i)))
+	firstTime = next(x for x in gexData if float(x) > startTime)  #indices are string
 	verbosePrint(f'drawPriceChart {firstTime}')
 	firstStrikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels( firstStrikes )
 	verbosePrint( sigs )
 	EMA_PERIOD = int(deadprice * 100)
 	EMA_PERIOD2 = int((deadprice*10000)%100)
-	strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
+	strat = sig.Signal(day=fileName, firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
 	dataIndex = 9999
-	#strat = sig.Signal(firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice)
-	
 	verbosePrint(3)
 	for arg in userArgs:
 		if arg == 'spx' :
@@ -253,13 +252,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	verbosePrint( dStrike1, dStrike2 )
 	
 	prices1 = []
+	prices1a = []
 	prices2 = []
+	prices2a = []
 	verbosePrint(f'Length GEXData - {len(gexData.items())}')
 	for t, strikes in gexData.items():
 		minute = float(t)
-		#verbosePrint( minute )
-		#if not (startTime < minute < stopTime) : continue  #Glitchy when we add negative timestamps
-		
+		if minute < startTime or minute > stopTime	: continue
+
 		callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID] #filtering out bad data
 		if callPutPrice == 0 :#or gexData[t][0][dp.GEX_CALL_BID] < 100: 
 			#print( gexData[t][0] )
@@ -281,16 +281,18 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			prices1.append(spxPrice)
 		else:
 			element = dp.GEX_CALL_BID if dStrike1[1] == 'call' else dp.GEX_PUT_BID
-			bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike1[0]))[element]
-			prices1.append(bid)
+			bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike1[0]))
+			prices1.append(bid[element])
+			prices1a.append((bid[element+1] - bid[element]) * 20)
 			
 		#verbosePrint( 'Prices1 len -', len(prices1) )
 		if dStrike2 != None : 
 			if dStrike2[0] == 'spx' : prices2.append(spxPrice)
 			else:
 				element = dp.GEX_CALL_BID if dStrike2[1] == 'call' else dp.GEX_PUT_BID
-				bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike2[0]))[element]
-				prices2.append(bid)
+				bid = next((x for x in strikes if x[dp.GEX_STRIKE] == dStrike2[0]))
+				prices2.append(bid[element])
+				prices2a.append((bid[element+1] - bid[element]) * 20)
 	verbosePrint('Prices compiled - ', len(prices1) )
 	allPrices.append( prices1 )
 	if lenDisplays == 2 : 
@@ -308,10 +310,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	if spxPrices != None and len( spxPrices ) > 30:
 		verbosePrint( f'lengthSPXPrices - {len( spxPrices )}' )
 		peaksValleys = sig.findPeaksAndValleys( spxPrices )
-		#print( 4)
 		lows = peaksValleys[0]
 		highs = peaksValleys[1]
-		#print(5)
 	verbosePrint(9)
 	def convertY( val, maxPrice ): return displaySize - ((val / maxPrice) * displaySize)
 	yValues = ([],[])
@@ -319,7 +319,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		prices = allPrices[j]
 		smays = strat.EMAs1
 		smays2 = strat.EMAs2
-	
+		
+		
 		lenPrices = len(prices)
 		if lenPrices < 2 : break
 		maxPrice, maxSPX = max( prices ), 0
@@ -400,6 +401,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				#	draw.polygon( [x, 250, x-50, 200, x+50, 200, x,250], fill="red", outline='blue')
 				
 				ovnPrices = prices[:openTimeIndex]
+				if len(ovnPrices) < 10 : continue
 				ovnl = min( ovnPrices )
 				ovnh = max( ovnPrices )
 				ovnRange = ovnh - ovnl
@@ -444,6 +446,14 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				drawLongPriceLine(draw, y, 'purple', 1, 1400)
 				drawText( draw, 1200 + (j*50), y, txt=str(spxVal), color='purple', anchor="rb")
 		
+			ydayHigh, ydayLow = strat.Yesterday
+			y = convertY( ydayHigh - minPrice, maxPrice ) + addY
+			drawLongPriceLine(draw, y, 'green', 1, 1400)
+			drawText( draw, 1200 + (j*50), y, txt=str(ydayHigh), color='green', anchor="rb")
+			y = convertY( ydayLow - minPrice, maxPrice ) + addY
+			drawLongPriceLine(draw, y, 'red', 1, 1400)
+			drawText( draw, 1200 + (j*50), y, txt=str(ydayLow), color='red', anchor="rb")
+		
 		#***********************************Display High and Low price within range of Mouse Hover *********************************
 		sliceStart = dataIndex - 30 if dataIndex - 30 > 0 else 0
 		if sliceStart > lenPrices - 30 : sliceStart = 0#lenPrices - 30
@@ -483,41 +493,24 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				drawRect(draw, 1400 - mcp[1], y, 1400, y2, color="#00f", border='')
 			"""
 	#print(8)
-	h = 650
+
 	for x in range( 30, strat.getVolumeDeltaLen() ) :  # *****************Volume Chart under the SPX chart****************************
 		dif = strat.getVolumeDelta(x)
 		cr = 'green' if dif > 0 else 'red'
 		y2 = abs(dif) / 500
 		draw.line([x, 700-y2, x, 700], fill=cr, width=1)
+		
+		cdif = strat.getCallSpreadDelta(x)
+		pdif = strat.getPutSpreadDelta(x)
+		#draw.line([x, 600-cdif, x, 600], fill="green", width=1)
+		#draw.line([x, 600+pdif, x, 600], fill="red", width=1)
 	
-	"""if isSPX == 5 :	#*****************************************Displays volume chart above *************************************
-		timeMinute = float(timeMinute)
-		times = gexData.keys()
-		lenTimes = len( times )
-		firstTime = min( times, key=lambda i: abs(timeMinute - float(i))) #**********Set to mouse cursor
-		firstStrikes = gexData[firstTime]
-		lenStrikes = len(firstStrikes)
-		newList = []
-		def grabTotal(index): return firstStrikes[index][dp.GEX_CALL_VOLUME] + firstStrikes[index][dp.GEX_PUT_VOLUME]		
-		for i, strike in enumerate(firstStrikes) :
-			if i == 0 or i > lenStrikes-2:
-				newList.append(0)
-				continue
-			pre = grabTotal(i-1)
-			now = grabTotal(i)
-			post = grabTotal(i+1)
-			dif = abs(now - ((pre + post) / 2))
-			newList.append(now)
-		maxNL = max(newList)
-		for i, strike in enumerate(firstStrikes) :
-			txt = '\n'.join([*str(strike[dp.GEX_STRIKE]).split('.')[0]])
-			x = (i * FONT_SIZE) + FONT_SIZE
-			y = 50
-			draw.multiline_text((x,y), txt)
-			y = ((newList[i] / maxNL) * 100)
-			draw.line([x, 110, x, 110+y], fill='blue', width=10)
-	"""	
-	#print(9)
+	#for x in range( len(prices1a) ):
+	#	draw.line([x, 600-prices1a[x], x, 600], fill="green", width=1)
+	#for x in range( len(prices2a) ):
+	#	draw.line([x, 601, x, 601+prices2a[x]], fill="red", width=1)
+	
+	verbosePrint('fin')
 	if len(strat.ExtraDisplayText) > 0 :
 		draw.multiline_text((1200,50), strat.ExtraDisplayText)	
 			

@@ -227,8 +227,8 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	firstStrikes = gexData[firstTime]
 	sigs = sig.identifyKeyLevels( firstStrikes )
 	verbosePrint( sigs )
-	EMA_PERIOD = int(deadprice * 100)
-	EMA_PERIOD2 = int((deadprice*10000)%100)
+	EMA_PERIOD = 2#int(deadprice * 100)
+	EMA_PERIOD2 = 5#int((deadprice*10000)%100)
 	strat = sig.Signal(day=fileName, firstTime=firstTime, strikes=firstStrikes, deadprice=deadprice, ema1=EMA_PERIOD, ema2=EMA_PERIOD2)
 	dataIndex = 9999
 	verbosePrint(3)
@@ -357,21 +357,15 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			#yValues[j].append(y1)
 			yValues[j].append(y2)
 			
-			for c in strat.callTimes:
-				if c[1] == x:
-					cr = 'green'
-					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
-					drawText( draw, x, y2, txt=str( c[0] ), color=cr, anchor="rb")
-			for p in strat.putTimes:
-				if p[1] == x:
-					cr = 'red'
-					draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
-					drawText( draw, x, y2, txt=str( p[0] ), color=cr, anchor="rt")
+			cr = 'green' #Draw DeadPrices
+			for o in [t for t in strat.callTimes + strat.putTimes if t[1] == x]:
+				if o is strat.putTimes[0]: cr = 'red'
+				draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
+				drawText( draw, x, y2, txt=str( o[0] ), color=cr, anchor="rt")
+				drawText( draw, x, y2 + 20, txt=f'${o[4]}' , color="blue" if o[4] > 0.5 else cr, anchor="rt")
 			
-			#colr = "green" if candleAvg > lastCandleAvg else "red"
-			#lastCandleAvg = candleAvg
-			#drawRect(draw, x, y1, x+1, y2, color=colr, border='')
-			draw.line([x-1, y1, x, y2], fill=colr, width=1)
+			#Draw the price chart
+			if not colr is "yellow" : draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-1] - minPrice

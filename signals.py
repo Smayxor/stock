@@ -306,8 +306,8 @@ class Signal:
 		self.callTimes = [] # [[strike, time],[next, -1]]
 		self.putTimes = []
 		self.ExtraDisplayText = ""
-		self.EMA_PERIOD_1 = 10#ema1 if ema1 > 2 else None
-		self.EMA_PERIOD_2 = 150#ema2 if ema2 > 2 else None
+		self.EMA_PERIOD_1 = 2#ema1 if ema1 > 2 else None
+		self.EMA_PERIOD_2 = 4#ema2 if ema2 > 2 else None
 		self.SMAs1,self.EMAs1,self.SMAs2,self.EMAs2 = None,None,None,None
 		self.totalCallVolume = []
 		self.totalPutVolume = []
@@ -404,7 +404,7 @@ class Signal:
 			self.OpenPrice = price
 			#self.Low = price
 			#self.High = price
-		"""
+		
 		if self.EMA_PERIOD_1 != None :
 			if self.EMAs1 == None :
 				if lastPriceIndex +1 == self.EMA_PERIOD_1 :
@@ -421,7 +421,7 @@ class Signal:
 			else :
 				self.SMAs2.append( appendSMA( self.Prices, self.EMA_PERIOD_2 ) )
 				self.EMAs2.append( appendEMA( self.SMAs2, self.EMAs2, self.EMA_PERIOD_2 ) )
-		"""
+		
 		if price < self.Low : self.Low = price
 		if price > self.High : self.High = price
 		
@@ -631,9 +631,9 @@ def get_match():
 class SignalDeadPrices():	
 	def __init__(self, owner, strikes, price):
 		self.Owner = owner
-
-		self.Owner.callTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID]] for x in strikes if (x[dp.GEX_CALL_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
-		self.Owner.putTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID]] for x in strikes if (x[dp.GEX_PUT_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
+		#, self.Owner.deadprice
+		self.Owner.callTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], self.Owner.deadprice] for x in strikes if (x[dp.GEX_CALL_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
+		self.Owner.putTimes = [[x[dp.GEX_STRIKE], -1, x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID], self.Owner.deadprice] for x in strikes if (x[dp.GEX_PUT_BID] > self.Owner.deadprice) and (x[dp.GEX_STRIKE] % 25 == 0) and (abs(x[dp.GEX_STRIKE] - price) < 100)]
 		self.LargestCandle = 0
 		self.LastFlag = -1
 		wholePrice = int(price)
@@ -644,10 +644,15 @@ class SignalDeadPrices():
 		if bid == None : 
 			o[1] == -2
 			return
-		if bid <= self.Owner.deadprice :
-			o[1] = lastPriceIndex
-			self.LastFlag = lastPriceIndex
-			result = 1
+			
+		if o[1] == -1 :
+			if bid <= self.Owner.deadprice :
+				o[1] = lastPriceIndex
+				self.LastFlag = lastPriceIndex
+				result = 1
+				o[4] = bid
+		elif o[1] > 0:
+			if bid > o[4] : o[4] = bid
 		return result
 				
 	def addTime(self, minute, strikes, price):
@@ -658,8 +663,8 @@ class SignalDeadPrices():
 		else : pass
 		
 		result = 0
-		for c in [c for c in self.Owner.callTimes if c[1] == -1] : result += self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
-		for p in [p for p in self.Owner.putTimes if p[1] == -1] : result += self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
+		for c in [c for c in self.Owner.callTimes if c[1] > -2] : result += self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
+		for p in [p for p in self.Owner.putTimes if p[1] > -2] : result += self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
 
 		if result != 0 and lastPriceIndex - self.LastFlag < 5 : 
 			result = 0
@@ -837,6 +842,7 @@ Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 
 """
 =cbackpack sell --rarity normal rare epic legendary ascended
+=cbackpack disassemble --rarity ascended —lvl <100
 
 Expected Value = avg_gain^(% of winning trades * # of all trades) - avg_loss^(% of losing trades * # of all trades)
 
@@ -855,4 +861,3 @@ When dealers are Long Gamma = Market Volatility Compression = Dealer buys the di
 Traders are Long Puts and Short Calls
 
 """
-

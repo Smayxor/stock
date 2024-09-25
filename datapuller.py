@@ -454,10 +454,10 @@ def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 
 	cp = firstStrike[GEX_STRIKE] + firstStrike[GEX_CALL_BID]
 	pp = lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID]
-	#print('e')
 
+	#cp = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
+	#pp = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
 	price = cp if cp<pp and firstStrike[GEX_CALL_BID] != 0 else pp
-	#print('f')
 
 	return price
 		
@@ -641,11 +641,9 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			lastFileName = ""
 			lastFileContents = {}
 		
-		
 		if (lastFileName == fileName or fileName == "SPX") :# and not discordBot
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = None
-			
 			if IS_SERVER :
 				tmp = json.load(open(f'./logs/last-datalog.json'))
 			else:
@@ -654,9 +652,8 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 				tmp = tmp.json()
 			blnFinal = tmp['final']
 			tmp.pop('final', None )
-			#print( [getPrice("SPX", v) for k, v in tmp.items() ] )
 			if blnWasFinal and blnFinal == True : return lastFileContents
-				
+			#print(4)
 			for keys in lastFileKeyList :
 				lastFileContents.pop( keys, None )
 				if keys in list(lastFileContents.keys()) : print( 'Fail')
@@ -678,7 +675,7 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 				if tmp[-1] == 44 : 
 					tmp = tmp.decode("utf-8")[:-1] + "}"
 				tmp = json.loads(tmp)
-		
+			
 			lastFileContents = tmp
 			if blnSaveACopy and not discordBot and IS_SERVER == False :#Storing a cached copy of all data from previous days (today might be in progress)
 				with open(f'./logs/{fileName}', 'w') as f:

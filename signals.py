@@ -841,8 +841,10 @@ Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 """
 
 """
-=cbackpack sell --rarity normal rare epic legendary ascended
-=cbackpack disassemble --rarity ascended —lvl <100
+=cbackpack sell --rarity normal rare epic legendary ascended —luck <50
+=cbackpack disassemble --rarity ascended —lvl <200
+=cbackpack disassemble --rarity ascended —luck <40
+=backpack trade 758033219177283696 1000 
 
 Expected Value = avg_gain^(% of winning trades * # of all trades) - avg_loss^(% of losing trades * # of all trades)
 

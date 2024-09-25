@@ -325,7 +325,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		if lenPrices < 2 : break
 		maxPrice, maxSPX = max( prices ), 0
 		minPrice, minSPX = min( prices ), 0
-		colr = 'yellow' 
+		colr = None # 'yellow' 
 		lastCandleAvg = (prices[0] + prices[1]) /2
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
 		
@@ -365,7 +365,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				drawText( draw, x, y2 + 20, txt=f'${o[4]}' , color="blue" if o[4] > 0.5 else cr, anchor="rt")
 			
 			#Draw the price chart
-			if not colr is "yellow" : draw.line([x-1, y1, x, y2], fill=colr, width=1)
+			if not colr is None : draw.line([x-1, y1, x, y2], fill=colr, width=1)
 			
 			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-1] - minPrice

@@ -13,6 +13,7 @@ from urllib.parse import unquote as unenc
 from urllib.parse import quote as enc
 import datapuller as dp
 import drawchart as dc
+import signals as sig
 import requests
 import os
 from typing import Union
@@ -328,11 +329,11 @@ dailyTaskTime = datetime.time(hour=12, minute=0, tzinfo=datetime.timezone.utc)#u
 async def dailyTask():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	if datetime.datetime.now().weekday() > 4 : 
-		#await legacySend( channel=chnl, text= buildNews("WEEK")[0] )
+		await legacySend( channel=chnl, text= buildNews("WEEK")[0] )
 		return
 	#print("Daily Task Execution")
 	await legacySend( channel=chnl, text="Fetching Morning Charts")
-	#await legacySend( channel=chnl, text= buildNews("TODAY")[0] )
+	await legacySend( channel=chnl, text= buildNews("TODAY")[0] )
 	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await chnl.send("Failed to get data")
 	else:
@@ -352,6 +353,7 @@ dailyTaskTime2 = datetime.time(hour=13, minute=31, tzinfo=datetime.timezone.utc)
 @tasks.loop(time=dailyTaskTime2)
 async def dailyTask2():
 	if datetime.datetime.now().weekday() > 4 : return
+	startMonitorSPX()
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	#print("Daily Task Execution 2")
 	dp.findSPY2SPXRatio()
@@ -379,16 +381,52 @@ async def dailyTask3():
 	else:
 		try: 
 			chnl = bot.get_channel(1193060258088759356)
-			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			await legacySend( channel=chnl, fileName=fn)
 			chnl = bot.get_channel(UPDATE_CHANNEL)
-			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			await legacySend( channel=chnl, fileName=fn)
 			chnl = bot.get_channel(1258440980529418250)  #Beating Meat gex channel
-			#await chnl.send(file=discord.File(open('./' + fn, 'rb'), fn))
 			await legacySend( channel=chnl, fileName=fn)
 		except: await legacySend( channel=chnl, text="No image permissions")
 
+
+gexDataToday = None
+gexDataFileName = None
+sigs = None
+strat = None
+@tasks.loop(seconds=4)  # If not fast enough, will miss the "final" commits to data!!!!
+async def monitorSPX():
+	global gexDataToday, gexDataFileName, sigs, strat
+	gexDataToday = dp.pullLogFile(gexDataFileName, cachedData=False)
+	#minute = next(x for x in reversed(gexDataToday))
+	if getToday()[1] < 130000:
+		#Needs to find new time entries since the last pull, then add those times
+		lastDataTime = [x for x in gexDataToday.keys()][-1]
+		strikes = gexDataToday[lastDataTime]
+		
+		flag = strat.addTime(float(lastDataTime), strikes)
+		if flag != 0 : print(f'Flag {flag}')
+	else:
+		print('Stopping monitor')
+		monitorSPX.cancel()
+	
+def startMonitorSPX():
+	global gexDataToday, gexDataFileName, sigs, strat
+	print('Starting monitor')
+	fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
+	gexDataFileName = fileList[-1]
+	gexDataToday = dp.pullLogFile(gexDataFileName, cachedData=False)
+	
+	fltTimes = [float(x) for x in gexDataToday.keys()]
+	#lastDataTime = fltTimes[-1]
+	sortedABSTimes = sorted( fltTimes, key=lambda i: abs(i - 630) ) #We want market open to be first in list
+	firstTime = sortedABSTimes[0]
+	
+	firstStrikes = gexDataToday[str(firstTime)]
+	sigs = sig.identifyKeyLevels( firstStrikes )
+	strat = sig.Signal(day=gexDataFileName, firstTime=firstTime, strikes=firstStrikes, deadprice=0.30, ema1=2, ema2=4)
+	#strat.addTime( float(lastDataTime), gexDataToday[str(lastDataTime)] )
+	monitorSPX.start()
+	 
 blnFirstTime = True
 @bot.event
 async def on_ready():
@@ -399,6 +437,8 @@ async def on_ready():
 		dailyTask2.start()
 		dailyTask3.start()
 		blnFirstTime = False
+		minute = getToday()[1]
+		if minute < 130000 : startMonitorSPX()
 	
 @bot.command(name="s")
 async def get_gex(ctx, *args):

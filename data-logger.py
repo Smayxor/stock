@@ -13,7 +13,7 @@ import asyncio
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
-
+FILE_PATH = "C:/logs/"
 CurrentCalendar = None
 SPXData = None
 
@@ -24,8 +24,8 @@ class DaysData():
 		print( dte, ' to ', self.RecordDate )
 		self.OpenPrice = None
 		self.StrikeCount = count
-		self.FileName = f'./logs/{self.RecordDate}-0dte-datalog.json'
-		self.LastDataFileName = f'./logs/last-datalog.json'
+		self.FileName = f'{FILE_PATH}{self.RecordDate}-0dte-datalog.json'
+		self.LastDataFileName = f'{FILE_PATH}last-datalog.json'
 		self.Data = {}
 		self.LastData = {}
 		

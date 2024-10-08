@@ -309,6 +309,7 @@ class Signal:
 		self.EMA_PERIOD_1 = 2#ema1 if ema1 > 2 else None
 		self.EMA_PERIOD_2 = 4#ema2 if ema2 > 2 else None
 		self.SMAs1,self.EMAs1,self.SMAs2,self.EMAs2 = None,None,None,None
+		
 		self.totalCallVolume = []
 		self.totalPutVolume = []
 		self.VolumeDelta = []
@@ -318,7 +319,7 @@ class Signal:
 		self.Yesterday = dp.fetchPreviousDaysLevels(day)
 		
 		#self.Signals = [SignalGEX(self, strikes, price), SignalEMA(self, strikes), SignalDeadPrices(self, strikes, price) ]
-		self.Signals = [SignalVolatility(self, strikes, price), SignalDeadPrices(self, strikes, price) ]
+		self.Signals = [SignalOVD(self, strikes, price), SignalDeadPrices(self, strikes, price) ]
 		#self.Signals = [SignalEMA(self, strikes)]
 		#self.Signals = [SignalGEX(self, strikes, price)]
 		
@@ -326,10 +327,11 @@ class Signal:
 		self.CallPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_BID], x[dp.GEX_CALL_ASK]] for x in strikes if 0.3 < x[dp.GEX_CALL_BID] < 20]
 		self.PutPrices = [[x[dp.GEX_STRIKE], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_BID], x[dp.GEX_PUT_ASK]] for x in strikes if 0.3 < x[dp.GEX_PUT_BID] < 20]
 
-	def getVolumeDeltaLen(self): return len(self.VolumeDelta)
-	def getVolumeDelta(self, index):
-		if index < 30 : return 0
-		return self.VolumeDelta[index] - self.VolumeDelta[index-30]
+	def getOVD(self, index, cp=0):
+		o = self.totalCallVolume if cp else self.totalPutVolume if cp == -1 else self.VolumeDelta
+		if index == -1 : index = len(o) -1
+		delta = 0 if index < 30 else o[index-30]
+		return o[index] - delta
 		
 	def getCallSpreadDelta(self, index):
 		if index < 30 : return 0
@@ -338,25 +340,25 @@ class Signal:
 	def getPutSpreadDelta(self, index):
 		if index < 30 : return 0
 		return self.PutSpread[index]# - self.PutSpread[index-30]
-		
-	def findLowPrice(self, cost, cp ):
-		# round(((n // 0.05) + 1) * 0.05, 2)
-		cons = self.CallPrices if cp == 1 else self.PutPrices
-		myCon = None
-		"""for x in cons:
-			val = round(((x[3] * 0.1 // 0.05) + 1) * 0.05, 2)
-			if 0.5 < val < 1.5 : 
-				myCon = x
-				break"""
-		if myCon == None : myCon = min(cons, key=lambda i: abs(i[2] - cost) )
-		#print( f'Found contract {myCon}' )
-		return (myCon[0], myCon[2])
 
-	def findCurrentPrice(self, cost, cp):
-		cons = self.CallPrices if cp == 1 else self.PutPrices
-		myCon = None
-		if myCon == None : myCon = min(cons, key=lambda i: abs(i[1] - cost) )
-		return (myCon[0], myCon[1])	
+	def findContractWithPrice(self, strike, cp):
+		# round(((n // 0.05) + 1) * 0.05, 2)
+		isCall = cp == 'c'
+		element = dp.GEX_CALL_BID if isCall else dp.GEX_PUT_BID
+		bids = []
+		symbol = None
+		for minute, strikes in self.PrevData.items():
+			strk = next((x for x in strikes if strike == x[dp.GEX_STRIKE]), None)
+			if strk is None :
+				print(f'Strike {strike} not found!')
+				return None
+			bids.append( strk[element] )
+		symbol = strk[dp.GEX_CALL_SYMBOL if isCall else dp.GEX_PUT_SYMBOL]
+		bids = [x for x in bids if x > 0]
+		lastPrice = bids[-1]
+		lowestPrice = min(bids)
+		print(symbol, lowestPrice, lastPrice)
+		return (symbol, lowestPrice, lastPrice)
 
 	def updateLowHighPrices(self, strikes):
 		def updateCons( cpPrices, element ):
@@ -376,7 +378,6 @@ class Signal:
 		lastPriceIndex = len(self.Prices)-1
 		self.updateLowHighPrices(strikes)
 		
-		#allCallVol = sum( [x[dp.GEX_CALL_VOLUME] for x in strikes] )		allPutVol = sum( [x[dp.GEX_PUT_VOLUME] for x in strikes] )		self.VolumeDelta.append( allCallVol - allPutVol )		allCallSpread = sum( [ (x[dp.GEX_CALL_ASK] - x[dp.GEX_CALL_BID] - 0.05) / 0.05 for x in strikes] ) / len(strikes)		allPutSpread = sum( [ (x[dp.GEX_PUT_ASK] - x[dp.GEX_PUT_BID] - 0.05) / 0.05 for x in strikes] ) / len(strikes)		self.CallSpread.append( allCallSpread )		self.PutSpread.append( allPutSpread )
 		allCallVol, allPutVol, allCallSpread, allPutSpread = 0, 0, 0, 0
 		for x in strikes:
 			allCallVol += x[dp.GEX_CALL_VOLUME]
@@ -385,10 +386,13 @@ class Signal:
 			allCallSpread += (x[dp.GEX_CALL_ASK] - x[dp.GEX_CALL_BID] - 0.05) / 0.05
 			allPutSpread += (x[dp.GEX_PUT_ASK] - x[dp.GEX_PUT_BID] - 0.05) / 0.05
 			
+		self.totalCallVolume.append( allCallVol )
+		self.totalPutVolume.append( allPutVol )
 		self.VolumeDelta.append( allCallVol - allPutVol )
-		lenStrikes = len(strikes)
-		self.CallSpread.append( allCallSpread / lenStrikes )
-		self.PutSpread.append( allPutSpread / lenStrikes )
+		
+		#lenStrikes = len(strikes)
+		#self.CallSpread.append( allCallSpread / lenStrikes )
+		#self.PutSpread.append( allPutSpread / lenStrikes )
 
 		if minute < 631 : 
 			if price < self.OVNL : self.OVNL = price
@@ -426,10 +430,47 @@ class Signal:
 		if price > self.High : self.High = price
 		
 		result = 0
+		msg = ""
 		for siggy in self.Signals :
-			result += siggy.addTime(minute, strikes, price)
+			signalResult = siggy.addTime(minute, strikes, price)
+			if signalResult[0] != 0 : 
+				msg = signalResult[1]
+				result = signalResult[0]
 		
-		return result
+		#if result != 0 : print( minute, msg )
+				
+		return (result, msg)
+
+class SignalOVD():
+	def __init__(self, owner, strikes, price):
+		self.Owner = owner
+		self.AverageOVD = 0
+		self.Surges = []
+		
+	def addTime(self, minute, strikes, price):
+		vd = self.Owner.VolumeDelta
+		lvd = len(vd)-1
+		
+		if lvd < 50: return (0, "")
+		result = 0
+
+		ovd = self.Owner.getOVD(lvd, 0)
+		povd = self.Owner.getOVD(lvd - 5, 0)
+		ovds = (ovd, povd)
+		minOVD = min(ovds)
+		maxOVD = max(ovds)
+		difOVD = maxOVD - minOVD
+		msg = ""
+		if difOVD > 10000:
+			result = 1 if ovd > 0 else - 1
+			surge = (minute, result, vd[lvd], difOVD, minOVD, maxOVD)
+			#print( surge )
+			for s in self.Surges :
+				if minute - s[0] < 10 : result = 0
+			self.Surges.append( surge )	
+			msg = "OVD Call Surge" if result == 1 else "OVD Put Surge"
+
+		return (result, msg)
 
 class SignalVolatility():
 	def __init__(self, owner, strikes, price):
@@ -643,7 +684,7 @@ class SignalDeadPrices():
 		result = 0
 		if bid == None : 
 			o[1] == -2
-			return
+			return result
 			
 		if o[1] == -1 :
 			if bid <= self.Owner.deadprice :
@@ -663,9 +704,17 @@ class SignalDeadPrices():
 		else : pass
 		
 		result = 0
-		for c in [c for c in self.Owner.callTimes if c[1] > -2] : result += self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
-		for p in [p for p in self.Owner.putTimes if p[1] > -2] : result += self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
-
+		msg = ""
+		
+		for c in [c for c in self.Owner.callTimes if c[1] > -2] : 
+			conres = self.testContract( c, dp.GEX_CALL_BID, lastPriceIndex, strikes, price )
+			if conres == 1 : msg = f'{c[0]}c '
+			result += conres
+		for p in [p for p in self.Owner.putTimes if p[1] > -2] : 
+			conres = self.testContract( p, dp.GEX_PUT_BID, lastPriceIndex, strikes, price )
+			if conres == 1 : msg = f'{p[0]}p '
+			result += conres
+		
 		if result != 0 and lastPriceIndex - self.LastFlag < 5 : 
 			result = 0
 			priceMod = (price % 25)
@@ -681,7 +730,7 @@ class SignalDeadPrices():
 				result = -1 if unders > 5 else 1
 		else : result = 0
 		
-		return result
+		return (result, msg)
 		
 
 
@@ -843,7 +892,7 @@ Fidelity 500 index fund (FXAIX)	14.5%	0.015%	None
 """
 =cbackpack sell --rarity normal rare epic legendary ascended —luck <50
 =cbackpack disassemble --rarity ascended —lvl <200
-=cbackpack disassemble --rarity ascended —luck <40
+=cbackpack disassemble --rarity ascended —level <200
 =backpack trade 758033219177283696 1000 
 
 Expected Value = avg_gain^(% of winning trades * # of all trades) - avg_loss^(% of losing trades * # of all trades)

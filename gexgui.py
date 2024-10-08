@@ -340,6 +340,7 @@ def timerThread():
 	
 	try:
 		gexData = dp.pullLogFile(fileToday, cachedData=fileIndex!=lastFileIndex)
+		if fileIndex==lastFileIndex : gexData = gexData
 		errorLine = 7
 		
 		#print(f'{fileToday} {fileIndex}={lastFileIndex} --> {len(gexData)}')

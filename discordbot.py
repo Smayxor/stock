@@ -357,7 +357,7 @@ async def dailyTask2():
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	#print("Daily Task Execution 2")
 	dp.findSPY2SPXRatio()
-	legacySend( channel=chnl, text="Fetching Morning Charts")
+	await legacySend( channel=chnl, text="Fetching Morning Charts")
 	fn = dc.drawGEXChart("SPX", 40, 0)
 	if fn == "error.png": await legacySend( channel=chnl, text="Failed to get data")# await chnl.send("Failed to get data")
 	else:
@@ -391,26 +391,37 @@ async def dailyTask3():
 
 gexDataToday = None
 gexDataFileName = None
+lastSPXTimeStamp = None
 sigs = None
 strat = None
 @tasks.loop(seconds=4)  # If not fast enough, will miss the "final" commits to data!!!!
 async def monitorSPX():
-	global gexDataToday, gexDataFileName, sigs, strat
+	global gexDataToday, gexDataFileName, sigs, strat, lastSPXTimeStamp
+	
+	blnWasFinal = dp.blnWasFinal
 	gexDataToday = dp.pullLogFile(gexDataFileName, cachedData=False)
+	if not (dp.blnWasFinal == True and blnWasFinal == False) : return   #Prevent action without a commit, Should instead pop recent entries in strat so we can get a Live signal
+	
 	#minute = next(x for x in reversed(gexDataToday))
 	if getToday()[1] < 130000:
-		#Needs to find new time entries since the last pull, then add those times
-		lastDataTime = [x for x in gexDataToday.keys()][-1]
-		strikes = gexDataToday[lastDataTime]
-		
-		flag = strat.addTime(float(lastDataTime), strikes)
-		if flag != 0 : print(f'Flag {flag}')
+		#lastDataTime = [[x for x in gexDataToday.keys()][-1], [x for x in gexDataToday.keys()][-2]]  #High and Low
+		newTimes = [x for x in gexDataToday.keys() if float(x) > lastSPXTimeStamp]
+		#print( newTimes )
+		for ldt in newTimes:
+			lastSPXTimeStamp = float(ldt)
+			strikes = gexDataToday[ldt]
+			flag = strat.addTime(float(ldt), strikes)
+			if flag[0] != 0 : 
+				print(f'Flag {flag} at {ldt}')# general chat = 1055967445652865130
+				chnl = bot.get_channel(1055967445652865130)
+				txt = flag[1]
+				await legacySend( channel=chnl, text=txt)
 	else:
 		print('Stopping monitor')
 		monitorSPX.cancel()
 	
 def startMonitorSPX():
-	global gexDataToday, gexDataFileName, sigs, strat
+	global gexDataToday, gexDataFileName, sigs, strat, lastSPXTimeStamp
 	print('Starting monitor')
 	fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
 	gexDataFileName = fileList[-1]
@@ -425,6 +436,11 @@ def startMonitorSPX():
 	sigs = sig.identifyKeyLevels( firstStrikes )
 	strat = sig.Signal(day=gexDataFileName, firstTime=firstTime, strikes=firstStrikes, deadprice=0.30, ema1=2, ema2=4)
 	#strat.addTime( float(lastDataTime), gexDataToday[str(lastDataTime)] )
+	
+	for k, v in gexDataToday.items():
+		strat.addTime(float(k), v)
+		lastSPXTimeStamp = float(k)
+	print(f'Data loaded in monitor {lastSPXTimeStamp}')
 	monitorSPX.start()
 	 
 blnFirstTime = True
@@ -445,6 +461,112 @@ async def get_gex(ctx, *args):
 	chnl = bot.get_channel(UPDATE_CHANNEL)
 	await legacySend( channel=chnl, text="Testing stuff")
 	#*********************************************************************************************************************
+
+orders=[]
+@bot.command(name="trade")
+@commands.is_owner()
+async def trade(ctx, arg1, arg2=None, arg3=None):
+	global gexDataToday, gexDataFileName, sigs, strat, lastSPXTimeStamp, orders
+	
+	if gexDataToday is None: startMonitorSPX() #Used for testing AH
+	
+	if arg1 == 'balance':
+		balance = dp.getAccountBalance()['cash']['cash_available']
+		await legacySend( ctx=ctx, text=f'{balance}')
+	elif arg1 ==  'orders':
+		orders = getOrders()
+		txtOut = 'Orders - \r'
+		for o in orders:
+			txtOut += f'{o}\r'
+		await legacySend( ctx=ctx, text=txtOut)
+		
+		positions = getPositions()
+		txtOut = 'Positions - \r'
+		for o in positions:
+			txtOut += f'{o}\r'
+		await legacySend( ctx=ctx, text=txtOut)
+	elif arg1 == 'buy' :
+		if not arg2 is None :
+			if len(arg2) != 5 :
+				await legacySend( ctx=ctx, text=f'Specify Strike + c/p - Found {arg2[-1]}')
+				return
+			isCall = arg2[-1] == 'c'
+			isPut = arg2[-1] == 'p'
+			if not (isCall or isPut) :
+				await legacySend( ctx=ctx, text=f'Specify c or p - Found {arg2[-1]}')
+				return
+			strike = arg2[:-1]
+			conData = strat.findContractWithPrice( float(strike), arg2[-1])
+			symbol = conData[0]
+			price = arg3
+			if arg3 is None : #figure out a price!!@!! *******************************************************************
+				lowPrice = conData[1]
+				lastPrice = conData[2]
+				price = lowPrice
+				await legacySend( ctx=ctx, text=f'No price specified, lowPrice {lowPrice} - last price {lastPrice}')
+			
+			await legacySend( ctx=ctx, text=f'Buying - {symbol} {strike} {'c' if isCall else 'p'} @ ${price}')
+			
+			myCon = dp.placeOptionOrder(symbol, price, ticker = 'SPX', side='buy_to_open', quantity='1', type='limit', duration='day', tag='gui', preview="false")
+			txtOut = f'{myCon}'
+			orders.append( myCon['order'] )
+			await legacySend( ctx=ctx, text=txtOut )
+			
+		else :
+			await legacySend( ctx=ctx, text=f'Example - }}trade buy 5750c 0.30')
+	elif arg1 == 'cancel' :
+		openOrders = getOrders()
+		for o in openOrders:
+			outPut = dp.cancelOrder( o['id'] )
+			print(outPut)
+			await legacySend( ctx=ctx, text=f'Canceled - {outPut}')
+	elif arg1 == 'close' :
+		price = 0
+		side = 'sell_to_close'
+		order_type = 'market'
+		if not arg2 is None :
+			price = arg2
+			order_type = 'limit'
+	
+		positions = getPositions()
+		for p in positions :
+			myCon = dp.placeOptionOrder(p['symbol'], price, ticker = 'SPX', side=side, quantity='1', type=order_type, duration='day', tag='gui', preview="false")
+			await legacySend( ctx=ctx, text=f'Closing - {myCon}')
+		
+
+def getOrders():
+	openOrders = dp.getOrders()
+	orders=[]
+	for o in openOrders['order'] :
+		if 'id' == o : #The payload will make it a List when multiple entries are found, otherwise it wont be
+			if 'open' in openOrders['order']['status'] : orders.append(openOrders['order'])
+			break
+		if 'open' in o['status'] :
+			orders.append(o)
+	return orders
+
+def getPositions(): # Positions - {'position': {'cost_basis': 40.0, 'date_acquired': '2024-10-07T17:39:26.519Z', 'id': 10103069, 'quantity': 1.0, 'symbol': 'SPXW241007C05750000'}}
+	myPositions = dp.getPositions()
+	positions = []
+	try :
+		#if myPositions in 'null' : return positions
+		for o in myPositions['position'] :
+			print(o)
+			if 'cost_basis' == o : #The payload will make it a List when multiple entries are found, otherwise it wont be
+				positions.append(myPositions['position'])
+				break
+			positions.append(o)	
+	except :
+		pass
+	return positions
+
+"""
+Buying - SPXW241007C05750000 5750 c @ $0.35
+{'order': {'id': 70125825, 'status': 'ok', 'partner_id': '30ea5c89-e029-4da3-a179-5867a8006e07'}}
+
+Open Orders - {'order': {'id': 70125825, 'type': 'limit', 'symbol': 'SPX', 'side': 'buy_to_open', 'quantity': 1.0, 'status': 'open', 'duration': 'day', 'price': 0.35, 'avg_fill_price': 0.0, 'exec_quantity': 0.0, 'last_fill_price': 0.0, 'last_fill_quantity': 0.0, 'remaining_quantity': 1.0, 'create_date': '2024-10-07T13:50:47.298Z', 'transaction_date': '2024-10-07T13:50:47.363Z', 'class': 'option', 'option_symbol': 'SPXW241007C05750000', 'tag': 'gui'}}
+"""
+
 
 @bot.command(name="listg")
 @commands.is_owner()
@@ -517,19 +639,15 @@ async def list(ctx):
 	await legacySend( ctx=ctx, text=str(dp.pullLogFileList()) )
 
 @bot.command(name="pc")
-async def pc(ctx, *args):
+async def pc(ctx, arg1, arg2="spx"):
+	global gexDataToday, gexDataFileName
+	
 	try:
-		if 'help' in args[0] :#or len(args) < 3: 
+		if 'help' in arg1 :#or len(args) < 3: 
 			await ctx.send( '}pc Options Price Chart.\rSimply type =pc SPY/SPX day strikec or strikep.\r=pc SPX 11-06 4450c 4425p 4500c\rYou can also type =list to get a list of available days' )
 			return
-		ticker = 'SPX' #if args[0].upper() == 'SPX' else 'SPY'
-		fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
-		file = fileList[-1]
 		
-		gexData = dp.pullLogFile(file, discordBot=True)
-		chart = dc.drawPriceChart( ticker, file, gexData, args )
-	
-		#await ctx.send( file=discord.File(open('./' + chart, 'rb'), chart) )
+		chart = dc.drawPriceChart( "SPX", gexDataFileName, gexDataToday, [arg1, arg2] )
 		await legacySend( ctx=ctx, fileName = chart )
 	except:
 		await legacySend( ctx=ctx, text="Error drawing price chart" )
@@ -540,10 +658,8 @@ async def pc(ctx, *args):
 async def slash_command_pc(intr: discord.Interaction, strike1: str = "all", strike2: str = "spx"):
 	perms = await checkInteractionPermissions( intr )
 	await intr.response.defer(thinking=True, ephemeral=perms[3]==False)
-	#chnl = bot.get_channel(intr.channel.id)
 	try: 
-		#await intr.response.send_message( finalMessage )
-		ticker = 'SPX' #if args[0].upper() == 'SPX' else 'SPY'
+		ticker = 'SPX'
 		fileList = [x for x in dp.pullLogFileList() if '0dte' in x]
 		file = fileList[-1]
 		gexData = dp.pullLogFile(file, discordBot=True)

@@ -6,8 +6,6 @@ import requests
 import os
 import heapq
 import asyncio
-#pip install ics
-#from ics import Calendar, Event
 
 init = json.load(open('apikey.json'))
 TRADIER_ACCESS_CODE = init['TRADIER_ACCESS_CODE']
@@ -16,6 +14,7 @@ SERVER_IP = init.get('SERVER_IP', 'http://127.0.0.1:8080')  #need to switch all 
 #FRED_KEY = init.get('FRED', None)
 #BLS_KEY = init.get('BLS', None)
 IS_SERVER = SERVER_IP == 'http://127.0.0.1:8080'
+CACHE_PATH = "C:/logs/" #"../logs/" if not IS_SERVER else "./logs/"  #Avoiding issues with MicroSoft OneDrive by moving to root folder
 del init
 TRADIER_HEADER = {'Authorization': f'Bearer {TRADIER_ACCESS_CODE}', 'Accept': 'application/json'}
 FIBS = [-1, -0.786, -0.618, -0.5, -0.382, -0.236, 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
@@ -26,7 +25,7 @@ SPX0DTEDate, SPX0DTEDate = None, None
 
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
 
-if not os.path.isdir('./logs'): os.mkdir('./logs')
+if not os.path.isdir(CACHE_PATH): os.mkdir(CACHE_PATH)
 
 #when XLE is down but CL is up, that means everybody is selling off and flying to safety assets ( oil & gold - gold is barely red while the rest of the market is -1% or weaker ) 
 #idk why michigan gets such a focus of attention, they survey / cold-call 'random' people and that's where they get their sentiment polls from
@@ -232,8 +231,8 @@ async def sessionGetOptionsChain(sess, req, prepped):
 		return None
 	response = response.json()
 	#***************************************************** In the event we get an unexpected packet **********************************************
-	with open(f'./logs/crash.json', 'w') as f:
-		json.dump(response, f)
+	#with open(f'{CACHE_PATH}crash.json', 'w') as f:
+	#	json.dump(response, f)
 	#*********************************************************************************************************************************************
 	options = response.get('options', dict({'a': 123})).get('option', None)
 	if options is None :
@@ -263,8 +262,8 @@ def getOptionsChain(ticker, dte, date=None):
 		return None
 	response = response.json()
 	#***************************************************** In the event we get an unexpected packet **********************************************
-	with open(f'./logs/crash.json', 'w') as f:
-		json.dump(response, f)
+	#with open(f'{CACHE_PATH}crash.json', 'w') as f:
+	#	json.dump(response, f)
 	#*********************************************************************************************************************************************
 	options = response.get('options', dict({'a': 123})).get('option', None)
 	if options is None :
@@ -304,7 +303,9 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 		while strikes[index][GEX_STRIKE] != strike: index -= 1
 		return index
 	
+	foundSymbols = []
 	for option in options:
+		if not option['root_symbol'] in foundSymbols : foundSymbols.append(option['root_symbol'])
 		if option['root_symbol'] == 'SPX' : continue  #get rid of monthlies
 		#if index == 0: print( option )#['root_symbol'] )
 		strike = option['strike'] 
@@ -358,6 +359,7 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 		#[3810.0, 2.0440077796170993e-11, 570, -2.227444375223762e-12, 51, 2.2667522171394755e-11, 519, 0.0, 1221.3, 1222.0, 0.0, 0.05, 0, 1, 1, 0, 0, 1831, 'SPXW240216C03810000', 'SPXW240216P03810000']
 		#[3810.0, 0.0, 570, -0.0, 51, 0.0, 519, 0.0, 1222.8, 1223.3, 0.0, 0.05, 0, 1, 1, 0, 0, 1831, 'SPXW240216C03810000', 'SPXW240216P03810000']
 
+	#print( foundSymbols )
 	return strikes
 
 def calcZeroGEX(data): #def add(a, b): return (b[0], a[1] + b[1]) #cumsum = list(accumulate(data, add)) #return min(cumsum, key=lambda i: i[1])[0]
@@ -452,13 +454,28 @@ def getPrice(ticker, strikes = None, dte = "now"):#, test=False):
 	#print( firstStrike[GEX_CALL_DELTA], firstStrike[GEX_PUT_DELTA], firstStrike[GEX_CALL_DELTA], firstStrike[GEX_CALL_DELTA] )
 	#print('d')
 
-	cp = firstStrike[GEX_STRIKE] + firstStrike[GEX_CALL_BID]
-	pp = lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID]
+	cs = firstStrike[GEX_STRIKE]
+	ps = lastStrike[GEX_STRIKE]
+	cb = firstStrike[GEX_CALL_BID]
+	pb = lastStrike[GEX_PUT_BID]
+	ca = firstStrike[GEX_CALL_ASK]
+	pa = lastStrike[GEX_PUT_ASK]
+
+	cp = cs + ((cb + ca) / 2)
+	pp = ps - ((pb + pa) / 2)
 
 	#cp = firstStrike[GEX_STRIKE] + ((firstStrike[GEX_CALL_BID] + firstStrike[GEX_CALL_ASK]) / 2)
 	#pp = lastStrike[GEX_STRIKE] -((lastStrike[GEX_PUT_BID] + lastStrike[GEX_PUT_ASK]) / 2)
+	if cb == 0 and pb == 0 : return None
+	
 	price = cp if cp<pp and firstStrike[GEX_CALL_BID] != 0 else pp
 
+	#if price == 5505:
+		#print(firstStrike[GEX_STRIKE], firstStrike[GEX_CALL_BID], firstStrike[GEX_CALL_ASK])
+		#print(lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_BID], lastStrike[GEX_STRIKE] - lastStrike[GEX_PUT_ASK])
+		#PRICE GLITCH
+		#strike 2200.0 bid 3305.0 ask 3705.0    -> 5505 to 5905   Average 5705 WAS correct
+		#strike 7400.0 bid 1659.4 ask 1731.4    -> 5740.6 to 5668.6  Average 5704.6
 	return price
 		
 	#else: price = getQuote(ticker)  #Trying to not use the extra API Request if not needed
@@ -578,18 +595,10 @@ def loadPastDTE(daysAhead):
 #Switched to using HFS File Server
 def pullLogFileList():
 	# For python3 -m http.server
-	if IS_SERVER : return [x for x in os.listdir('./logs') if '-datalog.json' in x and 'last-datalog.json' not in x]
+	if IS_SERVER : return [x for x in os.listdir(CACHE_PATH) if '-datalog.json' in x and 'last-datalog.json' not in x]
 	response = str(requests.get(SERVER_IP).content).split('-datalog.json">')
 	del response[0]
 	result = [f.split('</a>')[0] for f in response if 'last-datalog.json' not in f]
-	return result
-
-def pullLogFileListGME():
-	# For python3 -m http.server
-	if IS_SERVER : return [x for x in os.listdir('./logs') if 'GME.json' in x]
-	response = str(requests.get(SERVER_IP).content).split('GME.json">')
-	del response[0]
-	result = [f.split('</a>')[0] for f in response]
 	return result
 
 def getToday():
@@ -609,7 +618,7 @@ lastFileContents = {}  #Store a cached copy of 0dte data for gex-gui.py so we on
 
 dateAndTime = getToday()[0] # str(datetime.datetime.now()).split(" ")[0]
 #print(f'Target Date - {dateAndTime}')
-cacheFiles = os.listdir('./logs')
+cacheFiles = os.listdir(CACHE_PATH)
 lastFileKeyList = []
 blnWasFinal = False
 
@@ -630,7 +639,7 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 				pass
 			else:
 				#lastFileContents = {}
-				lastFileContents = json.load(open(f'./logs/{fileName}'))
+				lastFileContents = json.load(open(f'{CACHE_PATH}{fileName}'))
 				lastFileName = fileName
 			return lastFileContents
 		else :
@@ -645,14 +654,14 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			if cachedData : return lastFileContents #blocks a timer in GexGUI
 			tmp = None
 			if IS_SERVER :
-				tmp = json.load(open(f'./logs/last-datalog.json'))
+				tmp = json.load(open(f'{CACHE_PATH}last-datalog.json'))
 			else:
 				tmp = requests.get(urlLast)
 				if tmp.status_code == 404 : return lastFileContents
 				tmp = tmp.json()
 			blnFinal = tmp['final']
 			tmp.pop('final', None )
-			if blnWasFinal and blnFinal == True : return lastFileContents
+			if blnWasFinal and blnFinal == True :  return lastFileContents  # <- No new data
 			#print(4)
 			for keys in lastFileKeyList :
 				lastFileContents.pop( keys, None )
@@ -669,7 +678,7 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 		else :
 			lastFileName = fileName
 			if IS_SERVER :
-				tmp = json.load(open(f'./logs/{fileName}'))
+				tmp = json.load(open(f'{CACHE_PATH}{fileName}'))
 			else :
 				tmp = requests.get(url).content
 				if tmp[-1] == 44 : 
@@ -678,7 +687,7 @@ def pullLogFile(fileName, cachedData=False, discordBot=False) :
 			
 			lastFileContents = tmp
 			if blnSaveACopy and not discordBot and IS_SERVER == False :#Storing a cached copy of all data from previous days (today might be in progress)
-				with open(f'./logs/{fileName}', 'w') as f:
+				with open(f'{CACHE_PATH}{fileName}', 'w') as f:
 					json.dump(lastFileContents, f)
 			#if discordBot : return lastFileContents
 	except Exception as error :
@@ -708,7 +717,9 @@ def modifyOrder(orderID, type, duration, price, stop):
 def placeOptionOrder(symbol, price, ticker = 'XSP', side='buy_to_open', quantity='1', type='limit', duration='day', tag='test', preview='false'):
 	param = {'class': 'option', 'symbol': ticker, 'option_symbol': symbol, 'side': side, 'quantity': quantity, 'type': type, 'duration': duration, 'price': price, 'tag': tag, 'preview': preview}
 	response = requests.post(f'https://api.tradier.com/v1/accounts/{TRADIER_ACCOUNT_ID}/orders', data=param, headers=TRADIER_HEADER)
-	print(response.status_code)
+	if not response.status_code == requests.codes.ok :
+		print(response.status_code)
+		return {'errors': {'error': response.status_code}}
 	return response.json()
 
 class NewsData():
@@ -787,7 +798,7 @@ def fetchNews():
 	return AllNews
 
 allLogFiles = None
-PreviousHighLows = json.load(open('./logs/hl.json'))
+PreviousHighLows = json.load(open(f'{CACHE_PATH}hl.json'))
 def fetchPreviousDaysLevels(targetDay):
 	global allLogFiles
 	if allLogFiles is None : allLogFiles = pullLogFileList()
@@ -806,14 +817,18 @@ def fetchPreviousDaysLevels(targetDay):
 		
 		high = 0
 		low = 9999999
-		for min, strikes in trgData.items():
+		#for min, strikes in trgData.items():   # <-- cause of bug is min ??   ,"2024-09-30-0dte-datalog.json":[7800.0,5683.5]
+		for minute, strikes in trgData.items():
 			price = getPrice("SPX", strikes)
+			if price is None : continue
 			if price < low : low = price
 			if price > high : high = price
 			
+			#if int(price) == 5683 : print( minute )
+			
 		PreviousHighLows[trg] = (high, low)
 		levels = PreviousHighLows[trg]
-		with open(f'./logs/hl.json', 'w') as f:
+		with open(f'{CACHE_PATH}hl.json', 'w') as f:
 			json.dump(PreviousHighLows, f)
 			
 	return levels

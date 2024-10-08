@@ -258,23 +258,27 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 	verbosePrint(f'Length GEXData - {len(gexData.items())}')
 	for t, strikes in gexData.items():
 		minute = float(t)
+		
 		if minute < startTime or minute > stopTime	: continue
-
+		""" Delete this
 		callPutPrice = gexData[t][0][dp.GEX_CALL_BID] + gexData[t][0][dp.GEX_PUT_BID] #filtering out bad data
 		if callPutPrice == 0 :#or gexData[t][0][dp.GEX_CALL_BID] < 100: 
 			#print( gexData[t][0] )
 			#[2200.0, 0.0, 7, 0.0, 0, 0.0, 7, 7.995547, 25.0, 6009.6, 0.0, 0.05, 3, 1, 1, 0, 0, 65, 'SPXW240808C02200000', 'SPXW240808P02200000', 0.0, 1.0, 0.0]
 			#verbosePrint( minute, callPutPrice )
-			continue
+			continue"""
 		
 		#verbosePrint( minute, 1 )
 		if minute < 631 : openTimeIndex = len(prices1)
 		if minute > 614 and minute < 631 : continue
 		#verbosePrint( minute, 2 )
 		spxPrice = dp.getPrice("SPX", strikes)
+
+		if spxPrice is None : continue
 		#verbosePrint(f'{minute} - {spxPrice}')
 		
-		flags.append( strat.addTime(minute, strikes) )
+		flags.append( strat.addTime(minute, strikes)[0] )
+		
 		#verbosePrint( minute, 3 )
 		if timeMinute == minute : dataIndex = len(flags)
 		if dStrike1[0] == 'all' or dStrike1[0] == 'spx' : 
@@ -325,7 +329,7 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 		if lenPrices < 2 : break
 		maxPrice, maxSPX = max( prices ), 0
 		minPrice, minSPX = min( prices ), 0
-		colr = None # 'yellow' 
+		colr = 'yellow' 
 		lastCandleAvg = (prices[0] + prices[1]) /2
 		isSPX = displayStrikes[j][0] == 'spx' or displayStrikes[j][0] == 'all'
 		
@@ -356,16 +360,17 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			y2 = convertY( price, maxPrice ) + addY
 			#yValues[j].append(y1)
 			yValues[j].append(y2)
-			
-			cr = 'green' #Draw DeadPrices
-			for o in [t for t in strat.callTimes + strat.putTimes if t[1] == x]:
-				if o is strat.putTimes[0]: cr = 'red'
-				draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
-				drawText( draw, x, y2, txt=str( o[0] ), color=cr, anchor="rt")
-				drawText( draw, x, y2 + 20, txt=f'${o[4]}' , color="blue" if o[4] > 0.5 else cr, anchor="rt")
-			
+						
 			#Draw the price chart
 			if not colr is None : draw.line([x-1, y1, x, y2], fill=colr, width=1)
+
+			def drawDeadPrice(o, x, cr, letter):
+				draw.line([x-7, y2-2, x+7, y2+2], fill="blue", width=4)
+				drawText( draw, x, y2 + 40, txt=f'{o[0]}{letter}', color=cr, anchor="rt")
+				drawText( draw, x, y2 + 60, txt=f'${o[4]}', color="blue" if o[4] > 0.5 else cr, anchor="rt")
+			for o in [t for t in strat.callTimes if t[1] == x]: drawDeadPrice(o, x, 'green', 'c')
+			for o in [t for t in strat.putTimes if t[1] == x]: drawDeadPrice(o, x, 'red', 'p')
+			
 			
 			def drawEMA( emas, ema_color ): #*************** Draw EMA ******************
 				pp = emas[x-1] - minPrice
@@ -443,10 +448,12 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 			ydayHigh, ydayLow = strat.Yesterday
 			y = convertY( ydayHigh - minPrice, maxPrice ) + addY
 			drawLongPriceLine(draw, y, 'green', 1, 1400)
-			drawText( draw, 1200 + (j*50), y, txt=str(ydayHigh), color='green', anchor="rb")
+			drawText( draw, 1200 + (j*50), y, txt=str(ydayHigh), color='gold', anchor="rb")
 			y = convertY( ydayLow - minPrice, maxPrice ) + addY
 			drawLongPriceLine(draw, y, 'red', 1, 1400)
-			drawText( draw, 1200 + (j*50), y, txt=str(ydayLow), color='red', anchor="rb")
+			drawText( draw, 1200 + (j*50), y, txt=str(ydayLow), color='gold', anchor="rb")
+		
+			drawText(draw, x=600,y=2,txt=f'Yesterday {ydayLow} to {ydayHigh}', color="yellow", anchor="rt")
 		
 		#***********************************Display High and Low price within range of Mouse Hover *********************************
 		sliceStart = dataIndex - 30 if dataIndex - 30 > 0 else 0
@@ -487,22 +494,16 @@ def drawPriceChart(ticker, fileName, gexData, userArgs, includePrices = False, R
 				drawRect(draw, 1400 - mcp[1], y, 1400, y2, color="#00f", border='')
 			"""
 	#print(8)
-
-	for x in range( 30, strat.getVolumeDeltaLen() ) :  # *****************Volume Chart under the SPX chart****************************
-		dif = strat.getVolumeDelta(x)
+	for x in range( len(strat.VolumeDelta)-1 ) :  # *****************Volume Chart under the SPX chart****************************
+		dif = strat.getOVD(x, 0)
 		cr = 'green' if dif > 0 else 'red'
 		y2 = abs(dif) / 500
 		draw.line([x, 700-y2, x, 700], fill=cr, width=1)
 		
-		cdif = strat.getCallSpreadDelta(x)
-		pdif = strat.getPutSpreadDelta(x)
-		#draw.line([x, 600-cdif, x, 600], fill="green", width=1)
-		#draw.line([x, 600+pdif, x, 600], fill="red", width=1)
-	
-	#for x in range( len(prices1a) ):
-	#	draw.line([x, 600-prices1a[x], x, 600], fill="green", width=1)
-	#for x in range( len(prices2a) ):
-	#	draw.line([x, 601, x, 601+prices2a[x]], fill="red", width=1)
+		covd = strat.getOVD(x, 1) / 500
+		povd = strat.getOVD(x, -1) / 500
+		#draw.line([x, 600-covd, x, 600], fill="green", width=1)
+		#draw.line([x, 600+povd, x, 600], fill="red", width=1)
 	
 	verbosePrint('fin')
 	if len(strat.ExtraDisplayText) > 0 :

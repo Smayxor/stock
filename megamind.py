@@ -4,6 +4,7 @@ import tkinter as tk
 from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image,ImageTk
 import PIL.Image as PILImg
 import requests
+from threading import Timer
 
 TIMER_INTERVAL = 2000  # Time in millisecond to update
 init = json.load(open('apikey.json'))
@@ -17,6 +18,19 @@ if API_KEY is None :
 TRADIER_HEADER = {'Authorization': f'Bearer {API_KEY}', 'Accept': 'application/json'}	
 GEX_STRIKE, GEX_TOTAL_GEX, GEX_TOTAL_OI, GEX_CALL_GEX, GEX_CALL_OI, GEX_PUT_GEX, GEX_PUT_OI, GEX_CALL_IV, GEX_CALL_BID, GEX_CALL_ASK, GEX_PUT_BID, GEX_PUT_ASK, GEX_CALL_VOLUME, GEX_CALL_BID_SIZE, GEX_CALL_ASK_SIZE, GEX_PUT_VOLUME, GEX_PUT_BID_SIZE, GEX_PUT_ASK_SIZE, GEX_CALL_SYMBOL, GEX_PUT_SYMBOL, GEX_PUT_IV, GEX_CALL_DELTA, GEX_PUT_DELTA, GEX_CALL_GAMMA, GEX_PUT_GAMMA = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
 
+class RepeatTimer(Timer): #Deprecated - Using built in TKinter function now
+	def __init__(self, interval, callback, args=None, kwds=None, daemon=True):
+		Timer.__init__(self, interval, callback, args, kwds)
+		self.daemon = daemon  #Solves runtime error using tkinter from another thread
+		self.stopped = self.stoppedEvent
+		
+	def stoppedEvent(self):
+		print(f'Stop Event {datetime.datetime.today()}')
+		
+	def run(self):#, daemon=True):
+		#self.interval = 60
+		while not self.finished.wait(self.interval):
+			self.function(*self.args, **self.kwargs)
 
 def sessionSetValues(ticker, expDate):
 	sess = requests.Session()
@@ -295,15 +309,21 @@ RecordDate = dates[dteIndex]
 print( 'Fetching SPX data for - ',RecordDate )
 #Sess, Req, Prepped = sessionSetValues('SPX', RecordDate)   # This is only for cool people
 
-
+optionsData = None
+def timerThread():
+	global optionsData
+	optionsData = getGEX(getOptionsChain('SPX', 0)[1])
+	
 FONT_SIZE = 22
 font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic")
 pc_image, pc_tk_image, strikeCanvasImage = None, None, None
 def updateCanvas():
-	global pc_image, pc_tk_image, strikeCanvasImage
+	global pc_image, pc_tk_image, strikeCanvasImage, optionsData
 	win.after(TIMER_INTERVAL, updateCanvas)
-	options = getGEX(getOptionsChain('SPX', 0)[1])
-	options  = OptionPriceTracker.genOPT(options)
+	if optionsData is None : return
+	
+	strikes = shrinkToCount(optionsData, getPrice('SPX', optionsData), 60, remove=True)
+	options  = OptionPriceTracker.genOPT(strikes)
 	IMG_W = 1800
 	IMG_H = 500
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
@@ -311,11 +331,17 @@ def updateCanvas():
 	
 	x = 400
 	y = 0
-
+	maxVolume = max( options, key=lambda o: o.Volume ).Volume
+	maxOI = max( options, key=lambda o: o.OI ).OI
+	BAR_WIDTH = 100
 	for i in range(0, len(options), 2) :
 		call, put = options[i], options[i+1]
 
 		draw.text((x,y), text=f'{call.Strike}', fill='yellow', font=font, anchor='la')
+		val = (call.Volume /  maxVolume) * BAR_WIDTH
+		draw.rectangle([x-val,y,x,y+15], fill='green', outline='green')
+		val = (put.Volume /  maxVolume) * BAR_WIDTH
+		draw.rectangle([x+50,y,x+50+val,y+15], fill='red', outline='red')
 		
 		y += 20
 		
@@ -347,6 +373,11 @@ strikecanvas = tk.Canvas(win,width= 1450, height=805, bg='black')
 strikecanvas.place(x=0, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
 strikecanvas.bind('<Button-1>', on_strike_click, add=None)
+
+
+timer = RepeatTimer(5, timerThread, daemon=True) #5 seconds
+timer.start()
+timerThread()
 
 win.after(500, updateCanvas)
 tk.mainloop()

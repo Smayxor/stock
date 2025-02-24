@@ -1,10 +1,11 @@
 import datetime
 import json #usjon is json written in C
 import tkinter as tk
-from PIL import Image,ImageTk
+from PIL import ImageOps, ImageDraw, ImageGrab, ImageFont, Image,ImageTk
+import PIL.Image as PILImg
 import requests
 
-TIMER_INTERVAL = 5000  # Time in millisecond to update
+TIMER_INTERVAL = 2000  # Time in millisecond to update
 init = json.load(open('apikey.json'))
 API_KEY = init.get('apikey', None)
 if API_KEY is None :
@@ -152,7 +153,7 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 		index = len(strikes) - 1
 		while strikes[index][GEX_STRIKE] != strike: index -= 1
 		return index
-	
+	#print( options )
 	foundSymbols = []
 	for option in options:
 		if not option['root_symbol'] in foundSymbols : foundSymbols.append(option['root_symbol'])
@@ -293,15 +294,42 @@ dteIndex = dates.index( getToday()[0] )
 RecordDate = dates[dteIndex]	
 print( 'Fetching SPX data for - ',RecordDate )
 #Sess, Req, Prepped = sessionSetValues('SPX', RecordDate)   # This is only for cool people
-	
+
+
+FONT_SIZE = 22
+font = ImageFont.truetype("Arimo-Regular.ttf", FONT_SIZE, encoding="unic")
+pc_image, pc_tk_image, strikeCanvasImage = None, None, None
 def updateCanvas():
+	global pc_image, pc_tk_image, strikeCanvasImage
 	win.after(TIMER_INTERVAL, updateCanvas)
+	options = getGEX(getOptionsChain('SPX', 0)[1])
+	options  = OptionPriceTracker.genOPT(options)
+	IMG_W = 1800
+	IMG_H = 500
+	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
+	draw = ImageDraw.Draw(img)
+	
+	x = 400
+	y = 0
+
+	for i in range(0, len(options), 2) :
+		call, put = options[i], options[i+1]
+
+		draw.text((x,y), text=f'{call.Strike}', fill='yellow', font=font, anchor='la')
+		
+		y += 20
+		
+	#draw.line([x, y, x, y + 4], fill=color, width=1)
+	#draw.text((x,y), text=f'{y}', fill='yellow', font=font, anchor='la')
+	#draw.rectangle([x,y,w,h], fill=color, outline=border)
+	
+	#if RAM : return img
+	pc_image = img
+	pc_tk_image = ImageTk.PhotoImage(pc_image)
 	#pc_image = filename#Image.open("./" + filename)
 	#pc_tk_image = ImageTk.PhotoImage(pc_image)
-	#strikecanvas.delete(strikeCanvasImage)
-	#strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW, tag='widget')
-	options = getOptionsChain('SPX', 0)
-	print( options )
+	if not strikeCanvasImage is None: strikecanvas.delete(strikeCanvasImage)
+	strikeCanvasImage = strikecanvas.create_image(0,0,image=pc_tk_image, anchor=tk.NW, tag='widget')
 	
 def on_strike_click(event):
 	pass
@@ -320,5 +348,5 @@ strikecanvas.place(x=0, y=40)
 #strikecanvas.configure(width= 2600, height= 2800)
 strikecanvas.bind('<Button-1>', on_strike_click, add=None)
 
-win.after(TIMER_INTERVAL, updateCanvas)
+win.after(500, updateCanvas)
 tk.mainloop()

@@ -228,7 +228,7 @@ def getGEX(options):  #An increase in IV hints at Retail Buying = High IV is Han
 	return strikes
 
 class OptionPriceTracker():
-	def __init__(self, strikes, isCall, Strike, strikeDelta=None):
+	def __init__(self, strikes, isCall, Strike, SpotPrice=0, strikeDelta=None):
 		self.Strike = Strike
 		self.IsCall = isCall
 		self.Letter = 'c' if isCall else 'p'
@@ -255,14 +255,16 @@ class OptionPriceTracker():
 		self.Delta = strike[self.DeltaElement]
 		if not strikeDelta is None :
 			self.Volume -= strikeDelta[self.Index][self.VolElement]
+		self.GEX = self.Gamma * self.Volume * 100 * SpotPrice * 0.01 * (1 if self.IsCall else -1)
+		#gamma * volume * spot price * 100 * spot price * -.01 for putside
 		
-	def genOPT(strikes, low=0, high=999999, strikeDelta=None):
+	def genOPT(strikes, SpotPrice, low=0, high=999999, strikeDelta=None):
 		Options = []
 		for strike in strikes:
 			val = strike[GEX_STRIKE]
 			if not (low <= val <= high) : continue
-			c = OptionPriceTracker(strikes, True, val, strikeDelta=strikeDelta)
-			p = OptionPriceTracker(strikes, False, val, strikeDelta=strikeDelta)
+			c = OptionPriceTracker(strikes, True, val, SpotPrice=SpotPrice, strikeDelta=strikeDelta)
+			p = OptionPriceTracker(strikes, False, val, SpotPrice=SpotPrice, strikeDelta=strikeDelta)
 			if (c.Index == -1) or (p.Index == -1) : continue
 			Options.append(c)
 			Options.append(p)
@@ -322,10 +324,11 @@ def updateCanvas():
 	win.after(TIMER_INTERVAL, updateCanvas)
 	if optionsData is None : return
 	
-	strikes = shrinkToCount(optionsData, getPrice('SPX', optionsData), 60, remove=True)
-	options  = OptionPriceTracker.genOPT(strikes)
+	SpotPrice = getPrice('SPX', optionsData)
+	strikes = shrinkToCount(optionsData, SpotPrice, 60, remove=True)
+	options  = OptionPriceTracker.genOPT(strikes, SpotPrice)
 	IMG_W = 1800
-	IMG_H = 500
+	IMG_H = 1000
 	img = PILImg.new("RGB", (IMG_W, IMG_H), "#000")
 	draw = ImageDraw.Draw(img)
 	
@@ -333,15 +336,18 @@ def updateCanvas():
 	y = 0
 	maxVolume = max( options, key=lambda o: o.Volume ).Volume
 	maxOI = max( options, key=lambda o: o.OI ).OI
+	maxGEX = abs(max( options, key=lambda o: abs(o.GEX) ).GEX)
 	BAR_WIDTH = 100
 	for i in range(0, len(options), 2) :
 		call, put = options[i], options[i+1]
 
 		draw.text((x,y), text=f'{call.Strike}', fill='yellow', font=font, anchor='la')
-		val = (call.Volume /  maxVolume) * BAR_WIDTH
-		draw.rectangle([x-val,y,x,y+15], fill='green', outline='green')
-		val = (put.Volume /  maxVolume) * BAR_WIDTH
-		draw.rectangle([x+50,y,x+50+val,y+15], fill='red', outline='red')
+		val = (call.GEX / maxGEX) * BAR_WIDTH
+		try :	draw.rectangle([x-val-5,y,x-5,y+15], fill='green', outline='green')
+		except: pass
+		val = (put.GEX / maxGEX) * BAR_WIDTH
+		try: draw.rectangle([x+80,y,x+80-val,y+15], fill='red', outline='red')  # PUT GEX is Negative so we SUBTRACT it
+		except: pass
 		
 		y += 20
 		
@@ -365,12 +371,12 @@ def on_closing():
 	
 win = tk.Tk()
 #win.geometry(str(2200) + "x" + str(IMG_H + 45))
-width, height = 1800, 500
+width, height = 1800, 1000
 win.geometry('%dx%d+%d+%d' % (width, height, 0, 50))
 win.protocol("WM_DELETE_WINDOW", on_closing)
 
-strikecanvas = tk.Canvas(win,width= 1450, height=805, bg='black')
-strikecanvas.place(x=0, y=40)
+strikecanvas = tk.Canvas(win,width= 1800, height=1000, bg='black')
+strikecanvas.place(x=0, y=00)
 #strikecanvas.configure(width= 2600, height= 2800)
 strikecanvas.bind('<Button-1>', on_strike_click, add=None)
 
